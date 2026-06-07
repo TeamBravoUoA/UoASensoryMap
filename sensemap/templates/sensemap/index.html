@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>UoA Sensory Map</title>
+  <style>
+    /* Keep styling minimal here; move to a CSS file as the app grows. */
+    body { font-family: system-ui, sans-serif; margin: 0; color: #1b1b1b; }
+    header { background: #003466; color: #fff; padding: 1rem 1.5rem; }
+    header h1 { margin: 0; font-size: 1.25rem; }
+    header p { margin: 0.25rem 0 0; opacity: 0.85; font-size: 0.9rem; }
+    main { padding: 1.5rem; max-width: 900px; margin: 0 auto; }
+    .card {
+      border: 1px solid #e0e0e0; border-radius: 8px; padding: 1rem;
+      margin-bottom: 1rem;
+    }
+    .card h2 { margin: 0 0 0.25rem; font-size: 1.05rem; }
+    .badge {
+      display: inline-block; font-size: 0.75rem; padding: 0.1rem 0.5rem;
+      border-radius: 999px; background: #e8eef5; color: #003466; margin-left: 0.5rem;
+    }
+    .sensory { display: flex; gap: 0.75rem; flex-wrap: wrap; margin-top: 0.5rem; }
+    .sensory span { font-size: 0.85rem; color: #444; }
+    .loading { color: #666; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>UoA Sensory Map</h1>
+    <p>Find calm, sensory-friendly spaces around campus.</p>
+  </header>
+
+  <main>
+    <h2>Locations</h2>
+    <div id="locations"><p class="loading">Loading locations&hellip;</p></div>
+  </main>
+
+  <script>
+    // Fetch locations from the REST API and render simple cards.
+    // This is the pattern the team should follow for new data: fetch -> render.
+    async function loadLocations() {
+      const container = document.getElementById("locations");
+      try {
+        const response = await fetch("/api/locations/");
+        if (!response.ok) throw new Error("Request failed: " + response.status);
+        const locations = await response.json();
+
+        if (locations.length === 0) {
+          container.innerHTML =
+            "<p>No locations yet. Run <code>python manage.py seed</code>.</p>";
+          return;
+        }
+
+        container.innerHTML = locations.map(function (loc) {
+          const quiet = loc.is_quiet_zone
+            ? '<span class="badge">Quiet zone</span>' : "";
+          return (
+            '<div class="card">' +
+              "<h2>" + loc.name + quiet + "</h2>" +
+              "<p>" + (loc.description || "") + "</p>" +
+              '<div class="sensory">' +
+                "<span>Auditory: " + loc.auditory + "/5</span>" +
+                "<span>Visual: " + loc.visual + "/5</span>" +
+                "<span>Olfactory: " + loc.olfactory + "/5</span>" +
+                "<span>Thermal: " + loc.thermal + "/5</span>" +
+                "<span>Vestibular: " + loc.vestibular + "/5</span>" +
+              "</div>" +
+            "</div>"
+          );
+        }).join("");
+      } catch (err) {
+        container.innerHTML = "<p>Could not load locations: " + err.message + "</p>";
+      }
+    }
+
+    loadLocations();
+  </script>
+</body>
+</html>
