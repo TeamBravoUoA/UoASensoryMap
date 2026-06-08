@@ -30,7 +30,7 @@ Inspired by the [TCD Sense Map](https://tcdsensemap.ie/).
 
 ## Requirements
 
-- Python 3.12+ (developed on 3.14)
+- Python 3.12
 - pip and venv
 
 ## Getting Started
