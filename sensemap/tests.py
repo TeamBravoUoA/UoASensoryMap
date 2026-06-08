@@ -2,13 +2,14 @@ from django.test import TestCase
 
 from .models import Location
 
-
+# Test class for Location model
 class LocationModelTests(TestCase):
     def test_str_returns_name(self):
         loc = Location.objects.create(name="Library", latitude=57.16, longitude=-2.10)
         self.assertEqual(str(loc), "Library")
 
 
+# Test class for Location API
 class LocationAPITests(TestCase):
     def setUp(self):
         Location.objects.create(
