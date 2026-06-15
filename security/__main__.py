@@ -1,0 +1,1 @@
+print("security scanner — scaffold (Task 9). No checks implemented yet.")
