@@ -79,6 +79,35 @@ Inspired by the [TCD Sense Map](https://tcdsensemap.ie/).
 python manage.py test
 ```
 
+## API
+
+Locations are available at:
+
+```text
+GET /api/locations/
+POST /api/locations/
+GET /api/locations/<id>/
+PUT /api/locations/<id>/
+DELETE /api/locations/<id>/
+```
+
+The location list supports simple filters:
+
+```text
+/api/locations/?category=quiet
+/api/locations/?axis=auditory&max_level=2
+/api/locations/?axis=visual&min_level=3
+```
+
+Valid sensory axes are `auditory`, `visual`, `olfactory`, `thermal`, and
+`vestibular`.
+
+## Project Documentation
+
+- Team charter: `docs/team_charter.md`
+- Database schema: `docs/database_schema.md`
+- Report starter notes: `docs/report_drafts.md`
+
 ## Project Structure
 
 ```
