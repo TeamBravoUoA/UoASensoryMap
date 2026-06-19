@@ -1,10 +1,19 @@
-from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
+from django.db.models import Q, CheckConstraint
+from django.core.exceptions import ValidationError
+from django.core.validators import MaxValueValidator, MinValueValidator
 
 class Facility(models.Model):
-    name = models.CharField(max_length=100)
-    icon = models.CharField(max_length=255, blank=True)
+    name = models.CharField(max_length=100, db_index=True)
+    icon_facility_available = models.ImageField(upload_to="facilities/icons/", blank=True, null=True)
+    icon_facility_unavailable = models.ImageField(upload_to="facilities/icons/", blank=True, null=True)
     description = models.TextField(blank=True)
+
+    created_at = models.DateTimeField(auto_now_add=True, null=True, blank=True)
+    updated_at = models.DateTimeField(auto_now=True, null=True, blank=True)
+
+    class Meta:
+        ordering = ["name"]
 
     def __str__(self):
         return self.name
@@ -14,25 +23,36 @@ class SensoryAttribute(models.Model):
     name = models.CharField(max_length=100, unique=True)
     description = models.TextField(blank=True)
 
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
+    created_at = models.DateTimeField(auto_now_add=True, null=True, blank=True)
+    updated_at = models.DateTimeField(auto_now=True, null=True, blank=True)
+
+    class Meta:
+        ordering = ["name"]
 
     def __str__(self):
         return self.name
     
 
 class Location(models.Model):
-
     CAMPUS_CHOICES = [
         ("old aberdeen", "Old Aberdeen"),
         ("foresterhill", "Foresterhill"),
         ("hillhead", "Hillhead"),
     ]
 
-    name = models.CharField(max_length=255)
+    CATEGORY_CHOICES = [
+        ("building", "Building"),
+        ("library", "Library"),
+        ("student_service", "Student Service"),
+        ("cafe", "Cafe"),
+        ("sports", "Sports Facility"),
+        ("other", "Other"),
+    ]
+
+    name = models.CharField(max_length=255, db_index=True)
     also_known_as = models.CharField(max_length=255, blank=True)
-    category = models.CharField(max_length=100)
-    campus = models.CharField(max_length=50, choices=CAMPUS_CHOICES)
+    category = models.CharField(max_length=50, choices=CATEGORY_CHOICES)
+    campus = models.CharField(max_length=50, choices=CAMPUS_CHOICES, db_index=True)
     description = models.TextField(blank=True)
 
     latitude = models.FloatField()
@@ -56,17 +76,19 @@ class Location(models.Model):
 
     thumbnail_image = models.ImageField(
         upload_to="locations/thumbnails/",
-        blank=True
+        blank=True,
+        null = True
     )
 
     facilities = models.ManyToManyField(
         Facility,
-        blank=True,
-        related_name="locations"
+        through="LocationFacility",
+        related_name="locations",
+        blank=True
     )
 
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
+    created_at = models.DateTimeField(auto_now_add=True, null=True, blank=True)
+    updated_at = models.DateTimeField(auto_now=True, null=True, blank=True)
 
     class Meta:
         ordering = ["name"]
@@ -86,7 +108,7 @@ class Space(models.Model):
 
     location = models.ForeignKey(Location, on_delete=models.CASCADE, related_name="spaces")
 
-    name = models.CharField(max_length=255)
+    name = models.CharField(max_length=255, db_index=True)
 
     space_type = models.CharField(max_length=50, choices=SPACE_TYPE_CHOICES)
 
@@ -94,7 +116,8 @@ class Space(models.Model):
 
     thumbnail_image = models.ImageField(
         upload_to="spaces/thumbnails/",
-        blank=True
+        blank=True,
+        null=True
     )
 
     weekday_open_time = models.TimeField(null=True, blank=True)
@@ -117,19 +140,76 @@ class Space(models.Model):
 
     facilities = models.ManyToManyField(
         Facility,
-        blank=True,
-        related_name="spaces"
+        through="SpaceFacility",
+        related_name="spaces",
+        blank=True
     )
 
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
+    created_at = models.DateTimeField(auto_now_add=True, null=True, blank=True)
+    updated_at = models.DateTimeField(auto_now=True, null=True, blank=True)
 
     class Meta:
         ordering = ["name"]
 
     def __str__(self):
         return self.name
-    
+
+
+class LocationFacility(models.Model):
+    location = models.ForeignKey(
+        Location,
+        on_delete=models.CASCADE
+    )
+
+    facility = models.ForeignKey(
+        Facility,
+        on_delete=models.CASCADE
+    )
+
+    status = models.BooleanField(default=True)
+
+    notes = models.TextField(blank=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["location", "facility"],
+                name="unique_location_facility"
+            )
+        ]
+
+    def __str__(self):
+        return f"{self.location} - {self.facility}"
+
+
+
+class SpaceFacility(models.Model):
+    space = models.ForeignKey(
+        Space,
+        on_delete=models.CASCADE
+    )
+
+    facility = models.ForeignKey(
+        Facility,
+        on_delete=models.CASCADE
+    )
+
+    status = models.BooleanField(default=True)
+
+    notes = models.TextField(blank=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["space", "facility"],
+                name="unique_space_facility"
+            )
+        ]
+
+    def __str__(self):
+        return f"{self.space} - {self.facility}"
+
+
     
 class LocationGalleryImage(models.Model):
     location = models.ForeignKey(
@@ -141,7 +221,7 @@ class LocationGalleryImage(models.Model):
     image = models.ImageField(upload_to="locations/gallery/")
     caption = models.CharField(max_length=255, blank=True)
 
-    created_at = models.DateTimeField(auto_now_add=True)
+    created_at = models.DateTimeField(auto_now_add=True, null=True, blank=True)
 
     class Meta:
         ordering = ["created_at"]
@@ -165,15 +245,15 @@ class LocationSensoryProfile(models.Model):
 
     rating = models.PositiveSmallIntegerField(
         validators=[
-            MinValueValidator(1),
+            MinValueValidator(0),
             MaxValueValidator(5)
         ]
     )
 
     notes = models.TextField(blank=True)
 
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
+    created_at = models.DateTimeField(auto_now_add=True, null=True, blank=True)
+    updated_at = models.DateTimeField(auto_now=True, null=True, blank=True)
 
     class Meta:
         ordering = ["sensory_attribute__name"]
@@ -203,15 +283,15 @@ class SpaceSensoryProfile(models.Model):
 
     rating = models.PositiveSmallIntegerField(
         validators=[
-            MinValueValidator(1),
+            MinValueValidator(0),
             MaxValueValidator(5)
         ]
     )
 
     notes = models.TextField(blank=True)
 
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
+    created_at = models.DateTimeField(auto_now_add=True, null=True, blank=True)
+    updated_at = models.DateTimeField(auto_now=True, null=True, blank=True)
 
     class Meta:
         ordering = ["sensory_attribute__name"]
@@ -259,7 +339,21 @@ class FeedbackReport(models.Model):
 
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="pending")
 
-    created_at = models.DateTimeField(auto_now_add=True)
+    created_at = models.DateTimeField(auto_now_add=True, null=True, blank=True)
+
+    class Meta:
+        constraints = [
+            CheckConstraint(
+                condition=(
+                    Q(location__isnull=False, space__isnull=True) |
+                    Q(location__isnull=True, space__isnull=False)
+                ),
+                name="feedback_exclusive_target"
+            )
+        ]
 
     def __str__(self):
-        return f"Feedback #{self.pk}"
+        if self.space:
+            return f"{self.space.name} Feedback"
+
+        return f"{self.location.name} Feedback"
