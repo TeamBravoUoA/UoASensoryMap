@@ -1,44 +1,479 @@
+{% load static %}
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>UoA Sensory Map</title>
+
+  <link
+    rel="stylesheet"
+    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+  />
+
   <style>
-    /* Keep styling minimal here; move to a CSS file as the app grows. */
-    body { font-family: system-ui, sans-serif; margin: 0; color: #1b1b1b; }
-    header { background: #003466; color: #fff; padding: 1rem 1.5rem; }
-    header h1 { margin: 0; font-size: 1.25rem; }
-    header p { margin: 0.25rem 0 0; opacity: 0.85; font-size: 0.9rem; }
-    main { padding: 1.5rem; max-width: 900px; margin: 0 auto; }
-    .card {
-      border: 1px solid #e0e0e0; border-radius: 8px; padding: 1rem;
-      margin-bottom: 1rem;
+    :root {
+      --navy: #141d30;
+      --navy-deep: #10192b;
+      --navy-card: #19344b;
+      --blue-grey: #35586f;
+      --green: #93dfb0;
+      --line: #dde5ea;
+      --text: #172033;
+      --muted: #5e6878;
+      --surface: #ffffff;
+      --page: #f6f8fa;
     }
-    .card h2 { margin: 0 0 0.25rem; font-size: 1.05rem; }
-    .badge {
-      display: inline-block; font-size: 0.75rem; padding: 0.1rem 0.5rem;
-      border-radius: 999px; background: #e8eef5; color: #003466; margin-left: 0.5rem;
+
+    * { box-sizing: border-box; }
+
+    html, body {
+      margin: 0;
+      height: 100%;
+      color: var(--text);
+      background: var(--page);
+      font-family: "Trebuchet MS", Arial, sans-serif;
     }
-    .sensory { display: flex; gap: 0.75rem; flex-wrap: wrap; margin-top: 0.5rem; }
-    .sensory span { font-size: 0.85rem; color: #444; }
-    .loading { color: #666; }
+
+    body {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    header {
+      position: relative;
+      z-index: 1000;
+      display: grid;
+      grid-template-columns: minmax(220px, 1fr) auto minmax(130px, 0.4fr);
+      align-items: center;
+      gap: 1.25rem;
+      min-height: 56px;
+      padding: 0.4rem 1.25rem;
+      color: #fff;
+      background: var(--navy);
+    }
+
+    h1 {
+      margin: 0;
+      color: #fff;
+      font-family: "Trebuchet MS", Arial, sans-serif;
+      font-size: clamp(1.05rem, 1.6vw, 1.4rem);
+      font-weight: 800;
+      line-height: 1;
+      letter-spacing: 0.01em;
+      white-space: nowrap;
+    }
+
+    nav {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      gap: clamp(1rem, 2.4vw, 2.4rem);
+    }
+
+    nav > a,
+    .nav-item > a {
+      position: relative;
+      display: flex;
+      align-items: center;
+      min-width: auto;
+      padding: 0.6rem 0;
+      color: #fff;
+      text-decoration: none;
+      font-size: clamp(0.85rem, 1vw, 1.02rem);
+      font-weight: 500;
+      white-space: nowrap;
+    }
+
+    nav > a::after,
+    .nav-item > a::after {
+      content: "";
+      position: absolute;
+      right: 0;
+      bottom: 0.2rem;
+      left: 0;
+      height: 2px;
+      border-radius: 999px;
+      background: var(--green);
+      transform: scaleX(0);
+      transition: transform 160ms ease;
+    }
+
+    nav > a:hover::after,
+    nav > a:focus-visible::after,
+    .nav-item:hover > a::after,
+    .nav-item:focus-within > a::after {
+      transform: scaleX(1);
+    }
+
+    .nav-item {
+      position: relative;
+      display: flex;
+      align-items: center;
+      height: 100%;
+    }
+
+    .dropdown {
+      position: absolute;
+      top: calc(100% + 0.4rem);
+      left: 50%;
+      width: 250px;
+      padding: 0.5rem 0;
+      border-top: 3px solid var(--green);
+      border-radius: 0 0 8px 8px;
+      background: var(--navy-card);
+      box-shadow: 0 16px 32px rgba(0, 0, 0, 0.32);
+      z-index: 20;
+
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+      transform: translate(-50%, 10px);
+      transition:
+        opacity 160ms ease,
+        visibility 160ms ease,
+        transform 160ms ease;
+    }
+
+    .nav-item:hover .dropdown,
+    .nav-item:focus-within .dropdown {
+      opacity: 1;
+      visibility: visible;
+      pointer-events: auto;
+      transform: translate(-50%, 0);
+    }
+
+    .dropdown a {
+      display: block;
+      min-width: 0;
+      padding: 0.65rem 1rem;
+      color: #fff;
+      text-decoration: none;
+      font-size: 0.88rem;
+      font-weight: 500;
+      line-height: 1.3;
+      transition:
+        color 150ms ease,
+        background 150ms ease,
+        padding-left 150ms ease;
+    }
+
+    .dropdown a:hover,
+    .dropdown a:focus-visible {
+      padding-left: 1.3rem;
+      color: var(--navy);
+      background: var(--green);
+      outline: none;
+    }
+
+    .search-wrap {
+      position: relative;
+      justify-self: end;
+      width: min(185px, 100%);
+    }
+
+    .search-wrap::before {
+      content: "";
+      position: absolute;
+      top: 50%;
+      left: 0.65rem;
+      z-index: 2;
+      width: 12px;
+      height: 12px;
+      border: 2px solid var(--green);
+      border-radius: 50%;
+      transform: translateY(-60%);
+      pointer-events: none;
+    }
+
+    .search-wrap::after {
+      content: "";
+      position: absolute;
+      top: 58%;
+      left: 1.5rem;
+      z-index: 2;
+      width: 6px;
+      height: 2px;
+      border-radius: 999px;
+      background: var(--green);
+      transform: rotate(45deg);
+      pointer-events: none;
+    }
+
+    #search {
+      width: 100%;
+      height: 34px;
+      padding: 0 0.6rem 0 2.1rem;
+      border: 0;
+      border-radius: 999px;
+      color: #fff;
+      background: var(--blue-grey);
+      font: inherit;
+      font-size: 0.85rem;
+      outline: none;
+    }
+
+    #search::placeholder {
+      color: #fff;
+      opacity: 1;
+    }
+
+    #search:focus {
+      box-shadow: 0 0 0 3px var(--green);
+    }
+
+    /* Filters strip sits as a thin bar above the full-screen map */
+    .filters {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      padding: 0.5rem 1.25rem;
+      background: var(--surface);
+      border-bottom: 1px solid var(--line);
+    }
+
+    .filters button {
+      min-width: 120px;
+      border: 1px solid #cbd5df;
+      border-radius: 8px;
+      padding: 0.45rem 0.9rem;
+      color: var(--navy);
+      background: #fff;
+      font: inherit;
+      font-size: 0.85rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition:
+        color 150ms ease,
+        background 150ms ease,
+        border-color 150ms ease,
+        transform 150ms ease;
+    }
+
+    .filters button:hover,
+    .filters button:focus-visible {
+      border-color: var(--green);
+      background: var(--green);
+      outline: none;
+      transform: translateY(-1px);
+    }
+
+    .filters .clear-filter {
+      min-width: 80px;
+      width: auto;
+      align-self: center;
+      padding: 0.3rem 0.65rem;
+      font-size: 0.8rem;
+      line-height: 1;
+    }
+
+    .filters .clear-filter:hover,
+    .filters .clear-filter:focus-visible {
+      color: #fff;
+      border-color: #c62828;
+      background: #c62828;
+    }
+
+    /* Map fills the rest of the screen */
+    main {
+      position: relative;
+      flex: 1;
+      min-height: 0;
+    }
+
+    #map {
+      width: 100%;
+      height: 100%;
+      background: #c7d9c1;
+    }
+
+    .leaflet-container {
+      font: inherit;
+      background: #c7d9c1;
+    }
+
+    /* Location list now floats as a panel over the map instead of taking layout space */
+    .location-card {
+      position: absolute;
+      top: 1rem;
+      right: 1rem;
+      z-index: 500;
+      width: 240px;
+      max-height: calc(100% - 2rem);
+      overflow-y: auto;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: var(--surface);
+      box-shadow: 0 18px 42px rgba(17, 31, 50, 0.18);
+    }
+
+    .location-list {
+      margin: 0;
+      padding: 0.4rem 0;
+      list-style: none;
+    }
+
+    .location-list li {
+      display: grid;
+      grid-template-columns: 2.2rem 1fr;
+      align-items: center;
+      min-height: 42px;
+      padding: 0.4rem 0.9rem;
+      border-bottom: 1px solid var(--line);
+      color: var(--muted);
+      font-size: 0.82rem; 
+      line-height: 1.2;
+    }
+
+    .location-list strong {
+      color: #0a3f7c; 
+      font-size: 0.92rem;
+      font-weight: 800;
+    }
+
+    @media (max-width: 980px) {
+      header {
+        grid-template-columns: 1fr;
+        gap: 0.5rem;
+        min-height: auto;
+        padding: 0.6rem 1rem;
+      }
+
+      h1 {
+        max-width: none;
+      }
+
+      nav {
+        justify-content: center;
+        height: auto;
+        flex-wrap: wrap;
+      }
+
+      .dropdown {
+        top: 100%;
+      }
+
+      .search-wrap {
+        justify-self: stretch;
+        width: 100%;
+      }
+
+      .location-card {
+        position: static;
+        width: 100%;
+        max-height: 240px;
+        margin-top: 0.5rem;
+        border-radius: 0;
+      }
+
+      main {
+        display: flex;
+        flex-direction: column;
+      }
+    }
   </style>
 </head>
+
 <body>
   <header>
     <h1>UoA Sensory Map</h1>
-    <p>Find calm, sensory-friendly spaces around campus.</p>
+
+    <nav aria-label="Primary">
+      <div class="nav-item">
+        <a href="#map">Map</a>
+
+        <div class="dropdown">
+          <a href="#map">Old campus</a>
+          <a href="#map">Foresterhill campus</a>
+          <a href="#map">Hillhead student accommodation</a>
+        </div>
+      </div>
+
+      <a href="#locations">List</a>
+      <a href="#legend">Legend</a>
+      <a href="#help">Help</a>
+    </nav>
+
+    <label class="search-wrap" for="search">
+      <input
+        type="text"
+        id="search"
+        placeholder="Search places..."
+      />
+    </label>
   </header>
 
+  <div class="filters">
+    <button type="button">Study space</button>
+    <button type="button">Social space</button>
+    <button type="button">Quiet zone</button>
+    <button type="button">Outdoor</button>
+    <button type="button" class="clear-filter" aria-label="Clear filters" title="Clear filters">Clear ✕</button>
+  </div>
+
   <main>
-    <h2>Locations</h2>
-    <div id="locations"><p class="loading">Loading locations&hellip;</p></div>
+    <div id="map"></div>
+
+    <aside class="location-card" id="locations">
+      <ol class="location-list">
+        <li class="loading"><span>Loading locations&hellip;</span></li>
+      </ol>
+    </aside>
   </main>
 
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
   <script>
-    // Fetch locations from the REST API and render simple cards.
-    // This is the pattern the team should follow for new data: fetch -> render.
+    const imageWidth = 1440;
+    const imageHeight = 1344;
+    const bounds = [[0, 0], [imageHeight, imageWidth]];
+
+    const campusMap = L.map("map", {
+      crs: L.CRS.Simple,
+      minZoom: -1,
+      maxZoom: 2,
+      zoomSnap: 0.25,
+      maxBounds: bounds,
+      maxBoundsViscosity: 0.8,
+      attributionControl: false
+    });
+
+    /*
+      Remember to put Old Aberdeen campus image in the project folder and name it old-campus.png
+    */
+    L.imageOverlay("{% static 'images/old-campus.png' %}", bounds).addTo(campusMap);
+    campusMap.fitBounds(bounds);
+
+    // Static fallback pins (used until/unless the API provides coordinates)
+    {% comment %} const fallbackPlaces = [
+      { name: "Sir Duncan Rice Library", point: [593, 373] },
+      { name: "King's College area", point: [758, 404] },
+      { name: "Elphinstone Hall", point: [705, 408] },
+      { name: "Cruickshank Botanic Garden", point: [184, 352] },
+      { name: "New King's", point: [562, 504] },
+      { name: "Regent Walk", point: [885, 1070] }
+    ]; {% endcomment %}
+
+    {% comment %} function addMarker(place) {
+      L.circleMarker(place.point, {
+        radius: 8,
+        color: "#fff",
+        weight: 3,
+        fillColor: "#073f7d",
+        fillOpacity: 1
+      })
+        .addTo(campusMap)
+        .bindPopup("<strong>" + place.name + "</strong>");
+    }
+
+    fallbackPlaces.forEach(addMarker); {% endcomment %}
+
+    // Fetch sensory location data from the REST API and render the side panel list.
+    // Falls back gracefully if the API isn't available.
     async function loadLocations() {
       const container = document.getElementById("locations");
       try {
@@ -46,31 +481,33 @@
         if (!response.ok) throw new Error("Request failed: " + response.status);
         const locations = await response.json();
 
-        if (locations.length === 0) {
+        if (!locations || locations.length === 0) {
           container.innerHTML =
-            "<p>No locations yet. Run <code>python manage.py seed</code>.</p>";
+            '<ol class="location-list"><li><span>No locations yet. Run <span class="code">python manage.py seed</span>.</span></li></ol>';
           return;
         }
 
-        container.innerHTML = locations.map(function (loc) {
-          const quiet = loc.is_quiet_zone
-            ? '<span class="badge">Quiet zone</span>' : "";
-          return (
-            '<div class="card">' +
-              "<h2>" + loc.name + quiet + "</h2>" +
-              "<p>" + (loc.description || "") + "</p>" +
-              '<div class="sensory">' +
-                "<span>Auditory: " + loc.auditory + "/5</span>" +
-                "<span>Visual: " + loc.visual + "/5</span>" +
-                "<span>Olfactory: " + loc.olfactory + "/5</span>" +
-                "<span>Thermal: " + loc.thermal + "/5</span>" +
-                "<span>Vestibular: " + loc.vestibular + "/5</span>" +
-              "</div>" +
-            "</div>"
-          );
-        }).join("");
+        container.innerHTML =
+          '<ol class="location-list">' +
+          locations
+            .map(function (loc, index) {
+              const quiet = loc.is_quiet_zone ? " (Quiet zone)" : "";
+              return (
+                "<li><strong>" +
+                (index + 1) +
+                "</strong><span>" +
+                loc.name +
+                quiet +
+                "</span></li>"
+              );
+            })
+            .join("") +
+          "</ol>";
       } catch (err) {
-        container.innerHTML = "<p>Could not load locations: " + err.message + "</p>";
+        container.innerHTML =
+          '<ol class="location-list"><li><span>Could not load locations: ' +
+          err.message +
+          "</span></li></ol>";
       }
     }
 
