@@ -19,3 +19,7 @@ class LocationViewSet(viewsets.ModelViewSet):
 def index(request):
     """Render the home page (map + list of locations)."""
     return render(request, "sensemap/index.html")
+
+def list(request):
+    """Render the list page of locations."""
+    return render(request, "sensemap/list.html")

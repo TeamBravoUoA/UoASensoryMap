@@ -12,4 +12,5 @@ router.register(r"locations", views.LocationViewSet, basename="location")
 urlpatterns = [
     path("", views.index, name="index"),
     path("api/", include(router.urls)),
+    path("list/", views.list, name="list")
 ]

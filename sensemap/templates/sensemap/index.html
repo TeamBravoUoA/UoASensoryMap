@@ -1,5 +1,3 @@
-{% load static %}
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -43,6 +41,7 @@
       overflow: hidden;
     }
 
+    /* Header: height reduced significantly from the original (was 145px min-height) */
     header {
       position: relative;
       z-index: 1000;
@@ -325,12 +324,12 @@
       padding: 0.4rem 0.9rem;
       border-bottom: 1px solid var(--line);
       color: var(--muted);
-      font-size: 0.82rem; 
+      font-size: 0.82rem;
       line-height: 1.2;
     }
 
     .location-list strong {
-      color: #0a3f7c; 
+      color: #0a3f7c;
       font-size: 0.92rem;
       font-weight: 800;
     }
@@ -402,7 +401,7 @@
       <input
         type="text"
         id="search"
-        placeholder="Search places..."
+        placeholder="Search places...."
       />
     </label>
   </header>
@@ -428,44 +427,34 @@
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
   <script>
-    const imageWidth = 1440;
-    const imageHeight = 1344;
-    const bounds = [[0, 0], [imageHeight, imageWidth]];
-
+    // Centered on the University of Aberdeen Old Aberdeen campus.
     const campusMap = L.map("map", {
-      crs: L.CRS.Simple,
-      minZoom: -1,
-      maxZoom: 2,
-      zoomSnap: 0.25,
-      maxBounds: bounds,
-      maxBoundsViscosity: 0.8,
-      attributionControl: false
+      center: [57.1655, -2.0975],
+      zoom: 16,
+      minZoom: 14,
+      maxZoom: 19,
+      attributionControl: true
     });
 
-    /*
-      Remember to put Old Aberdeen campus image in the project folder and name it old-campus.png
-    */
-    L.imageOverlay("{% static 'images/old-campus.png' %}", bounds).addTo(campusMap);
-    campusMap.fitBounds(bounds);
+    // Real-world tiles from OpenStreetMap (free, no API key required).
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      maxZoom: 19,
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+    }).addTo(campusMap);
 
-    // Static fallback pins (used until/unless the API provides coordinates)
+    // Coordinates are approximate — verify exact pins by right-clicking the
+    // real location on openstreetmap.org and copying the lat/lng shown.
     {% comment %} const fallbackPlaces = [
-      { name: "Sir Duncan Rice Library", point: [593, 373] },
-      { name: "King's College area", point: [758, 404] },
-      { name: "Elphinstone Hall", point: [705, 408] },
-      { name: "Cruickshank Botanic Garden", point: [184, 352] },
-      { name: "New King's", point: [562, 504] },
-      { name: "Regent Walk", point: [885, 1070] }
-    ]; {% endcomment %}
+      { name: "Sir Duncan Rice Library", point: [57.1646, -2.0972] },
+      { name: "King's College area", point: [57.1655, -2.0975] },
+      { name: "Elphinstone Hall", point: [57.1657, -2.0972] },
+      { name: "Cruickshank Botanic Garden", point: [57.1668, -2.0998] },
+      { name: "New King's", point: [57.1648, -2.0965] },
+      { name: "Regent Walk", point: [57.1610, -2.0940] }
+    ];
 
-    {% comment %} function addMarker(place) {
-      L.circleMarker(place.point, {
-        radius: 8,
-        color: "#fff",
-        weight: 3,
-        fillColor: "#073f7d",
-        fillOpacity: 1
-      })
+    function addMarker(place) {
+      L.marker(place.point)
         .addTo(campusMap)
         .bindPopup("<strong>" + place.name + "</strong>");
     }
@@ -483,7 +472,7 @@
 
         if (!locations || locations.length === 0) {
           container.innerHTML =
-            '<ol class="location-list"><li><span>No locations yet. Run <span class="code">python manage.py seed</span>.</span></li></ol>';
+            '<ol class="location-list"><li><span>No locations yet. Run <code>python manage.py seed</code>.</span></li></ol>';
           return;
         }
 
