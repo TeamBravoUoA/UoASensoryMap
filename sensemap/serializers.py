@@ -18,10 +18,4 @@ class LocationSerializer(serializers.ModelSerializer):
             "category",
             "latitude",
             "longitude",
-            "auditory",
-            "visual",
-            "olfactory",
-            "thermal",
-            "vestibular",
-            "is_quiet_zone",
         ]
