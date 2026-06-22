@@ -4,13 +4,13 @@ from django.core.exceptions import ValidationError
 from django.core.validators import MaxValueValidator, MinValueValidator
 
 class Facility(models.Model):
-    name = models.CharField(max_length=100, db_index=True)
+    name = models.CharField(max_length=100, unique=True, db_index=True)
     icon_facility_available = models.ImageField(upload_to="facilities/icons/", blank=True, null=True)
     icon_facility_unavailable = models.ImageField(upload_to="facilities/icons/", blank=True, null=True)
     description = models.TextField(blank=True)
 
-    created_at = models.DateTimeField(auto_now_add=True, null=True, blank=True)
-    updated_at = models.DateTimeField(auto_now=True, null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         ordering = ["name"]
@@ -23,8 +23,8 @@ class SensoryAttribute(models.Model):
     name = models.CharField(max_length=100, unique=True)
     description = models.TextField(blank=True)
 
-    created_at = models.DateTimeField(auto_now_add=True, null=True, blank=True)
-    updated_at = models.DateTimeField(auto_now=True, null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         ordering = ["name"]
@@ -35,28 +35,30 @@ class SensoryAttribute(models.Model):
 
 class Location(models.Model):
     CAMPUS_CHOICES = [
-        ("old aberdeen", "Old Aberdeen"),
+        ("old_aberdeen", "Old Aberdeen"),
         ("foresterhill", "Foresterhill"),
         ("hillhead", "Hillhead"),
     ]
 
     CATEGORY_CHOICES = [
-        ("building", "Building"),
+        ("teaching_building", "Teaching Building"),
+        ("cultural_space", "Cultural Space"),
+        ("conference_events", "Conference / Events Building"),
         ("library", "Library"),
-        ("student_service", "Student Service"),
-        ("cafe", "Cafe"),
-        ("sports", "Sports Facility"),
-        ("other", "Other"),
+        ("social_building", "Social Building"),
+        ("student_services", "Student Services"),
+        ("research_laboratory", "Research / Laboratories"),
+        ("garden", "Garden"),
     ]
 
-    name = models.CharField(max_length=255, db_index=True)
+    name = models.CharField(max_length=255, unique=True, db_index=True)
     also_known_as = models.CharField(max_length=255, blank=True)
-    category = models.CharField(max_length=50, choices=CATEGORY_CHOICES)
+    category = models.CharField(max_length=50, choices=CATEGORY_CHOICES, db_index=True)
     campus = models.CharField(max_length=50, choices=CAMPUS_CHOICES, db_index=True)
     description = models.TextField(blank=True)
 
-    latitude = models.FloatField()
-    longitude = models.FloatField()
+    latitude = models.DecimalField(max_digits=9, decimal_places=6)
+    longitude = models.DecimalField(max_digits=9, decimal_places=6)
 
     weekday_open_time = models.TimeField(null=True, blank=True)
     weekday_close_time = models.TimeField(null=True, blank=True)
@@ -87,8 +89,8 @@ class Location(models.Model):
         blank=True
     )
 
-    created_at = models.DateTimeField(auto_now_add=True, null=True, blank=True)
-    updated_at = models.DateTimeField(auto_now=True, null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         ordering = ["name"]
@@ -110,7 +112,7 @@ class Space(models.Model):
 
     name = models.CharField(max_length=255, db_index=True)
 
-    space_type = models.CharField(max_length=50, choices=SPACE_TYPE_CHOICES)
+    space_type = models.CharField(max_length=50, choices=SPACE_TYPE_CHOICES, db_index=True)
 
     description = models.TextField(blank=True)
 
@@ -145,11 +147,17 @@ class Space(models.Model):
         blank=True
     )
 
-    created_at = models.DateTimeField(auto_now_add=True, null=True, blank=True)
-    updated_at = models.DateTimeField(auto_now=True, null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         ordering = ["name"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["location", "name"],
+                name="unique_space_name_per_location"
+            )
+        ]
 
     def __str__(self):
         return self.name
@@ -158,12 +166,14 @@ class Space(models.Model):
 class LocationFacility(models.Model):
     location = models.ForeignKey(
         Location,
-        on_delete=models.CASCADE
+        on_delete=models.CASCADE,
+        related_name="location_facilities"
     )
 
     facility = models.ForeignKey(
         Facility,
-        on_delete=models.CASCADE
+        on_delete=models.CASCADE,
+        related_name="location_facilities"
     )
 
     status = models.BooleanField(default=True)
@@ -171,6 +181,7 @@ class LocationFacility(models.Model):
     notes = models.TextField(blank=True)
 
     class Meta:
+        ordering = ["facility__name"]
         constraints = [
             models.UniqueConstraint(
                 fields=["location", "facility"],
@@ -179,19 +190,21 @@ class LocationFacility(models.Model):
         ]
 
     def __str__(self):
-        return f"{self.location} - {self.facility}"
+        return f"{self.location.name} - {self.facility.name}"
 
 
 
 class SpaceFacility(models.Model):
     space = models.ForeignKey(
         Space,
-        on_delete=models.CASCADE
+        on_delete=models.CASCADE,
+        related_name="space_facilities"
     )
 
     facility = models.ForeignKey(
         Facility,
-        on_delete=models.CASCADE
+        on_delete=models.CASCADE,
+        related_name="space_facilities"
     )
 
     status = models.BooleanField(default=True)
@@ -199,6 +212,7 @@ class SpaceFacility(models.Model):
     notes = models.TextField(blank=True)
 
     class Meta:
+        ordering = ["facility__name"]
         constraints = [
             models.UniqueConstraint(
                 fields=["space", "facility"],
@@ -207,7 +221,7 @@ class SpaceFacility(models.Model):
         ]
 
     def __str__(self):
-        return f"{self.space} - {self.facility}"
+        return f"{self.space.name} - {self.facility.name}"
 
 
     
@@ -221,7 +235,7 @@ class LocationGalleryImage(models.Model):
     image = models.ImageField(upload_to="locations/gallery/")
     caption = models.CharField(max_length=255, blank=True)
 
-    created_at = models.DateTimeField(auto_now_add=True, null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         ordering = ["created_at"]
@@ -234,26 +248,26 @@ class LocationSensoryProfile(models.Model):
     location = models.ForeignKey(
         Location,
         on_delete=models.CASCADE,
-        related_name="sensory_profiles"
+        related_name="location_sensory_profiles"
     )
 
     sensory_attribute = models.ForeignKey(
         SensoryAttribute,
         on_delete=models.CASCADE,
-        related_name="location_profiles"
+        related_name="location_sensory_profiles"
     )
 
     rating = models.PositiveSmallIntegerField(
         validators=[
-            MinValueValidator(0),
+            MinValueValidator(1),
             MaxValueValidator(5)
         ]
     )
 
     notes = models.TextField(blank=True)
 
-    created_at = models.DateTimeField(auto_now_add=True, null=True, blank=True)
-    updated_at = models.DateTimeField(auto_now=True, null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         ordering = ["sensory_attribute__name"]
@@ -272,26 +286,26 @@ class SpaceSensoryProfile(models.Model):
     space = models.ForeignKey(
         Space,
         on_delete=models.CASCADE,
-        related_name="sensory_profiles"
+        related_name="space_sensory_profiles"
     )
 
     sensory_attribute = models.ForeignKey(
         SensoryAttribute,
         on_delete=models.CASCADE,
-        related_name="space_profiles"
+        related_name="space_sensory_profiles"
     )
 
     rating = models.PositiveSmallIntegerField(
         validators=[
-            MinValueValidator(0),
+            MinValueValidator(1),
             MaxValueValidator(5)
         ]
     )
 
     notes = models.TextField(blank=True)
 
-    created_at = models.DateTimeField(auto_now_add=True, null=True, blank=True)
-    updated_at = models.DateTimeField(auto_now=True, null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         ordering = ["sensory_attribute__name"]
@@ -339,9 +353,10 @@ class FeedbackReport(models.Model):
 
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="pending")
 
-    created_at = models.DateTimeField(auto_now_add=True, null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
+        ordering = ["-created_at"]
         constraints = [
             CheckConstraint(
                 condition=(
@@ -351,6 +366,13 @@ class FeedbackReport(models.Model):
                 name="feedback_exclusive_target"
             )
         ]
+    
+    def clean(self):
+        if not self.is_anonymous:
+            if not self.reporter_name or not self.reporter_email:
+                raise ValidationError(
+                    "Name and email are required for non-anonymous feedback."
+                )
 
     def __str__(self):
         if self.space:
