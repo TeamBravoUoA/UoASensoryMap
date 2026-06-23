@@ -1,29 +1,75 @@
 from django.test import TestCase
 from django.urls import reverse
 
-from .models import Location
+from .models import Location, LocationSensoryProfile, SensoryAttribute, Space
 
 
-# Test class for Location model
 class LocationModelTests(TestCase):
     def test_str_returns_name(self):
-        loc = Location.objects.create(name="Library", latitude=57.16, longitude=-2.10)
+        loc = Location.objects.create(
+            name="Library",
+            category="library",
+            campus="old_aberdeen",
+            latitude=57.160000,
+            longitude=-2.100000,
+        )
         self.assertEqual(str(loc), "Library")
 
 
-# Test class for Location API
 class LocationAPITests(TestCase):
     def setUp(self):
-        Location.objects.create(
-            name="Quiet Room", category="quiet", latitude=57.16, longitude=-2.10,
-            description="Low stimulation study room.",
-            auditory=1, is_quiet_zone=True,
+        self.auditory = SensoryAttribute.objects.create(
+            name="auditory",
+            description="Noise level",
         )
-        Location.objects.create(
-            name="Busy Cafe", category="food", latitude=57.17, longitude=-2.11,
+        self.visual = SensoryAttribute.objects.create(
+            name="visual",
+            description="Lighting and visual stimulation",
+        )
+
+        self.quiet_room = Location.objects.create(
+            name="Quiet Room",
+            category="library",
+            campus="old_aberdeen",
+            latitude=57.160000,
+            longitude=-2.100000,
+            description="Low stimulation study room.",
+        )
+        self.busy_cafe = Location.objects.create(
+            name="Busy Cafe",
+            category="social_building",
+            campus="old_aberdeen",
+            latitude=57.170000,
+            longitude=-2.110000,
             description="Cafe with background noise.",
-            auditory=5, visual=4, olfactory=4, thermal=3, vestibular=3,
-            is_quiet_zone=False,
+        )
+
+        Space.objects.create(
+            location=self.quiet_room,
+            name="Quiet Study Space",
+            space_type="quiet",
+            is_quiet_zone=True,
+        )
+
+        LocationSensoryProfile.objects.create(
+            location=self.quiet_room,
+            sensory_attribute=self.auditory,
+            rating=1,
+        )
+        LocationSensoryProfile.objects.create(
+            location=self.quiet_room,
+            sensory_attribute=self.visual,
+            rating=2,
+        )
+        LocationSensoryProfile.objects.create(
+            location=self.busy_cafe,
+            sensory_attribute=self.auditory,
+            rating=5,
+        )
+        LocationSensoryProfile.objects.create(
+            location=self.busy_cafe,
+            sensory_attribute=self.visual,
+            rating=4,
         )
 
     def test_list_locations_returns_data(self):
@@ -33,6 +79,7 @@ class LocationAPITests(TestCase):
         self.assertEqual(len(data), 2)
         self.assertIn("created_at", data[0])
         self.assertIn("updated_at", data[0])
+        self.assertIn("sensory_profiles", data[0])
 
     def test_locations_route_is_registered(self):
         response = self.client.get(reverse("location-list"))
@@ -40,10 +87,11 @@ class LocationAPITests(TestCase):
 
     def test_create_location(self):
         payload = {
-            "name": "New Cafe", "category": "food",
-            "latitude": 57.165, "longitude": -2.101,
-            "auditory": 3, "visual": 2, "olfactory": 3,
-            "thermal": 3, "vestibular": 2, "is_quiet_zone": False,
+            "name": "New Teaching Building",
+            "category": "teaching_building",
+            "campus": "old_aberdeen",
+            "latitude": "57.165000",
+            "longitude": "-2.101000",
         }
         response = self.client.post(
             "/api/locations/", data=payload, content_type="application/json"
@@ -52,7 +100,7 @@ class LocationAPITests(TestCase):
         self.assertEqual(Location.objects.count(), 3)
 
     def test_filter_locations_by_category(self):
-        response = self.client.get("/api/locations/?category=quiet")
+        response = self.client.get("/api/locations/?category=library")
         self.assertEqual(response.status_code, 200)
         data = response.json()
         self.assertEqual(len(data), 1)
@@ -88,7 +136,7 @@ class LocationAPITests(TestCase):
 
     def test_filter_locations_by_category_and_axis(self):
         response = self.client.get(
-            "/api/locations/?category=food&axis=auditory&min_level=4"
+            "/api/locations/?category=social_building&axis=auditory&min_level=4"
         )
         self.assertEqual(response.status_code, 200)
         data = response.json()
@@ -112,8 +160,8 @@ class LocationAPITests(TestCase):
         self.assertEqual(len(data), 1)
         self.assertEqual(data[0]["name"], "Quiet Room")
 
-    def test_order_locations_by_sensory_axis(self):
-        response = self.client.get("/api/locations/?ordering=-auditory")
+    def test_order_locations_by_name(self):
+        response = self.client.get("/api/locations/?ordering=-name")
         self.assertEqual(response.status_code, 200)
         data = response.json()
-        self.assertEqual(data[0]["name"], "Busy Cafe")
+        self.assertEqual(data[0]["name"], "Quiet Room")
