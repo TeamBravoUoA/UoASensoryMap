@@ -46,12 +46,7 @@ class LocationSensoryProfileSerializer(serializers.ModelSerializer):
 
 
 class LocationSerializer(serializers.ModelSerializer):
-    """Expose location data using Umama's database schema.
-
-    Nested facility and sensory profile data is read-only for now, so the main
-    location endpoint can safely list/create/update location records while still
-    giving the frontend the related data it needs for display and filtering.
-    """
+    """Expose location data using Umama's database schema."""
 
     facilities_status = LocationFacilitySerializer(
         source="location_facilities",

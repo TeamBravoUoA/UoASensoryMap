@@ -1,7 +1,7 @@
 from django.test import TestCase
 from django.urls import reverse
 
-from .models import Location, LocationSensoryProfile, SensoryAttribute, Space
+from ..models import Location, LocationSensoryProfile, SensoryAttribute, Space
 
 
 class LocationModelTests(TestCase):
@@ -85,6 +85,11 @@ class LocationAPITests(TestCase):
         response = self.client.get(reverse("location-list"))
         self.assertEqual(response.status_code, 200)
 
+    def test_retrieve_single_location(self):
+        response = self.client.get(f"/api/locations/{self.quiet_room.id}/")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["name"], "Quiet Room")
+
     def test_create_location(self):
         payload = {
             "name": "New Teaching Building",
@@ -98,6 +103,37 @@ class LocationAPITests(TestCase):
         )
         self.assertEqual(response.status_code, 201)
         self.assertEqual(Location.objects.count(), 3)
+
+    def test_update_location(self):
+        response = self.client.patch(
+            f"/api/locations/{self.busy_cafe.id}/",
+            data={"description": "Updated cafe description."},
+            content_type="application/json",
+        )
+        self.assertEqual(response.status_code, 200)
+        self.busy_cafe.refresh_from_db()
+        self.assertEqual(self.busy_cafe.description, "Updated cafe description.")
+
+    def test_delete_location(self):
+        response = self.client.delete(f"/api/locations/{self.busy_cafe.id}/")
+        self.assertEqual(response.status_code, 204)
+        self.assertFalse(Location.objects.filter(id=self.busy_cafe.id).exists())
+
+    def test_retrieve_nonexistent_location_returns_404(self):
+        response = self.client.get("/api/locations/9999/")
+        self.assertEqual(response.status_code, 404)
+
+    def test_create_location_missing_required_field_fails(self):
+        payload = {
+            "category": "library",
+            "campus": "old_aberdeen",
+            "latitude": "57.100000",
+            "longitude": "-2.100000",
+        }
+        response = self.client.post(
+            "/api/locations/", data=payload, content_type="application/json"
+        )
+        self.assertEqual(response.status_code, 400)
 
     def test_filter_locations_by_category(self):
         response = self.client.get("/api/locations/?category=library")
