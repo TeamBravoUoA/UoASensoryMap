@@ -24,4 +24,7 @@ class LocationSerializer(serializers.ModelSerializer):
             "thermal",
             "vestibular",
             "is_quiet_zone",
+            "created_at",
+            "updated_at",
         ]
+        read_only_fields = ["id", "created_at", "updated_at"]
