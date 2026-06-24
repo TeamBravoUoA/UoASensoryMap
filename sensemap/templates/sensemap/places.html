@@ -1,0 +1,86 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>All places &middot; UoA Sensory Map</title>
+  <meta name="description" content="Browse every sensory-rated place across the University of Aberdeen campuses." />
+  <link rel="stylesheet" href="{% static 'sensemap/css/styles.css' %}" />
+  <link rel="icon" type="image/png" href="{% static 'sensemap/icons/logo.png' %}">
+</head>
+<body>
+  <a href="#places-list" class="skip-link">Skip to places list</a>
+
+  <div class="app">
+    <!-- ---------- Navbar ---------- -->
+    <header class="site-header">
+      <a href="/" class="brand" aria-label="UoA Sensory Map — go to home page">
+        <img src="{% static 'sensemap/icons/logo.png' %}" alt="" class="brand-mark" aria-hidden="true">
+        <div class="brand-text">
+          <h1>UoA Sensory Map</h1>
+          <p class="tagline">Browse every sensory-friendly place on campus.</p>
+        </div>
+      </a>
+
+      <div class="nav-search" role="search">
+        <label for="places-search" class="visually-hidden">Search places by name or description</label>
+        <span class="nav-search-icon" aria-hidden="true">&#128269;</span>
+        <input type="search" id="places-search" autocomplete="off"
+               placeholder="Search places&hellip;" />
+      </div>
+
+      <nav class="header-links" aria-label="Site">
+        <a class="header-btn" href="/">&#8592; Map view</a>
+      </nav>
+    </header>
+
+    <!-- ---------- Places browser ---------- -->
+    <main class="places-page">
+      <!-- Filter by facilities -->
+      <section class="filter-by" aria-label="Filter places">
+        <div class="filter-by-header">
+          <h2>Filter places</h2>
+          <button type="button" class="link-btn" id="clear-filters">Clear all</button>
+        </div>
+
+        <div class="filter-row">
+          <div class="filter-field">
+            <label for="filter-campus">Campus</label>
+            <select id="filter-campus"><option value="">All campuses</option></select>
+          </div>
+          <div class="filter-field">
+            <label for="filter-category">Category</label>
+            <select id="filter-category"><option value="">All categories</option></select>
+          </div>
+          <div class="filter-field">
+            <label for="filter-space-type">Space type</label>
+            <select id="filter-space-type"><option value="">Any space type</option></select>
+          </div>
+        </div>
+
+        <div class="filter-section">
+          <p class="filter-section-title">Facilities</p>
+          <div class="facility-chips" id="facility-chips" role="group" aria-label="Filter by facility"></div>
+        </div>
+
+        <div class="filter-section">
+          <p class="filter-section-title">Features</p>
+          <div class="toggle-chips">
+            <label class="toggle-pill"><input type="checkbox" id="filter-quiet" /> Quiet zone</label>
+            <label class="toggle-pill"><input type="checkbox" id="filter-nd" /> Neurodivergent-safe</label>
+          </div>
+        </div>
+      </section>
+
+      <p class="showing-count" id="showing-count" aria-live="polite">Loading places&hellip;</p>
+
+      <ul class="places-list" id="places-list" aria-label="All places">
+        <li class="loading">Loading places&hellip;</li>
+      </ul>
+    </main>
+  </div>
+
+  <script src="{% static 'sensemap/js/places.js' %}"></script>
+</body>
+</html>
