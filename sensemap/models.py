@@ -2,6 +2,7 @@ from django.db import models
 from django.db.models import Q, CheckConstraint
 from django.core.exceptions import ValidationError
 from django.core.validators import MaxValueValidator, MinValueValidator
+from django.utils.text import slugify
 
 class Facility(models.Model):
     name = models.CharField(max_length=100, unique=True, db_index=True)
@@ -52,6 +53,7 @@ class Location(models.Model):
     ]
 
     name = models.CharField(max_length=255, unique=True, db_index=True)
+    slug = models.SlugField(max_length=255, unique=True, db_index=True, blank=True)
     also_known_as = models.CharField(max_length=255, blank=True)
     category = models.CharField(max_length=50, choices=CATEGORY_CHOICES, db_index=True)
     campus = models.CharField(max_length=50, choices=CAMPUS_CHOICES, db_index=True)
@@ -95,6 +97,16 @@ class Location(models.Model):
     class Meta:
         ordering = ["name"]
 
+    def clean(self):
+        if not self.slug:
+            self.slug = slugify(self.name)
+        super().clean()
+
+    def save(self, *args, **kwargs):
+        if not self.slug:
+            self.slug = slugify(self.name)
+        super().save(*args, **kwargs)
+
     def __str__(self):
         return self.name
     
@@ -104,6 +116,8 @@ class Space(models.Model):
         ("study", "Study Space"),
         ("quiet", "Quiet Space"),
         ("social", "Social Space"),
+        ("food_drink", "Food & Drink"),
+        ("facility", "Facility"),
         ("sensory", "Sensory Room"),
         ("other", "Other"),
     ]

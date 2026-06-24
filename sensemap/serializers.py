@@ -1,21 +1,285 @@
+"""DRF serializers for the UoA Sensory Map API.
+
+The data model is hierarchical:
+    Location (a building / place on a campus)
+      └── Space (a study/quiet/social/sensory area inside it)
+Both Locations and Spaces carry facilities (with availability) and
+sensory profiles (1-5 ratings against named SensoryAttributes).
+
+The frontend uses two Location representations:
+  * LocationListSerializer   -> lightweight, drives the map markers + list
+  * LocationDetailSerializer -> everything needed for the detail panel
+"""
+
 from rest_framework import serializers
 
-from .models import Location
+from .models import (
+    Facility,
+    SensoryAttribute,
+    Location,
+    Space,
+    LocationFacility,
+    SpaceFacility,
+    LocationGalleryImage,
+    LocationSensoryProfile,
+    SpaceSensoryProfile,
+    FeedbackReport,
+)
 
 
-class LocationSerializer(serializers.ModelSerializer):
-    """Turns a Location into JSON (and validates incoming JSON).
+# --------------------------------------------------------------------------- #
+# Shared / nested serializers
+# --------------------------------------------------------------------------- #
+class FacilitySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Facility
+        fields = ["id", "name", "description"]
 
-    Add new fields to `fields` when you add them to the model.
-    """
+
+class _FacilityLinkSerializer(serializers.ModelSerializer):
+    """Base for the through-models (LocationFacility / SpaceFacility)."""
+
+    name = serializers.CharField(source="facility.name", read_only=True)
+    description = serializers.CharField(source="facility.description", read_only=True)
+    icon_available = serializers.ImageField(
+        source="facility.icon_facility_available", read_only=True
+    )
+    icon_unavailable = serializers.ImageField(
+        source="facility.icon_facility_unavailable", read_only=True
+    )
+
+    class Meta:
+        fields = ["name", "description", "status", "notes", "icon_available", "icon_unavailable"]
+
+
+class LocationFacilityLinkSerializer(_FacilityLinkSerializer):
+    class Meta(_FacilityLinkSerializer.Meta):
+        model = LocationFacility
+
+
+class SpaceFacilityLinkSerializer(_FacilityLinkSerializer):
+    class Meta(_FacilityLinkSerializer.Meta):
+        model = SpaceFacility
+
+
+class LocationSensoryProfileSerializer(serializers.ModelSerializer):
+    attribute = serializers.CharField(source="sensory_attribute.name", read_only=True)
+
+    class Meta:
+        model = LocationSensoryProfile
+        fields = ["attribute", "rating", "notes"]
+
+
+class SpaceSensoryProfileSerializer(serializers.ModelSerializer):
+    attribute = serializers.CharField(source="sensory_attribute.name", read_only=True)
+
+    class Meta:
+        model = SpaceSensoryProfile
+        fields = ["attribute", "rating", "notes"]
+
+
+class GalleryImageSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = LocationGalleryImage
+        fields = ["id", "image", "caption"]
+
+
+class FeedbackPublicSerializer(serializers.ModelSerializer):
+    """Accepted feedback shown on the detail panel (reporter hidden if anon)."""
+
+    class Meta:
+        model = FeedbackReport
+        fields = ["id", "comment", "reporter_name", "is_anonymous", "created_at"]
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        if instance.is_anonymous:
+            data["reporter_name"] = ""
+        return data
+
+
+class SpaceSerializer(serializers.ModelSerializer):
+    space_type_display = serializers.CharField(
+        source="get_space_type_display", read_only=True
+    )
+    facilities = SpaceFacilityLinkSerializer(
+        source="space_facilities", many=True, read_only=True
+    )
+    sensory_profiles = SpaceSensoryProfileSerializer(
+        source="space_sensory_profiles", many=True, read_only=True
+    )
+
+    class Meta:
+        model = Space
+        fields = [
+            "id",
+            "name",
+            "space_type",
+            "space_type_display",
+            "description",
+            "thumbnail_image",
+            "weekday_open_time",
+            "weekday_close_time",
+            "saturday_open_time",
+            "saturday_close_time",
+            "sunday_holiday_open_time",
+            "sunday_holiday_close_time",
+            "opening_hrs_notes",
+            "wayfinding",
+            "sensory_experience",
+            "is_quiet_zone",
+            "is_safe_space_neurodivergent_students",
+            "facilities",
+            "sensory_profiles",
+        ]
+
+
+# --------------------------------------------------------------------------- #
+# Location serializers
+# --------------------------------------------------------------------------- #
+class LocationListSerializer(serializers.ModelSerializer):
+    """Lightweight payload for map markers and the places list."""
+
+    category_display = serializers.CharField(source="get_category_display", read_only=True)
+    campus_display = serializers.CharField(source="get_campus_display", read_only=True)
+    space_types = serializers.SerializerMethodField()
+    space_count = serializers.SerializerMethodField()
+    has_quiet_zone = serializers.SerializerMethodField()
+    has_neurodivergent_safe = serializers.SerializerMethodField()
+    avg_sensory = serializers.SerializerMethodField()
+    # Lightweight extras used by the full-page Places browser.
+    sensory = serializers.SerializerMethodField()
+    facilities_available = serializers.SerializerMethodField()
+    thumbnail = serializers.SerializerMethodField()
 
     class Meta:
         model = Location
         fields = [
             "id",
             "name",
-            "description",
+            "slug",
+            "also_known_as",
             "category",
+            "category_display",
+            "campus",
+            "campus_display",
+            "description",
             "latitude",
             "longitude",
+            "id_access_needed",
+            "space_types",
+            "space_count",
+            "has_quiet_zone",
+            "has_neurodivergent_safe",
+            "avg_sensory",
+            "sensory",
+            "facilities_available",
+            "thumbnail",
         ]
+
+    def get_space_types(self, obj):
+        return sorted({s.space_type for s in obj.spaces.all()})
+
+    def get_sensory(self, obj):
+        return [
+            {"attribute": p.sensory_attribute.name, "rating": p.rating}
+            for p in obj.location_sensory_profiles.all()
+        ]
+
+    def get_facilities_available(self, obj):
+        return sorted(
+            {lf.facility.name for lf in obj.location_facilities.all() if lf.status}
+        )
+
+    def get_thumbnail(self, obj):
+        if not obj.thumbnail_image:
+            return None
+        request = self.context.get("request")
+        url = obj.thumbnail_image.url
+        return request.build_absolute_uri(url) if request else url
+
+    def get_space_count(self, obj):
+        return len(obj.spaces.all())
+
+    def get_has_quiet_zone(self, obj):
+        return any(s.is_quiet_zone for s in obj.spaces.all())
+
+    def get_has_neurodivergent_safe(self, obj):
+        return any(s.is_safe_space_neurodivergent_students for s in obj.spaces.all())
+
+    def get_avg_sensory(self, obj):
+        ratings = [p.rating for p in obj.location_sensory_profiles.all()]
+        if not ratings:
+            return None
+        return round(sum(ratings) / len(ratings), 1)
+
+
+class LocationDetailSerializer(LocationListSerializer):
+    """Full payload for the detail panel."""
+
+    facilities = LocationFacilityLinkSerializer(
+        source="location_facilities", many=True, read_only=True
+    )
+    sensory_profiles = LocationSensoryProfileSerializer(
+        source="location_sensory_profiles", many=True, read_only=True
+    )
+    spaces = SpaceSerializer(many=True, read_only=True)
+    gallery_images = GalleryImageSerializer(many=True, read_only=True)
+    feedback = serializers.SerializerMethodField()
+
+    class Meta(LocationListSerializer.Meta):
+        fields = LocationListSerializer.Meta.fields + [
+            "weekday_open_time",
+            "weekday_close_time",
+            "saturday_open_time",
+            "saturday_close_time",
+            "sunday_holiday_open_time",
+            "sunday_holiday_close_time",
+            "opening_hrs_notes",
+            "additional_access_notes",
+            "uoa_map_link",
+            "thumbnail_image",
+            "facilities",
+            "sensory_profiles",
+            "spaces",
+            "gallery_images",
+            "feedback",
+        ]
+
+    def get_feedback(self, obj):
+        accepted = [f for f in obj.feedback_reports.all() if f.status == "accepted"]
+        return FeedbackPublicSerializer(accepted, many=True).data
+
+
+# --------------------------------------------------------------------------- #
+# Feedback (write) serializer
+# --------------------------------------------------------------------------- #
+class FeedbackReportSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = FeedbackReport
+        fields = [
+            "id",
+            "location",
+            "space",
+            "comment",
+            "is_anonymous",
+            "reporter_name",
+            "reporter_email",
+            "status",
+            "created_at",
+        ]
+        read_only_fields = ["status", "created_at"]
+
+    def validate(self, data):
+        location = data.get("location")
+        space = data.get("space")
+        if bool(location) == bool(space):
+            raise serializers.ValidationError(
+                "Provide exactly one of 'location' or 'space'."
+            )
+        if not data.get("is_anonymous", True):
+            if not data.get("reporter_name") or not data.get("reporter_email"):
+                raise serializers.ValidationError(
+                    "Name and email are required when feedback is not anonymous."
+                )
+        return data
