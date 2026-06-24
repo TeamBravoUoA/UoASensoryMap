@@ -20,6 +20,6 @@ def index(request):
     """Render the home page (map + list of locations)."""
     return render(request, "sensemap/index.html")
 
-def list(request):
-    """Render the list page of locations."""
-    return render(request, "sensemap/list.html")
+def description(request):
+    """Render the description page for a specific location."""
+    return render(request, "sensemap/description.html")

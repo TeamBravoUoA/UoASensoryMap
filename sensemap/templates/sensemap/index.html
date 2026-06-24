@@ -225,16 +225,6 @@
       box-shadow: 0 0 0 3px var(--green);
     }
 
-    /* Filters strip sits as a thin bar above the full-screen map */
-    .filters {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 0.5rem;
-      padding: 0.5rem 1.25rem;
-      background: var(--surface);
-      border-bottom: 1px solid var(--line);
-    }
-
     .filters button {
       min-width: 120px;
       border: 1px solid #cbd5df;
@@ -277,62 +267,55 @@
       background: #c62828;
     }
 
-    /* Map fills the rest of the screen */
     main {
-      position: relative;
-      flex: 1;
-      min-height: 0;
-    }
+  position: relative;
+  flex: 1;
+  min-height: 0;
+}
 
-    #map {
-      width: 100%;
-      height: 100%;
-      background: #c7d9c1;
-    }
+#map {
+  width: 100%;
+  height: 100%;
+  background: #c7d9c1;
+}
 
-    .leaflet-container {
-      font: inherit;
-      background: #c7d9c1;
-    }
+.filters {
+  position: absolute;
+  top: 1rem;
+  left: 3rem;
+  z-index: 1000;
 
-    /* Location list now floats as a panel over the map instead of taking layout space */
-    .location-card {
-      position: absolute;
-      top: 1rem;
-      right: 1rem;
-      z-index: 500;
-      width: 240px;
-      max-height: calc(100% - 2rem);
-      overflow-y: auto;
-      border: 1px solid var(--line);
-      border-radius: 12px;
-      background: var(--surface);
-      box-shadow: 0 18px 42px rgba(17, 31, 50, 0.18);
-    }
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
 
-    .location-list {
-      margin: 0;
-      padding: 0.4rem 0;
-      list-style: none;
-    }
+}
+.space-filter {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+}
 
-    .location-list li {
-      display: grid;
-      grid-template-columns: 2.2rem 1fr;
-      align-items: center;
-      min-height: 42px;
-      padding: 0.4rem 0.9rem;
-      border-bottom: 1px solid var(--line);
-      color: var(--muted);
-      font-size: 0.82rem;
-      line-height: 1.2;
-    }
+.filter-icon {
+  display: grid;
+  width: 32px;
+  height: 32px;
+  place-items: center;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  box-shadow: 0 1px 4px rgb(0 0 0 / 28%);
+}
 
-    .location-list strong {
-      color: #0a3f7c;
-      font-size: 0.92rem;
-      font-weight: 800;
-    }
+.filter-icon img {
+  width: 21px;
+  height: 21px;
+}
+
+.study .filter-icon  { background: #1584b8; }
+.social .filter-icon { background: #ffb900; }
+.quiet .filter-icon  { background: #7135aa; }
+.outdoor .filter-icon { background: #2e7d32; }
+
 
     @media (max-width: 980px) {
       header {
@@ -361,13 +344,6 @@
         width: 100%;
       }
 
-      .location-card {
-        position: static;
-        width: 100%;
-        max-height: 240px;
-        margin-top: 0.5rem;
-        border-radius: 0;
-      }
 
       main {
         display: flex;
@@ -392,7 +368,7 @@
         </div>
       </div>
 
-      <a href="#locations">List</a>
+      <a href={% url 'description' %}>List</a>
       <a href="#legend">Legend</a>
       <a href="#help">Help</a>
     </nav>
@@ -406,22 +382,42 @@
     </label>
   </header>
 
-  <div class="filters">
-    <button type="button">Study space</button>
-    <button type="button">Social space</button>
-    <button type="button">Quiet zone</button>
-    <button type="button">Outdoor</button>
+  <main>
+       
+    <div id="map">
+    </div>
+     <div class="filters">
+    <button class="space-filter study">
+  <span class="filter-icon">
+    <img src="/static/icons/emoji_u1f4da.svg" alt="">
+  </span>
+  Study space
+</button>
+
+<button class="space-filter social">
+  <span class="filter-icon">
+    <img src="/static/icons/emoji_u1f604.svg" alt="">
+  </span>
+  Social space
+</button>
+
+<button class="space-filter quiet">
+  <span class="filter-icon">
+    <img src="/static/icons/emoji_u1f507.svg" alt="">
+  </span>
+  Quiet zone
+</button>
+
+<button class="space-filter outdoor">
+  <span class="filter-icon">
+    <img src="/static/icons/emoji_u1f333.svg" alt="">
+  </span>
+  Outdoor
+</button>
+
     <button type="button" class="clear-filter" aria-label="Clear filters" title="Clear filters">Clear ✕</button>
   </div>
-
-  <main>
-    <div id="map"></div>
-
-    <aside class="location-card" id="locations">
-      <ol class="location-list">
-        <li class="loading"><span>Loading locations&hellip;</span></li>
-      </ol>
-    </aside>
+    
   </main>
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -442,65 +438,54 @@
       attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
     }).addTo(campusMap);
 
-    // Coordinates are approximate — verify exact pins by right-clicking the
-    // real location on openstreetmap.org and copying the lat/lng shown.
-    {% comment %} const fallbackPlaces = [
-      { name: "Sir Duncan Rice Library", point: [57.1646, -2.0972] },
-      { name: "King's College area", point: [57.1655, -2.0975] },
-      { name: "Elphinstone Hall", point: [57.1657, -2.0972] },
-      { name: "Cruickshank Botanic Garden", point: [57.1668, -2.0998] },
-      { name: "New King's", point: [57.1648, -2.0965] },
-      { name: "Regent Walk", point: [57.1610, -2.0940] }
-    ];
+    const icons = {
+      study: L.icon({
+        iconUrl: "/static/icons/emoji_u1f4da.svg",
+        iconSize: [32, 32],
+        iconAnchor: [16, 32],
+        popupAnchor: [0, -32]
+      }),
+      social: L.icon({
+        iconUrl: "/static/icons/emoji_u1f604.svg",
+        iconSize: [32, 32],
+        iconAnchor: [16, 32],
+        popupAnchor: [0, -32]
+      }),
+      quiet: L.icon({
+        iconUrl: "/static/icons/emoji_u1f507.svg",
+        iconSize: [32, 32],
+        iconAnchor: [16, 32],
+        popupAnchor: [0, -32]
+      }),
+      outdoor: L.icon({
+        iconUrl: "/static/icons/emoji_u1f333.svg",
+        iconSize: [32, 32],
+        iconAnchor: [16, 32],
+        popupAnchor: [0, -32]
+      })
+    };
+   
 
     function addMarker(place) {
-      L.marker(place.point)
+      const icon = icons[place.type] || icons.study;
+      L.marker(place.point, { icon })
         .addTo(campusMap)
         .bindPopup("<strong>" + place.name + "</strong>");
     }
+        const fallbackPlaces = [
+      { name: "Sir Duncan Rice Library", point: [57.165445, -2.105843], type: "study" }, 
+      { name: "King's College area", point: [57.163796, -2.101192], type: "social" },
+      { name: "Elphinstone Hall", point: [57.164561, -2.100304], type: "social" },
+      { name: "Cruickshank Botanic Garden", point: [ 57.167843, -2.104995], type: "outdoor" },
+      { name: "Fraser Noble Building", point: [57.165873, -2.104601], type: "study" },
+      { name: "Old Aberdeen Quad", point: [57.16398, -2.10121], type: "quiet" }
+    ];
+    fallbackPlaces.forEach(addMarker);
 
-    fallbackPlaces.forEach(addMarker); {% endcomment %}
+    // Coordinates are approximate — verify exact pins by right-clicking the
+    // real location on openstreetmap.org and copying the lat/lng shown.
+   
 
-    // Fetch sensory location data from the REST API and render the side panel list.
-    // Falls back gracefully if the API isn't available.
-    async function loadLocations() {
-      const container = document.getElementById("locations");
-      try {
-        const response = await fetch("/api/locations/");
-        if (!response.ok) throw new Error("Request failed: " + response.status);
-        const locations = await response.json();
-
-        if (!locations || locations.length === 0) {
-          container.innerHTML =
-            '<ol class="location-list"><li><span>No locations yet. Run <code>python manage.py seed</code>.</span></li></ol>';
-          return;
-        }
-
-        container.innerHTML =
-          '<ol class="location-list">' +
-          locations
-            .map(function (loc, index) {
-              const quiet = loc.is_quiet_zone ? " (Quiet zone)" : "";
-              return (
-                "<li><strong>" +
-                (index + 1) +
-                "</strong><span>" +
-                loc.name +
-                quiet +
-                "</span></li>"
-              );
-            })
-            .join("") +
-          "</ol>";
-      } catch (err) {
-        container.innerHTML =
-          '<ol class="location-list"><li><span>Could not load locations: ' +
-          err.message +
-          "</span></li></ol>";
-      }
-    }
-
-    loadLocations();
   </script>
 </body>
 </html>

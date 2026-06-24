@@ -1,0 +1,334 @@
+{% comment %} <!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Building Info</title>
+
+  <style>
+    :root {
+      --navy: #141d30;
+      --green: #93dfb0;
+      --line: #dde5ea;
+      --text: #172033;
+      --muted: #5e6878;
+      --surface: #ffffff;
+      --page: #f6f8fa;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      color: var(--text);
+      background: var(--page);
+      font-family: "Trebuchet MS", Arial, sans-serif;
+    }
+
+    header {
+      padding: 1rem 1.5rem;
+      color: white;
+      background: var(--navy);
+    }
+
+    header h1 {
+      margin: 0;
+      font-size: 1.4rem;
+    }
+
+    main {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 2rem 1.25rem;
+    }
+
+    .building-info {
+      display: grid;
+      gap: 1.5rem;
+      grid-template-columns: repeat(4, 1fr);
+      grid-template-areas:
+        "title title main-photo main-photo"
+        "desc desc main-photo main-photo"
+        "sense-areas sense-areas sense-areas sense-areas"
+        "tabs tabs open-times open-times"
+        "tips tips tips tips"
+        "additional-info additional-info additional-info additional-info"
+        "buttons buttons buttons buttons"
+        "gallery gallery gallery gallery";
+    }
+
+    .info-page-title {
+      grid-area: title;
+    }
+
+    .info-page-title h2 {
+      margin: 0 0 0.5rem;
+      font-size: 2rem;
+    }
+
+    #aka {
+      margin: 0 0 0.75rem;
+      color: var(--muted);
+    }
+
+    .highlight-link {
+      display: inline-block;
+      padding: 0.4rem 0.8rem;
+      border-radius: 999px;
+      color: #172033;
+      background: #ffc107;
+      font-weight: 700;
+      text-decoration: none;
+    }
+
+    #description {
+      grid-area: desc;
+    }
+
+    .main-photo {
+      grid-area: main-photo;
+    }
+
+    .main-photo img {
+      width: 100%;
+      height: auto;
+      border-radius: 10px;
+      display: block;
+    }
+
+    .sense-areas {
+      grid-area: sense-areas;
+    }
+
+    .tips {
+      grid-area: tips;
+    }
+
+    .tabs {
+      grid-area: tabs;
+    }
+
+    .open-times {
+      grid-area: open-times;
+    }
+
+    .buttons {
+      grid-area: buttons;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+      padding: 0 2rem;
+    }
+
+    .additional-info {
+      grid-area: additional-info;
+    }
+
+    .gallery {
+      grid-area: gallery;
+    }
+
+    .card {
+      padding: 1rem;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: var(--surface);
+      box-shadow: 0 8px 24px rgba(17, 31, 50, 0.08);
+    }
+
+    .btn {
+      width: 100%;
+      padding: 0.8rem 1rem;
+      border: 0;
+      border-radius: 8px;
+      color: white;
+      background: #0d6efd;
+      font: inherit;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .btn:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+
+    .gallery-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 1rem;
+    }
+
+    .gallery-grid img {
+      width: 100%;
+      border-radius: 8px;
+      display: block;
+    }
+
+    @media screen and (max-width: 992px) {
+      .building-info {
+        grid-template-columns: 1fr;
+        grid-template-areas:
+          "title"
+          "main-photo"
+          "desc"
+          "tabs"
+          "sense-areas"
+          "open-times"
+          "tips"
+          "additional-info"
+          "buttons"
+          "gallery";
+      }
+
+      .buttons {
+        grid-template-columns: 1fr;
+        padding: 0;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <header>
+    <h1>UoA Sensory Map</h1>
+  </header>
+
+  <main>
+    <div id="building-info" class="building-info"></div>
+  </main>
+
+  <script>
+    const building = {
+      display_name: "Sir Duncan Rice Library",
+      aka: "The Library",
+      canonical: "sir-duncan-rice-library",
+      description: "A large study building with quiet study areas, group work spaces, and accessible facilities.",
+      primary_image_url: "https://via.placeholder.com/700x450",
+      primary_image_alt: "Sir Duncan Rice Library",
+      spaces: ["Study space", "Quiet zone", "Social space"],
+      tips: [
+        "The upper floors are usually quieter.",
+        "There are lifts available near the entrance.",
+        "Group study rooms may need to be booked."
+      ],
+      opening_times: [
+        { day: "Monday", time: "08:00 - 22:00" },
+        { day: "Tuesday", time: "08:00 - 22:00" },
+        { day: "Wednesday", time: "08:00 - 22:00" }
+      ],
+      rooms_published: true,
+      floorplans_published: true,
+      furtherinfo_display: true,
+      further_info: "This building has accessible entrances, toilets, study desks, and lift access.",
+      gallery_images: [
+        "https://via.placeholder.com/400x260",
+        "https://via.placeholder.com/400x260",
+        "https://via.placeholder.com/400x260"
+      ]
+    };
+
+    const container = document.getElementById("building-info");
+
+    function renderBuilding(building) {
+      if (!building) {
+        container.innerHTML = "<p>Sorry, this building doesn't exist</p>";
+        return;
+      }
+
+      container.innerHTML = `
+        <div class="info-page-title">
+          <h2>${building.display_name}</h2>
+
+          ${building.aka ? `
+            <p id="aka"><strong>Also Known as:</strong> ${building.aka}</p>
+          ` : ""}
+
+          <a class="highlight-link" href="/?highlight=${building.canonical}">
+            Highlight on map
+          </a>
+        </div>
+
+        <div id="description" class="card">
+          <h3>Description</h3>
+          <p>${building.description}</p>
+        </div>
+
+        <div class="main-photo">
+          <img src="${building.primary_image_url}" alt="${building.primary_image_alt}">
+        </div>
+
+        <div class="sense-areas card">
+          <h3>Sensory spaces</h3>
+          <ul>
+            ${building.spaces.map(space => `<li>${space}</li>`).join("")}
+          </ul>
+        </div>
+
+        <div class="tabs card">
+          <h3>Information</h3>
+          <p>General accessibility and sensory information for this building.</p>
+        </div>
+
+        <div class="open-times card">
+          <h3>Opening times</h3>
+          ${
+            building.opening_times
+              ? `<ul>${building.opening_times.map(item => `
+                  <li><strong>${item.day}:</strong> ${item.time}</li>
+                `).join("")}</ul>`
+              : `<p><em>Opening times not available for this building</em></p>`
+          }
+        </div>
+
+        <div class="tips card">
+          <h3>Access tips</h3>
+          <ul>
+            ${building.tips.map(tip => `<li>${tip}</li>`).join("")}
+          </ul>
+        </div>
+
+        ${
+          building.furtherinfo_display
+            ? `<div class="additional-info card">
+                <h3>Additional information</h3>
+                <p>${building.further_info}</p>
+              </div>`
+            : ""
+        }
+
+        <div class="buttons">
+          <a href="/rooms.html">
+            <button class="btn" ${!building.rooms_published ? "disabled" : ""}>
+              Room info
+            </button>
+          </a>
+
+          <a href="/internal-map.html">
+            <button class="btn" ${!building.floorplans_published ? "disabled" : ""}>
+              Internal Map
+            </button>
+          </a>
+        </div>
+
+        ${
+          building.gallery_images.length > 0
+            ? `<div class="gallery card">
+                <h3>Gallery</h3>
+                <div class="gallery-grid">
+                  ${building.gallery_images.map(image => `
+                    <img src="${image}" alt="Building gallery image">
+                  `).join("")}
+                </div>
+              </div>`
+            : ""
+        }
+      `;
+    }
+
+    renderBuilding(building);
+  </script>
+</body>
+</html> {% endcomment %}
