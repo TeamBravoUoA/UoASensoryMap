@@ -31,8 +31,8 @@ SECRET_KEY = os.getenv("SECRET_KEY", "django-insecure-5coppnu78jr%n2(kqj-xky+t2_
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.getenv("DEBUG", "False").lower() in ("true", "1", "yes")
 
-_ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", "")
-ALLOWED_HOSTS = [h.strip() for h in _ALLOWED_HOSTS.split(",") if h.strip()] if _ALLOWED_HOSTS else []
+_ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", "*")
+ALLOWED_HOSTS = [h.strip() for h in _ALLOWED_HOSTS.split(",") if h.strip()]
 
 
 # Application definition
@@ -128,6 +128,6 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/6.0/howto/static-files/
 
-STATIC_URL = 'static/'
+STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
