@@ -1,5 +1,5 @@
 from django.db import models
-from django.db.models import Q, CheckConstraint
+from django.db.models import Q, CheckConstraint, Avg
 from django.core.exceptions import ValidationError
 from django.core.validators import MaxValueValidator, MinValueValidator
 
@@ -7,7 +7,6 @@ class Facility(models.Model):
     name = models.CharField(max_length=100, unique=True, db_index=True)
     icon_facility_available = models.ImageField(upload_to="facilities/icons/", blank=True, null=True)
     icon_facility_unavailable = models.ImageField(upload_to="facilities/icons/", blank=True, null=True)
-    description = models.TextField(blank=True)
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -138,7 +137,6 @@ class Space(models.Model):
     sensory_experience = models.TextField(blank=True)
 
     is_quiet_zone = models.BooleanField(default=False)
-    is_safe_space_neurodivergent_students = models.BooleanField(default=False)
 
     facilities = models.ManyToManyField(
         Facility,
@@ -149,6 +147,22 @@ class Space(models.Model):
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+    @property
+    def is_safe_space_neurodivergent_students(self):
+        safety_axes = [
+            "auditory",
+            "visual",
+            "olfactory",
+            "vestibular",
+            "tactile",
+        ]
+
+        avg_rating = self.space_sensory_profiles.filter(
+            sensory_attribute__name__in=safety_axes
+        ).aggregate(avg=Avg("rating"))["avg"]
+
+        return avg_rating is not None and avg_rating <= 2.5
 
     class Meta:
         ordering = ["name"]
@@ -232,7 +246,7 @@ class LocationGalleryImage(models.Model):
         related_name="gallery_images"
     )
 
-    image = models.ImageField(upload_to="locations/gallery/")
+    image = models.ImageField(upload_to="locations/gallery/", blank=True, null=True)
     caption = models.CharField(max_length=255, blank=True)
 
     created_at = models.DateTimeField(auto_now_add=True)
