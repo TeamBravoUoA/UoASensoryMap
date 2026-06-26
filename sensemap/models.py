@@ -4,10 +4,28 @@ from django.core.exceptions import ValidationError
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.utils.text import slugify
 
+class ExternalIDModel(models.Model):
+    external_id = models.IntegerField(unique=True, db_index=True)
+
+    class Meta:
+        abstract = True
+
 class Facility(models.Model):
+    external_id = models.IntegerField(unique=True, db_index=True)
+
     name = models.CharField(max_length=100, unique=True, db_index=True)
-    icon_facility_available = models.ImageField(upload_to="facilities/icons/", blank=True, null=True)
-    icon_facility_unavailable = models.ImageField(upload_to="facilities/icons/", blank=True, null=True)
+
+    icon_facility_available = models.ImageField(
+        upload_to="facilities/icons/",
+        blank=True,
+        null=True
+    )
+
+    icon_facility_unavailable = models.ImageField(
+        upload_to="facilities/icons/",
+        blank=True,
+        null=True
+    )
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -20,6 +38,8 @@ class Facility(models.Model):
     
 
 class SensoryAttribute(models.Model):
+    external_id = models.IntegerField(unique=True, db_index=True)
+
     name = models.CharField(max_length=100, unique=True)
     description = models.TextField(blank=True)
 
@@ -34,12 +54,6 @@ class SensoryAttribute(models.Model):
     
 
 class Location(models.Model):
-    CAMPUS_CHOICES = [
-        ("old_aberdeen", "Old Aberdeen"),
-        ("foresterhill", "Foresterhill"),
-        ("hillhead", "Hillhead"),
-    ]
-
     CATEGORY_CHOICES = [
         ("teaching_building", "Teaching Building"),
         ("cultural_space", "Cultural Space"),
@@ -51,11 +65,22 @@ class Location(models.Model):
         ("garden", "Garden"),
     ]
 
+    CAMPUS_CHOICES = [
+        ("old_aberdeen", "Old Aberdeen"),
+        ("foresterhill", "Foresterhill"),
+        ("hillhead", "Hillhead"),
+    ]
+
+    external_id = models.IntegerField(unique=True, db_index=True)
+
     name = models.CharField(max_length=255, unique=True, db_index=True)
-    slug = models.SlugField(max_length=255, unique=True, db_index=True, blank=True)
+    slug = models.SlugField(max_length=255, unique=True, blank=True)
+
     also_known_as = models.CharField(max_length=255, blank=True)
+
     category = models.CharField(max_length=50, choices=CATEGORY_CHOICES, db_index=True)
     campus = models.CharField(max_length=50, choices=CAMPUS_CHOICES, db_index=True)
+
     description = models.TextField(blank=True)
 
     latitude = models.DecimalField(max_digits=9, decimal_places=6)
@@ -63,10 +88,8 @@ class Location(models.Model):
 
     weekday_open_time = models.TimeField(null=True, blank=True)
     weekday_close_time = models.TimeField(null=True, blank=True)
-
     saturday_open_time = models.TimeField(null=True, blank=True)
     saturday_close_time = models.TimeField(null=True, blank=True)
-
     sunday_holiday_open_time = models.TimeField(null=True, blank=True)
     sunday_holiday_close_time = models.TimeField(null=True, blank=True)
 
@@ -80,11 +103,11 @@ class Location(models.Model):
     thumbnail_image = models.ImageField(
         upload_to="locations/thumbnails/",
         blank=True,
-        null = True
+        null=True
     )
 
     facilities = models.ManyToManyField(
-        Facility,
+        "Facility",
         through="LocationFacility",
         related_name="locations",
         blank=True
@@ -96,14 +119,21 @@ class Location(models.Model):
     class Meta:
         ordering = ["name"]
 
-    def clean(self):
-        if not self.slug:
-            self.slug = slugify(self.name)
-        super().clean()
-
+    
     def save(self, *args, **kwargs):
         if not self.slug:
-            self.slug = slugify(self.name)
+            base_slug = slugify(self.name)
+
+            # ensure uniqueness
+            slug = base_slug
+            counter = 1
+
+            while Location.objects.filter(slug=slug).exclude(pk=self.pk).exists():
+                slug = f"{base_slug}-{counter}"
+                counter += 1
+
+            self.slug = slug
+
         super().save(*args, **kwargs)
 
     def __str__(self):
@@ -117,15 +147,19 @@ class Space(models.Model):
         ("social", "Social Space"),
         ("food_drink", "Food & Drink"),
         ("facility", "Facility"),
-        ("sensory", "Sensory Room"),
         ("other", "Other"),
     ]
+    external_id = models.IntegerField(unique=True, db_index=True)
 
-    location = models.ForeignKey(Location, on_delete=models.CASCADE, related_name="spaces")
+    location = models.ForeignKey(
+        Location,
+        on_delete=models.CASCADE,
+        related_name="spaces"
+    )
 
     name = models.CharField(max_length=255, db_index=True)
 
-    space_type = models.CharField(max_length=50, choices=SPACE_TYPE_CHOICES, db_index=True)
+    space_type = models.CharField(max_length=50, choices=SPACE_TYPE_CHOICES)
 
     description = models.TextField(blank=True)
 
@@ -137,23 +171,20 @@ class Space(models.Model):
 
     weekday_open_time = models.TimeField(null=True, blank=True)
     weekday_close_time = models.TimeField(null=True, blank=True)
-
     saturday_open_time = models.TimeField(null=True, blank=True)
     saturday_close_time = models.TimeField(null=True, blank=True)
-
     sunday_holiday_open_time = models.TimeField(null=True, blank=True)
     sunday_holiday_close_time = models.TimeField(null=True, blank=True)
 
     opening_hrs_notes = models.TextField(blank=True)
 
     wayfinding = models.TextField(blank=True)
-
     sensory_experience = models.TextField(blank=True)
 
     is_quiet_zone = models.BooleanField(default=False)
 
     facilities = models.ManyToManyField(
-        Facility,
+        "Facility",
         through="SpaceFacility",
         related_name="spaces",
         blank=True
@@ -161,22 +192,6 @@ class Space(models.Model):
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-
-    @property
-    def is_safe_space_neurodivergent_students(self):
-        safety_axes = [
-            "auditory",
-            "visual",
-            "olfactory",
-            "vestibular",
-            "tactile",
-        ]
-
-        avg_rating = self.space_sensory_profiles.filter(
-            sensory_attribute__name__in=safety_axes
-        ).aggregate(avg=Avg("rating"))["avg"]
-
-        return avg_rating is not None and avg_rating <= 2.5
 
     class Meta:
         ordering = ["name"]
@@ -189,27 +204,17 @@ class Space(models.Model):
 
     def __str__(self):
         return self.name
+    
 
 
 class LocationFacility(models.Model):
-    location = models.ForeignKey(
-        Location,
-        on_delete=models.CASCADE,
-        related_name="location_facilities"
-    )
-
-    facility = models.ForeignKey(
-        Facility,
-        on_delete=models.CASCADE,
-        related_name="location_facilities"
-    )
+    location = models.ForeignKey(Location, on_delete=models.CASCADE)
+    facility = models.ForeignKey(Facility, on_delete=models.CASCADE)
 
     status = models.BooleanField(default=True)
-
     notes = models.TextField(blank=True)
 
     class Meta:
-        ordering = ["facility__name"]
         constraints = [
             models.UniqueConstraint(
                 fields=["location", "facility"],
