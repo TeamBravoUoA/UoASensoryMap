@@ -4,13 +4,10 @@ import time
 import logging
 from pathlib import Path
 from datetime import datetime
-
 from django.core.management.base import BaseCommand
 from django.db import transaction
 from django.db.models import Avg
-
 from tqdm import tqdm
-
 from sensemap.models import (
     Facility,
     SensoryAttribute,

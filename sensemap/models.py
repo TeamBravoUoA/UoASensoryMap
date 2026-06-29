@@ -1,4 +1,4 @@
-from django.db import models
+from django.db import models, IntegrityError
 from django.db.models import Q, CheckConstraint
 from django.core.exceptions import ValidationError
 from django.core.validators import MaxValueValidator, MinValueValidator
@@ -36,13 +36,13 @@ class Facility(ExternalIDModel, TimeStampedModel):
     name = models.CharField(max_length=100, unique=True, db_index=True)
 
     icon_facility_available = models.ImageField(
-        upload_to="facilities/icons/",
+        upload_to="images/facilities/icons/",
         blank=True,
         null=True
     )
 
     icon_facility_unavailable = models.ImageField(
-        upload_to="facilities/icons/",
+        upload_to="images/facilities/icons/",
         blank=True,
         null=True
     )
@@ -119,7 +119,7 @@ class Location(ExternalIDModel, TimeStampedModel):
     uoa_map_link = models.URLField(blank=True)
 
     thumbnail_image = models.ImageField(
-        upload_to="locations/thumbnails/",
+        upload_to="images/locations/thumbnail_images/",
         blank=True,
         null=True
     )
@@ -180,14 +180,17 @@ class Space(ExternalIDModel, TimeStampedModel):
     description = models.TextField(blank=True)
 
     thumbnail_image = models.ImageField(
-        upload_to="spaces/thumbnails/",
+        upload_to="images/spaces/thumbnail_images/",
         blank=True,
         null=True
     )
 
     weekday_open_time = models.TimeField(null=True, blank=True)
+    weekday_close_time = models.TimeField(null=True, blank=True)
     saturday_open_time = models.TimeField(null=True, blank=True)
+    saturday_close_time = models.TimeField(null=True, blank=True)
     sunday_holiday_open_time = models.TimeField(null=True, blank=True)
+    sunday_holiday_close_time = models.TimeField(null=True, blank=True)
 
     opening_hrs_notes = models.TextField(blank=True)
 
@@ -293,7 +296,7 @@ class LocationGalleryImage(TimeStampedModel):
         related_name="gallery_images"
     )
 
-    image = models.ImageField(upload_to="locations/gallery/", blank=True, null=True)
+    image = models.ImageField(upload_to="images/locations/gallery/", blank=True, null=True)
     caption = models.CharField(max_length=255, blank=True)
 
     class Meta:
@@ -320,7 +323,9 @@ class LocationSensoryProfile(TimeStampedModel):
         related_name="location_sensory_profiles"
     )
 
-    rating = models.PositiveSmallIntegerField(
+    rating = models.DecimalField(
+        max_digits=2,
+        decimal_places=1,
         validators=[MinValueValidator(1), MaxValueValidator(5)]
     )
 
@@ -356,7 +361,9 @@ class SpaceSensoryProfile(TimeStampedModel):
         related_name="space_sensory_profiles"
     )
 
-    rating = models.PositiveSmallIntegerField(
+    rating = models.DecimalField(
+        max_digits=2,
+        decimal_places=1,
         validators=[MinValueValidator(1), MaxValueValidator(5)]
     )
 
