@@ -1,0 +1,11 @@
+﻿facility_id,name,icon_facility_available,icon_facility_unavailable
+1,seating available,,
+2,plug sockets available,,
+3,food drink available,,
+4,kettle provided,,
+5,microwave provided,,
+6,toilet available,,
+7,toilet accessible,,
+8,outside access wheelchair,,
+9,inside step-free wheelchair access,,
+10,parking accessible,,
