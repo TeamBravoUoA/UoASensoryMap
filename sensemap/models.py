@@ -58,6 +58,9 @@ class Location(models.Model):
     category = models.CharField(max_length=50, choices=CATEGORY_CHOICES, db_index=True)
     campus = models.CharField(max_length=50, choices=CAMPUS_CHOICES, db_index=True)
     description = models.TextField(blank=True)
+    sensory_experience = models.TextField(blank=True)
+    wayfinding = models.TextField(blank=True)
+    physical_access = models.TextField(blank=True)
 
     latitude = models.DecimalField(max_digits=9, decimal_places=6)
     longitude = models.DecimalField(max_digits=9, decimal_places=6)
