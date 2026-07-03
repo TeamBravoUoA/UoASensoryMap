@@ -1,4 +1,4 @@
-from django.db import models, IntegrityError
+from django.db import models
 from django.db.models import Q, CheckConstraint
 from django.core.exceptions import ValidationError
 from django.core.validators import MaxValueValidator, MinValueValidator
@@ -10,7 +10,7 @@ class ExternalIDModel(models.Model):
     Abstract base model for entities imported from external datasets.
     Provides a consistent external_id across all imported models.
     """
-    external_id = models.IntegerField(unique=True, db_index=True)
+    external_id = models.PositiveIntegerField(unique=True, db_index=True)
 
     class Meta:
         abstract = True
@@ -74,30 +74,37 @@ class Location(ExternalIDModel, TimeStampedModel):
     A physical building or campus location containing multiple Spaces.
     """
 
-    CATEGORY_CHOICES = [
-        ("teaching_building", "Teaching Building"),
-        ("cultural_space", "Cultural Space"),
-        ("conference_events", "Conference / Events Building"),
-        ("library", "Library"),
-        ("social_building", "Social Building"),
-        ("student_services", "Student Services"),
-        ("research_laboratory", "Research / Laboratories"),
-        ("garden", "Garden"),
-    ]
+    class Campus(models.TextChoices):
+        OLD_ABERDEEN = "old_aberdeen", "Old Aberdeen"
+        FORESTERHILL = "foresterhill", "Foresterhill"
+        HILLHEAD = "hillhead", "Hillhead"
 
-    CAMPUS_CHOICES = [
-        ("old_aberdeen", "Old Aberdeen"),
-        ("foresterhill", "Foresterhill"),
-        ("hillhead", "Hillhead"),
-    ]
+    class Category(models.TextChoices):
+        TEACHING_BUILDING = "teaching_building", "Teaching Building"
+        CULTURAL_SPACE = "cultural_space", "Cultural Space"
+        CONFERENCE_EVENTS = "conference_events", "Conference / Events Building"
+        LIBRARY = "library", "Library"
+        SOCIAL_BUILDING = "social_building", "Social Building"
+        STUDENT_SERVICES = "student_services", "Student Services"
+        RESEARCH_LABORATORY = "research_laboratory", "Research / Laboratories"
+        GARDEN = "garden", "Garden"
 
     name = models.CharField(max_length=255, unique=True, db_index=True)
     slug = models.SlugField(max_length=255, unique=True, blank=True)
 
     also_known_as = models.CharField(max_length=255, blank=True)
 
-    category = models.CharField(max_length=50, choices=CATEGORY_CHOICES, db_index=True)
-    campus = models.CharField(max_length=50, choices=CAMPUS_CHOICES, db_index=True)
+    category = models.CharField(
+        max_length=50,
+        choices=Category.choices,
+        db_index=True,
+    )
+
+    campus = models.CharField(
+        max_length=50,
+        choices=Campus.choices,
+        db_index=True,
+    )
 
     description = models.TextField(blank=True)
 
@@ -144,7 +151,7 @@ class Location(ExternalIDModel, TimeStampedModel):
             slug = base_slug
             counter = 1
 
-            while Location.objects.filter(slug=slug).exclude(pk=self.pk).exists():
+            while self.__class__.objects.filter(slug=slug).exclude(pk=self.pk).exists():
                 slug = f"{base_slug}-{counter}"
                 counter += 1
 
@@ -161,12 +168,13 @@ class Space(ExternalIDModel, TimeStampedModel):
     A specific functional area within a Location (e.g., study room, quiet zone).
     """
 
-    SPACE_TYPE_CHOICES = [
-        ("study", "Study Space"),
-        ("quiet", "Quiet Space"),
-        ("social", "Social Space"),
-        ("other", "Other"),
-    ]
+    class SpaceType(models.TextChoices):
+        STUDY = "study", "Study Space"
+        QUIET = "quiet", "Quiet Space"
+        SOCIAL = "social", "Social Space"
+        SENSORY = "sensory", "Sensory Room"
+        OTHER = "other", "Other"
+
 
     location = models.ForeignKey(
         Location,
@@ -175,7 +183,12 @@ class Space(ExternalIDModel, TimeStampedModel):
     )
 
     name = models.CharField(max_length=255, db_index=True)
-    space_type = models.CharField(max_length=50, choices=SPACE_TYPE_CHOICES)
+    
+    space_type = models.CharField(
+        max_length=50,
+        choices=SpaceType.choices,
+        db_index=True,
+    )
 
     description = models.TextField(blank=True)
 
@@ -241,6 +254,7 @@ class LocationFacility(TimeStampedModel):
     notes = models.TextField(blank=True)
 
     class Meta:
+        ordering = ["facility__name"]
         constraints = [
             models.UniqueConstraint(
                 fields=["location", "facility"],
@@ -323,10 +337,11 @@ class LocationSensoryProfile(TimeStampedModel):
         related_name="location_sensory_profiles"
     )
 
-    rating = models.DecimalField(
-        max_digits=2,
-        decimal_places=1,
-        validators=[MinValueValidator(1), MaxValueValidator(5)]
+    rating = models.PositiveSmallIntegerField(
+        validators=[
+            MinValueValidator(1),
+            MaxValueValidator(5)
+        ]
     )
 
     notes = models.TextField(blank=True)
@@ -361,10 +376,11 @@ class SpaceSensoryProfile(TimeStampedModel):
         related_name="space_sensory_profiles"
     )
 
-    rating = models.DecimalField(
-        max_digits=2,
-        decimal_places=1,
-        validators=[MinValueValidator(1), MaxValueValidator(5)]
+    rating = models.PositiveSmallIntegerField(
+        validators=[
+            MinValueValidator(1),
+            MaxValueValidator(5)
+        ]
     )
 
     notes = models.TextField(blank=True)
@@ -387,11 +403,11 @@ class FeedbackReport(TimeStampedModel):
     User feedback tied to either a Location OR a Space.
     """
 
-    STATUS_CHOICES = [
-        ("pending", "Pending"),
-        ("accepted", "Accepted"),
-        ("rejected", "Rejected"),
-    ]
+    class Status(models.TextChoices):
+        PENDING = "pending", "Pending"
+        ACCEPTED = "accepted", "Accepted"
+        REJECTED = "rejected", "Rejected"
+
 
     location = models.ForeignKey(
         Location,
@@ -418,8 +434,9 @@ class FeedbackReport(TimeStampedModel):
 
     status = models.CharField(
         max_length=20,
-        choices=STATUS_CHOICES,
-        default="pending"
+        choices=Status.choices,
+        default=Status.PENDING,
+        db_index=True,
     )
 
     class Meta:
@@ -443,4 +460,6 @@ class FeedbackReport(TimeStampedModel):
                 )
 
     def __str__(self):
-        return self.space.name if self.space else self.location.name
+        if self.space:
+            return f"Feedback - {self.space.name}"
+        return f"Feedback - {self.location.name}"

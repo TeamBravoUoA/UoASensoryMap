@@ -22,7 +22,31 @@ from sensemap.models import (
 
 BASE_DIR = Path(__file__).resolve().parents[3]
 DATA_DIR = BASE_DIR / "data"
-CHECKPOINT_FILE = BASE_DIR / "seed_checkpoint.json"
+
+# Mapping dictionaries which converts CSV values into model TextChoices values
+CATEGORY_MAP = {
+    "Library": "library",
+    "Teaching building": "teaching_building",
+    "Conference / Events building": "conference_events",
+    "Conference / Events Building": "conference_events",
+    "Cultural Space": "cultural_space",
+    "Social building": "social_building",
+    "Student Services": "student_services",
+    "Research / Laboratories": "research_laboratory",
+    "Garden": "garden",
+    "Gardens": "garden",
+    "Sports Facility": "sports_facility",
+    "Support Building": "support_building",
+    "Cafe": "cafe",
+    "Shop": "shop",
+    "Nursery": "nursery",
+}
+
+CAMPUS_MAP = {
+    "Old Aberdeen": "old_aberdeen",
+    "Foresterhill": "foresterhill",
+    "Hillhead": "hillhead",
+}
 
 SAFE_SPACE_THRESHOLD = 2.5
 MAX_RETRIES = 3
@@ -47,14 +71,14 @@ def load_csv(file_name):
 def parse_int(value):
     try:
         return int(value)
-    except:
+    except Exception:
         return None
 
 
 def parse_float(value):
     try:
         return float(value)
-    except:
+    except Exception:
         return None
 
 
@@ -78,20 +102,10 @@ def parse_time(value):
     for fmt in formats:
         try:
             return datetime.strptime(value, fmt).time()
-        except:
+        except Exception:
             continue
 
     return None
-
-
-def load_checkpoint():
-    if CHECKPOINT_FILE.exists():
-        return json.loads(CHECKPOINT_FILE.read_text())
-    return {}
-
-
-def save_checkpoint(data):
-    CHECKPOINT_FILE.write_text(json.dumps(data, indent=2))
 
 
 def retry(fn, *args, **kwargs):
@@ -120,8 +134,6 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         self.dry_run = options["dry_run"]
         self.skip_errors = options["skip_errors"]
-
-        self.checkpoint = load_checkpoint()
 
         logger.info("ETL STARTED")
 
@@ -190,10 +202,23 @@ class Command(BaseCommand):
                 external_id=parse_int(row["location_id"]),
                 defaults={
                     "name": row["name"].strip(),
-                    "category": row["Category"].strip().lower(),
-                    "campus": row["campus"].strip().lower(),
+                    "also_known_as": row.get("also_known_as", ""),
+                    "category": CATEGORY_MAP[row["Category"].strip()],
+                    "campus": CAMPUS_MAP[row["campus"].strip()],
+                    "description": row.get("location_description", ""),
                     "latitude": parse_float(row["latitude"]),
                     "longitude": parse_float(row["longitude"]),
+                    "weekday_open_time": parse_time(row.get("week_days_opentime")),
+                    "weekday_close_time": parse_time(row.get("weekdays_close_time")),
+                    "saturday_open_time": parse_time(row.get("Saturday_open_time")),
+                    "saturday_close_time": parse_time(row.get("saturday_close_time")),
+                    "sunday_holiday_open_time": parse_time(row.get("sunday_holidays_open_time")),
+                    "sunday_holiday_close_time": parse_time(row.get("Sunday_holidays_close_time")),
+                    "opening_hrs_notes": row.get("opening_hours_note", ""),
+                    "id_access_needed": parse_bool(row.get("id_access_needed")),
+                    "additional_access_notes": row.get("additional_access_notes", ""),
+                    "thumbnail_image": row.get("thumbnails_image", ""),
+                    "uoa_map_link": row.get("uoa_map_link", ""),
                 },
             )
 
@@ -206,7 +231,7 @@ class Command(BaseCommand):
                 location = Location.objects.get(
                     external_id=parse_int(row["location_id"])
                 )
-            except:
+            except Exception:
                 logger.error(f"Missing location for space {row['space_id']}")
                 if self.skip_errors:
                     continue
@@ -220,6 +245,18 @@ class Command(BaseCommand):
                     "location": location,
                     "name": row["name"].strip(),
                     "space_type": row["space_type"],
+                    "description": row.get("description", ""),
+                    "thumbnail_image": row.get("thumbnail_image", ""),
+                    "weekday_open_time": parse_time(row.get("week_days_opentime")),
+                    "weekday_close_time": parse_time(row.get("weekdays_close_time")),
+                    "saturday_open_time": parse_time(row.get("Saturday_open_time")),
+                    "saturday_close_time": parse_time(row.get("saturday_close_time")),
+                    "sunday_holiday_open_time": parse_time(row.get("sunday_holidays_open_time")),
+                    "sunday_holiday_close_time": parse_time(row.get("Sunday_holidays_close_time")),
+                    "opening_hrs_notes": row.get("opening_hours_note", ""),
+                    "sensory_experience": row.get("sensory_experience", ""),
+                    "wayfinding": row.get("wayfinding", ""),
+                    "is_quiet_zone": parse_bool(row.get("is_quiet_zone")),
                 },
             )
     
@@ -236,7 +273,7 @@ class Command(BaseCommand):
                 facility = Facility.objects.get(
                     external_id=parse_int(row["facility_id"])
                 )
-            except:
+            except Exception:
                 if self.skip_errors:
                     continue
                 raise
@@ -265,7 +302,7 @@ class Command(BaseCommand):
                 facility = Facility.objects.get(
                     external_id=parse_int(row["facility_id"])
                 )
-            except:
+            except Exception:
                 if self.skip_errors:
                     continue
                 raise
@@ -290,7 +327,7 @@ class Command(BaseCommand):
                 location = Location.objects.get(
                     external_id=parse_int(row["location_id"])
                 )
-            except:
+            except Exception:
                 continue
 
             self.safe_execute(
@@ -346,7 +383,7 @@ class Command(BaseCommand):
                 attr = SensoryAttribute.objects.get(
                     external_id=parse_int(row["sensory_attribute_id"])
                 )
-            except:
+            except Exception:
                 if self.skip_errors:
                     continue
                 raise
