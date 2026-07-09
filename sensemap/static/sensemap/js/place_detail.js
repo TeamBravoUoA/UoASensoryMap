@@ -33,7 +33,16 @@
     return labels[cat] || cat;
   }
 
-   function renderFacilities(wrap, facilities) {
+  function hoursRow(label, open, close) {
+    const time = (open && close)
+      ? open.slice(0, 5) + " &ndash; " + close.slice(0, 5)
+      : "Closed";
+    return (
+      '<tr><th>' + escapeHtml(label) + '</th><td>' + time + '</td></tr>'
+    );
+  }
+
+  function renderFacilities(wrap, facilities) {
     if (!facilities.length) {
       wrap.innerHTML = '<p class="empty">No facilities listed.</p>';
       return;
@@ -49,15 +58,6 @@
           "</span>"
       )
       .join("");
-  }
-
-  function hoursRow(label, open, close) {
-    const time = (open && close)
-      ? open.slice(0, 5) + " &ndash; " + close.slice(0, 5)
-      : "Closed";
-    return (
-      '<tr><th>' + escapeHtml(label) + '</th><td>' + time + '</td></tr>'
-    );
   }
 
   function renderSensory(profiles) {
@@ -171,15 +171,14 @@
           ? '<p class="muted-note">' + escapeHtml(d.additional_access_notes) + "</p>"
           : "");
 
-
       el("dp-hours").innerHTML =
         hoursRow("Mon\u2013Fri", d.weekday_open_time, d.weekday_close_time) +
         hoursRow("Saturday", d.saturday_open_time, d.saturday_close_time) +
         hoursRow("Sun / holidays", d.sunday_holiday_open_time, d.sunday_holiday_close_time);
       el("dp-hours-notes").textContent = d.opening_hrs_notes || "";
 
-      renderSensory(d.sensory_profiles || []);
       renderFacilities(el("dp-facilities"), d.facilities || []);
+      renderSensory(d.sensory_profiles || []);
       renderSpaces(d.spaces || []);
       renderGallery(d.gallery_images || []);
 
