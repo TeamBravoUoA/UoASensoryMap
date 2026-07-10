@@ -1,0 +1,98 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Feedback &middot; UoA Sensory Map</title>
+  <meta name="feedback" content="Detailed sensor feedback for a University of Aberdeen location." />
+  <link rel="stylesheet" href="{% static 'sensemap/css/styles.css' %}" />
+  <link rel="icon" type="image/png" href="{% static 'sensemap/icons/logo.png' %}">
+</head>
+<body>
+  <a href="#feedback-main" class="skip-link">Skip to feedback</a>
+
+  <div class="app">
+    <header class="site-header">
+      <a href="/" class="brand" aria-label="UoA Sensory Map — go to home page">
+        <img src="{% static 'sensemap/icons/logo.png' %}" alt="" class="brand-mark" aria-hidden="true">
+        <div class="brand-text">
+          <h1>UoA Sensory Map</h1>
+          <p class="tagline">Share sensory information about a location to help others plan their visit and improve the campus experience.</p>
+        </div>
+      </a>
+
+      <nav class="header-links" aria-label="Site">
+        <a class="header-btn" href="/">&#8592; Map view</a>
+        <a class="header-btn" href="/places/">All places</a>
+        <a class="header-btn" href="/feedback/">Submit feedback</a>
+      </nav>
+    </header>
+
+    <main class="feedback-page" id="feedback-main">
+      <div class="feedback-page-loader" id="feedback-loader">Loading feedback form&hellip;</div>
+      <div class="feedback-page-error" id="feedback-error" hidden></div>
+
+      <article class="feedback-page-card" id="feedback-card">
+        <header class="feedback-page-head">
+          <div class="feedback-page-title">
+            <h2>About this form</h2>
+            <p class="feedback-page-sub">Your feedback helps build an accurate and inclusive Sensory Map for everyone.</p>
+            <p class="feedback-page-sub">Fields marked with an asterisk (*) are required.</p>
+          </div>
+        </header>
+
+        <form id="feedback-form" method="post" action="{% url 'feedback' %}">
+          {% csrf_token %}
+
+          <section>
+            <h3>1. Location details</h3>
+            <p class="feedback-page-sub">Search for a location on the map.</p>
+            <label for="search-location"><b>Location *</b></label>
+            <input type="search" id="search-location" name="location" placeholder="Search for a place…">
+          </section>
+
+          <section id="sensory-section">
+            <h3>2. Sensory information</h3>
+            <p class="feedback-page-sub">How would you rate this location today?</p>
+
+            <!-- Populated by feedback.js — overall 1..5 scale legend -->
+            <div class="rating-legend" id="rating-legend"></div>
+
+            <!-- Populated by feedback.js, following the same render-from-data-array
+                 pattern used in place_detail.js (renderSensory / renderFacilities). -->
+            <div class="sensory-attributes" id="sensory-attributes"></div>
+          </section>
+
+          <section>
+            <h3>3. Your details <span class="form-help">(optional)</span></h3>
+            <p class="form-help">You can remain anonymous or provide your details.</p>
+
+            <input type="radio" id="anonymous" name="feedback_anonymous" value="anonymous" checked>
+            <label for="anonymous">Submit anonymously</label>
+            <p class="form-help">Your feedback will be shared without your name.</p>
+
+            <input type="radio" id="named" name="feedback_anonymous" value="named">
+            <label for="named">Provide my details</label>
+            <p class="form-help">We will only use your details if we need to contact you about this feedback.</p>
+
+            <label for="feedback-name">Name (optional)</label>
+            <input type="text" id="feedback-name" name="feedback_name">
+
+            <label for="feedback-text">Email (optional)</label>
+            <input type="email" id="feedback-text" name="feedback_text">
+          </section>
+
+          <button type="submit" class="btn">Submit feedback</button>
+        </form>
+      </article>
+    </main>
+
+    <footer class="site-footer">
+      <p>University of Aberdeen &copy; 2024</p>
+    </footer>
+  </div>
+
+  <script src="{% static 'sensemap/js/feedback.js' %}"></script>
+</body>
+</html>
