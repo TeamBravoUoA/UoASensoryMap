@@ -38,6 +38,7 @@ CATEGORY_MAP = {
     "Sports Facility": "sports_facility",
     "Support Building": "support_building",
     "Cafe": "cafe",
+    "cafe": "cafe",
     "Shop": "shop",
     "Nursery": "nursery",
 }
@@ -196,6 +197,9 @@ class Command(BaseCommand):
         rows = load_csv("Location.csv")
 
         for row in tqdm(rows, desc="Locations"):
+
+            thumbnail = row.get("thumbnails_image", "").replace("\\", "/")
+
             self.safe_execute(
                 row.get("location_id"),
                 Location.objects.update_or_create,
@@ -217,7 +221,7 @@ class Command(BaseCommand):
                     "opening_hrs_notes": row.get("opening_hours_note", ""),
                     "id_access_needed": parse_bool(row.get("id_access_needed")),
                     "additional_access_notes": row.get("additional_access_notes", ""),
-                    "thumbnail_image": row.get("thumbnails_image", ""),
+                    "thumbnail_image": thumbnail,
                     "uoa_map_link": row.get("uoa_map_link", ""),
                 },
             )
@@ -237,6 +241,8 @@ class Command(BaseCommand):
                     continue
                 raise
 
+            thumbnail = row.get("thumbnail_image", "").replace("\\", "/")
+
             self.safe_execute(
                 row.get("space_id"),
                 Space.objects.update_or_create,
@@ -246,7 +252,7 @@ class Command(BaseCommand):
                     "name": row["name"].strip(),
                     "space_type": row["space_type"],
                     "description": row.get("description", ""),
-                    "thumbnail_image": row.get("thumbnail_image", ""),
+                    "thumbnail_image": thumbnail,
                     "weekday_open_time": parse_time(row.get("week_days_opentime")),
                     "weekday_close_time": parse_time(row.get("weekdays_close_time")),
                     "saturday_open_time": parse_time(row.get("Saturday_open_time")),
@@ -330,11 +336,13 @@ class Command(BaseCommand):
             except Exception:
                 continue
 
+            image = row.get("image", "").replace("\\", "/")
+
             self.safe_execute(
                 f"{row['location_id']}-{row.get('image')}",
                 LocationGalleryImage.objects.update_or_create,
                 location=location,
-                image=row.get("image"),
+                image=image,
                 defaults={"caption": row.get("caption", "")},
             )
 
