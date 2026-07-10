@@ -1,0 +1,209 @@
+﻿location_id,facility_id,status,notes
+1,1,TRUE,Seating is available for users within this space.
+1,2,TRUE,Power sockets are available for charging electronic devices.
+1,3,TRUE,Food and drink are permitted or available in this space.
+1,4,FALSE,No kettle is provided in this space.
+1,5,FALSE,No microwave is available in this space.
+1,6,TRUE,Toilet facilities are available nearby or within this space.
+1,7,TRUE,An accessible toilet is available for wheelchair users.
+1,8,TRUE,The space has wheelchair-accessible access from outside the building.
+2,1,TRUE,Step-free access is available throughout the space.
+2,2,TRUE,Accessible parking spaces are available nearby.
+2,3,TRUE,Seating is available for users within this space.
+2,4,TRUE,Power sockets are available for charging electronic devices.
+2,5,TRUE,Food and drink are permitted or available in this space.
+2,6,FALSE,No kettle is provided in this space.
+2,7,FALSE,No microwave is available in this space.
+2,8,TRUE,Toilet facilities are available nearby or within this space.
+3,1,TRUE,An accessible toilet is available for wheelchair users.
+3,2,TRUE,The space has wheelchair-accessible access from outside the building.
+3,3,FALSE,Step-free access is not available throughout the space.
+3,4,FALSE,No accessible parking is available nearby.
+3,5,TRUE ,Seating is available for users within this space.
+3,6,TRUE,Power sockets are available for charging electronic devices.
+3,7,FALSE,Food and drink facilities are not available in this space.
+3,8,FALSE,No kettle is provided in this space.
+4,1,FALSE,No microwave is available in this space.
+4,2,TRUE,Toilet facilities are available nearby or within this space.
+4,3,TRUE,An accessible toilet is available for wheelchair users.
+4,4,TRUE,The space has wheelchair-accessible access from outside the building.
+4,5,TRUE,Step-free access is available throughout the space.
+4,6,FALSE,No accessible parking is available nearby.
+4,7,TRUE,Seating is available for users within this space.
+4,8,FALSE,No power sockets are available in this space.
+5,1,FALSE,Food and drink facilities are not available in this space.
+5,2,FALSE,No kettle is provided in this space.
+5,3,FALSE,No microwave is available in this space.
+5,4,FALSE,No toilet facilities are available within this space.
+5,5,FALSE,No accessible toilet is available.
+5,6,FALSE,Outside wheelchair access is limited or unavailable.
+5,7,TRUE,Step-free access is available throughout the space.
+5,8,FALSE,No accessible parking is available nearby.
+6,1,TRUE,Seating is available for users within this space.
+6,2,TRUE,Power sockets are available for charging electronic devices.
+6,3,FALSE,Food and drink facilities are not available in this space. 
+6,4,FALSE,No kettle is provided in this space.
+6,5,FALSE,No microwave is available in this space.
+6,6,FALSE,No toilet facilities are available within this space.
+6,7,FALSE,No accessible toilet is available.
+6,8,TRUE,The space has wheelchair-accessible access from outside the building.
+7,1,TRUE,Step-free access is available throughout the space.
+7,2,FALSE,No accessible parking is available nearby.
+7,3,TRUE,Seating is available for users within this space.
+7,4,FALSE,No power sockets are available in this space.
+7,5,FALSE,Food and drink facilities are not available in this space.
+7,6,FALSE,No kettle is provided in this space.
+7,7,FALSE,No microwave is available in this space.
+7,8,TRUE,Toilet facilities are available nearby or within this space.
+8,1,TRUE,An accessible toilet is available for wheelchair users.
+8,2,TRUE,The space has wheelchair-accessible access from outside the building.
+8,3,FALSE,Step-free access is not available throughout the space.
+8,4,FALSE,No accessible parking is available nearby.
+8,5,TRUE,Seating is available for users within this space.
+8,6,TRUE,Power sockets are available for charging electronic devices.
+8,7,TRUE,Food and drink are permitted or available in this space.
+8,8,TRUE,A kettle is provided for preparing hot drinks.
+9,1,FALSE,No microwave is available in this space.
+9,2,TRUE,Toilet facilities are available nearby or within this space.
+9,3,TRUE,An accessible toilet is available for wheelchair users.
+9,4,TRUE,The space has wheelchair-accessible access from outside the building.
+9,5,TRUE,Step-free access is available throughout the space.
+9,6,TRUE,Accessible parking spaces are available nearby.
+9,7,TRUE,Seating is available for users within this space.
+9,8,TRUE,Power sockets are available for charging electronic devices.
+10,1,FALSE,Food and drink facilities are not available in this space.
+10,2,FALSE,No kettle is provided in this space.
+10,3,FALSE,No microwave is available in this space.
+10,4,TRUE,Toilet facilities are available nearby or within this space.
+10,5,TRUE,An accessible toilet is available for wheelchair users.
+10,6,TRUE,The space has wheelchair-accessible access from outside the building.
+10,7,TRUE,Step-free access is available throughout the space.
+10,8,TRUE,Accessible parking spaces are available nearby.
+11,1,TRUE,Seating is available for users within this space.
+11,2,TRUE,Power sockets are available for charging electronic devices.
+11,3,TRUE,Food and drink are permitted or available in this space.
+11,4,TRUE,A kettle is provided for preparing hot drinks.
+11,5,TRUE,A microwave is available for heating food.
+11,6,TRUE,Toilet facilities are available nearby or within this space.
+11,7,TRUE,An accessible toilet is available for wheelchair users.
+11,8,TRUE,The space has wheelchair-accessible access from outside the building.
+12,1,TRUE,Step-free access is available throughout the space.
+12,2,TRUE,Accessible parking spaces are available nearby.
+12,3,TRUE,Seating is available for users within this space.
+12,4,FALSE,No power sockets are available in this space.
+12,5,FALSE,Food and drink facilities are not available in this space.
+12,6,FALSE,No kettle is provided in this space.
+12,7,FALSE,No microwave is available in this space.
+12,8,TRUE,Toilet facilities are available nearby or within this space.
+13,1,TRUE,An accessible toilet is available for wheelchair users.
+13,2,TRUE,The space has wheelchair-accessible access from outside the building.
+13,3,TRUE,Step-free access is available throughout the space.
+13,4,FALSE,No accessible parking is available nearby.
+13,5,TRUE,Seating is available for users within this space.
+13,6,TRUE,Power sockets are available for charging electronic devices.
+13,7,TRUE,Food and drink are permitted or available in this space.
+13,8,FALSE,No kettle is provided in this space.
+14,1,FALSE,No microwave is available in this space.
+14,2,TRUE,Toilet facilities are available nearby or within this space.
+14,3,TRUE,An accessible toilet is available for wheelchair users.
+14,4,TRUE,The space has wheelchair-accessible access from outside the building.
+14,5,TRUE,Step-free access is available throughout the space.
+14,6,TRUE,Accessible parking spaces are available nearby.
+14,7,TRUE,Seating is available for users within this space.
+14,8,TRUE,Power sockets are available for charging electronic devices.
+15,1,FALSE,Food and drink facilities are not available in this space.
+15,2,FALSE,No kettle is provided in this space.
+15,3,FALSE,No microwave is available in this space.
+15,4,TRUE,Toilet facilities are available nearby or within this space.
+15,5,TRUE,An accessible toilet is available for wheelchair users.
+15,6,TRUE,The space has wheelchair-accessible access from outside the building.
+15,7,TRUE,Step-free access is available throughout the space.
+15,8,TRUE,Accessible parking spaces are available nearby.
+16,1,TRUE,Seating is available for users within this space.
+16,2,TRUE,Power sockets are available for charging electronic devices.
+16,3,TRUE,Food and drink are permitted or available in this space.
+16,4,FALSE,No kettle is provided in this space.
+16,5,FALSE,No microwave is available in this space.
+16,6,TRUE,Toilet facilities are available nearby or within this space.
+16,7,TRUE,An accessible toilet is available for wheelchair users.
+16,8,TRUE,The space has wheelchair-accessible access from outside the building.
+17,1,TRUE,Step-free access is available throughout the space.
+17,2,TRUE,Accessible parking spaces are available nearby.
+17,3,TRUE,Seating is available for users within this space.
+17,4,TRUE,Power sockets are available for charging electronic devices.
+17,5,FALSE,Food and drink facilities are not available in this space.
+17,6,FALSE,No kettle is provided in this space.
+17,7,FALSE,No microwave is available in this space.
+17,8,TRUE,Toilet facilities are available nearby or within this space.
+18,1,TRUE,An accessible toilet is available for wheelchair users.
+18,2,TRUE,The space has wheelchair-accessible access from outside the building.
+18,3,FALSE,Step-free access is not available throughout the space.
+18,4,TRUE,Accessible parking spaces are available nearby.
+18,5,TRUE,Seating is available for users within this space.
+18,6,TRUE,Power sockets are available for charging electronic devices.
+18,7,FALSE,Food and drink facilities are not available in this space.
+18,8,FALSE,No kettle is provided in this space.
+19,1,FALSE,No microwave is available in this space.
+19,2,TRUE,Toilet facilities are available nearby or within this space.
+19,3,TRUE,An accessible toilet is available for wheelchair users.
+19,4,TRUE,The space has wheelchair-accessible access from outside the building.
+19,5,TRUE,Step-free access is available throughout the space.
+19,6,TRUE,Accessible parking spaces are available nearby.
+19,7,TRUE,Seating is available for users within this space.
+19,8,TRUE,Power sockets are available for charging electronic devices.
+20,1,FALSE,Food and drink facilities are not available in this space.
+20,2,FALSE,No kettle is provided in this space.
+20,3,FALSE,No microwave is available in this space.
+20,4,TRUE,Toilet facilities are available nearby or within this space.
+20,5,TRUE,An accessible toilet is available for wheelchair users.
+20,6,TRUE,The space has wheelchair-accessible access from outside the building.
+20,7,TRUE,Step-free access is available throughout the space.
+20,8,TRUE,Accessible parking spaces are available nearby.
+21,1,TRUE,Seating is available for users within this space.
+21,2,TRUE,Power sockets are available for charging electronic devices.
+21,3,FALSE,Food and drink facilities are not available in this space.
+21,4,FALSE,No kettle is provided in this space.
+21,5,FALSE,No microwave is available in this space.
+21,6,TRUE,Toilet facilities are available nearby or within this space.
+21,7,TRUE,An accessible toilet is available for wheelchair users.
+21,8,TRUE,The space has wheelchair-accessible access from outside the building.
+22,1,FALSE,Step-free access is not available throughout the space.
+22,2,TRUE,Accessible parking spaces are available nearby.
+22,3,TRUE,Seating is available for users within this space.
+22,4,TRUE,Power sockets are available for charging electronic devices.
+22,5,FALSE,Food and drink facilities are not available in this space.
+22,6,FALSE,No kettle is provided in this space.
+22,7,FALSE,No microwave is available in this space.
+22,8,TRUE,Toilet facilities are available nearby or within this space.
+23,1,TRUE,An accessible toilet is available for wheelchair users.
+23,2,TRUE,The space has wheelchair-accessible access from outside the building.
+23,3,TRUE,Step-free access is available throughout the space.
+23,4,TRUE,Accessible parking spaces are available nearby.
+23,5,TRUE,Seating is available for users within this space.
+23,6,TRUE,Power sockets are available for charging electronic devices.
+23,7,TRUE,Food and drink are permitted or available in this space.
+23,8,FALSE,No kettle is provided in this space.
+24,1,FALSE,No microwave is available in this space.
+24,2,TRUE,Toilet facilities are available nearby or within this space.
+24,3,TRUE,An accessible toilet is available for wheelchair users.
+24,4,TRUE,The space has wheelchair-accessible access from outside the building.
+24,5,TRUE,Step-free access is available throughout the space.
+24,6,TRUE,Accessible parking spaces are available nearby.
+24,7,TRUE,Seating is available for users within this space.
+24,8,TRUE,Power sockets are available for charging electronic devices.
+25,1,TRUE,Food and drink are permitted or available in this space.
+25,2,FALSE,No kettle is provided in this space.
+25,3,FALSE,No microwave is available in this space.
+25,4,TRUE,Toilet facilities are available nearby or within this space.
+25,5,TRUE,An accessible toilet is available for wheelchair users.
+25,6,TRUE,The space has wheelchair-accessible access from outside the building.
+25,7,TRUE,Step-free access is available throughout the space.
+25,8,FALSE,No accessible parking is available nearby.
+26,1,TRUE,Food and drink are permitted or available in this space.
+26,2,FALSE,No kettle is provided in this space.
+26,3,FALSE,No microwave is available in this space.
+26,4,FALSE,No Toilet facilities are available nearby or within this space.
+26,5,FALSE,No accessible toilet is available for wheelchair users.
+26,6,FALSE,The space hasn’t  wheelchair-accessible access from outside the garden.
+26,7,FALSE,No Step-free access is available throughout the space.
+26,8,FALSE,No accessible parking is available nearby.

@@ -1,16 +1,13 @@
-"""Seed the database with sample University of Aberdeen campus data.
-
-Run with:  python manage.py seed
-Re-running is safe: it clears the seeded models first, then recreates
-Facilities, SensoryAttributes, Locations, Spaces, their profiles/facility
-links and a couple of accepted feedback reports.
-"""
-
-from datetime import time
-
+import csv
+import json
+import time
+import logging
+from pathlib import Path
+from datetime import datetime
 from django.core.management.base import BaseCommand
 from django.db import transaction
-
+from django.db.models import Avg
+from tqdm import tqdm
 from sensemap.models import (
     Facility,
     SensoryAttribute,
@@ -18,9 +15,9 @@ from sensemap.models import (
     Space,
     LocationFacility,
     SpaceFacility,
-    LocationSensoryProfile,
+    LocationGalleryImage,
+    LocationSensoryProfile, 
     SpaceSensoryProfile,
-    FeedbackReport,
 )
 
 # Reference data ------------------------------------------------------------ #
@@ -251,93 +248,402 @@ LOCATIONS = [
         ],
     },
 ]
+BASE_DIR = Path(__file__).resolve().parents[3]
+DATA_DIR = BASE_DIR / "data"
+
+# Mapping dictionaries which converts CSV values into model TextChoices values
+CATEGORY_MAP = {
+    "Library": "library",
+    "Teaching building": "teaching_building",
+    "Conference / Events building": "conference_events",
+    "Conference / Events Building": "conference_events",
+    "Cultural Space": "cultural_space",
+    "Social building": "social_building",
+    "Student Services": "student_services",
+    "Research / Laboratories": "research_laboratory",
+    "Garden": "garden",
+    "Gardens": "garden",
+    "Sports Facility": "sports_facility",
+    "Support Building": "support_building",
+    "Cafe": "cafe",
+    "cafe": "cafe",
+    "Shop": "shop",
+    "Nursery": "nursery",
+}
+
+CAMPUS_MAP = {
+    "Old Aberdeen": "old_aberdeen",
+    "Foresterhill": "foresterhill",
+    "Hillhead": "hillhead",
+}
+
+SAFE_SPACE_THRESHOLD = 2.5
+MAX_RETRIES = 3
+RETRY_DELAY = 1.5
+
+
+logger = logging.getLogger("etl_seeder")
+logger.setLevel(logging.INFO)
+
+handler = logging.FileHandler(BASE_DIR / "etl_seed.log")
+formatter = logging.Formatter("%(asctime)s | %(levelname)s | %(message)s")
+handler.setFormatter(formatter)
+logger.addHandler(handler)
+
+
+def load_csv(file_name):
+    """Load CSV file into list of dictionaries."""
+    with open(DATA_DIR / file_name, newline="", encoding="utf-8-sig") as f:
+        return list(csv.DictReader(f))
+
+
+def parse_int(value):
+    try:
+        return int(value)
+    except Exception:
+        return None
+
+
+def parse_float(value):
+    try:
+        return float(value)
+    except Exception:
+        return None
+
+
+def parse_bool(value):
+    return str(value).strip().lower() in ["true", "yes", "1"]
+
+
+def parse_time(value):
+    """Parse inconsistent CSV time formats into Python time objects."""
+    if not value:
+        return None
+
+    value = value.strip().lower()
+
+    if value in ["closed", "none", "na"]:
+        return None
+
+    value = value.replace("?", "").upper()
+    formats = ["%I %p", "%I:%M %p", "%H:%M"]
+
+    for fmt in formats:
+        try:
+            return datetime.strptime(value, fmt).time()
+        except Exception:
+            continue
+
+    return None
+
+
+def retry(fn, *args, **kwargs):
+    """Retry database operations on transient failures."""
+    for attempt in range(MAX_RETRIES):
+        try:
+            return fn(*args, **kwargs)
+        except Exception:
+            if attempt == MAX_RETRIES - 1:
+                raise
+            time.sleep(RETRY_DELAY)
 
 
 class Command(BaseCommand):
-    help = "Seed the database with sample UoA campus locations, spaces and reference data."
+    """
+    ETL pipeline for seeding the database from CSV datasets.
+    Includes retry logic, logging, and optional error skipping.
+    """
 
-    @transaction.atomic
+    help = "Production-grade ETL seeder"
+
+    def add_arguments(self, parser):
+        parser.add_argument("--dry-run", action="store_true")
+        parser.add_argument("--skip-errors", action="store_true")
+
     def handle(self, *args, **options):
-        # Clear previously seeded rows (order respects FKs).
-        FeedbackReport.objects.all().delete()
-        SpaceSensoryProfile.objects.all().delete()
-        SpaceFacility.objects.all().delete()
-        Space.objects.all().delete()
-        LocationSensoryProfile.objects.all().delete()
-        LocationFacility.objects.all().delete()
-        Location.objects.all().delete()
-        SensoryAttribute.objects.all().delete()
-        Facility.objects.all().delete()
+        self.dry_run = options["dry_run"]
+        self.skip_errors = options["skip_errors"]
 
-        facilities = {name: Facility.objects.create(name=name) for name in FACILITIES}
-        attributes = {
-            name: SensoryAttribute.objects.create(name=name) for name in SENSORY_ATTRIBUTES
-        }
+        logger.info("ETL STARTED")
 
-        space_total = 0
-        for entry in LOCATIONS:
-            loc = Location.objects.create(
-                **hours({
-                    "name": entry["name"],
-                    "also_known_as": entry.get("also_known_as", ""),
-                    "category": entry["category"],
-                    "campus": entry["campus"],
-                    "description": entry["description"],
-                    "latitude": entry["latitude"],
-                    "longitude": entry["longitude"],
-                    "id_access_needed": entry.get("id_access_needed", False),
-                    "uoa_map_link": entry.get("uoa_map_link", ""),
-                })
+        with transaction.atomic():
+            self.seed_facilities()
+            self.seed_sensory_attributes()
+            self.seed_locations()
+            self.seed_spaces()
+            self.seed_location_facilities()
+            self.seed_space_facilities()         
+            self.seed_location_sensory_profiles()
+            self.seed_gallery()
+            self.seed_space_sensory_profiles()
+            self.update_space_safety()
+
+        logger.info("ETL COMPLETED")
+
+    def safe_execute(self, row_id, fn, *args, **kwargs):
+        """Execute DB operation with retry and error handling."""
+        try:
+            return retry(fn, *args, **kwargs)
+
+        except Exception as e:
+            logger.error(f"FAILED ROW | id={row_id} | error={str(e)}")
+
+            if self.skip_errors:
+                return None
+
+            raise
+
+    def seed_facilities(self):
+        """Seed Facility reference data."""
+        rows = load_csv("Facility.csv")
+
+        for row in tqdm(rows, desc="Facilities"):
+            self.safe_execute(
+                row.get("facility_id"),
+                Facility.objects.update_or_create,
+                external_id=parse_int(row["facility_id"]),
+                defaults={"name": row["name"].strip()},
             )
 
-            for fname, status in entry.get("facilities", {}).items():
-                LocationFacility.objects.create(
-                    location=loc, facility=facilities[fname], status=status
-                )
+    def seed_sensory_attributes(self):
+        """Seed sensory attributes used for evaluation."""
+        rows = load_csv("SensoryAttributes.csv")
 
-            for attr, rating in entry.get("sensory", {}).items():
-                LocationSensoryProfile.objects.create(
-                    location=loc, sensory_attribute=attributes[attr], rating=rating
-                )
-
-            for sp in entry.get("spaces", []):
-                space = Space.objects.create(
-                    **hours({
-                        "location": loc,
-                        "name": sp["name"],
-                        "space_type": sp["space_type"],
-                        "description": sp.get("description", ""),
-                        "sensory_experience": sp.get("sensory_experience", ""),
-                        "is_quiet_zone": sp.get("is_quiet_zone", False),
-                        "is_safe_space_neurodivergent_students": sp.get("is_nd_safe", False),
-                    })
-                )
-                space_total += 1
-                for fname, status in sp.get("facilities", {}).items():
-                    SpaceFacility.objects.create(
-                        space=space, facility=facilities[fname], status=status
-                    )
-                for attr, rating in sp.get("sensory", {}).items():
-                    SpaceSensoryProfile.objects.create(
-                        space=space, sensory_attribute=attributes[attr], rating=rating
-                    )
-
-        # A couple of accepted community feedback reports for the detail panel.
-        library = Location.objects.get(name="Sir Duncan Rice Library")
-        FeedbackReport.objects.create(
-            location=library, comment="Level 6 is wonderfully calm in the mornings.",
-            is_anonymous=True, status="accepted",
-        )
-        hub = Location.objects.get(name="The Hub")
-        FeedbackReport.objects.create(
-            location=hub, comment="Very loud at lunch - try just before noon.",
-            is_anonymous=False, reporter_name="A. Student",
-            reporter_email="student@abdn.ac.uk", status="accepted",
-        )
-
-        self.stdout.write(
-            self.style.SUCCESS(
-                f"Seeded {len(facilities)} facilities, {len(attributes)} sensory attributes, "
-                f"{len(LOCATIONS)} locations and {space_total} spaces."
+        for row in tqdm(rows, desc="Sensory Attributes"):
+            self.safe_execute(
+                row.get("sensory_attribute_id"),
+                SensoryAttribute.objects.update_or_create,
+                external_id=parse_int(row["sensory_attribute_id"]),
+                defaults={
+                    "name": row["name"].strip(),
+                    "description": row.get("description", ""),
+                },
             )
+
+    def seed_locations(self):
+        """Seed university locations."""
+        rows = load_csv("Location.csv")
+
+        for row in tqdm(rows, desc="Locations"):
+
+            thumbnail = row.get("thumbnails_image", "").replace("\\", "/")
+
+            self.safe_execute(
+                row.get("location_id"),
+                Location.objects.update_or_create,
+                external_id=parse_int(row["location_id"]),
+                defaults={
+                    "name": row["name"].strip(),
+                    "also_known_as": row.get("also_known_as", ""),
+                    "category": CATEGORY_MAP[row["Category"].strip()],
+                    "campus": CAMPUS_MAP[row["campus"].strip()],
+                    "description": row.get("location_description", ""),
+                    "latitude": parse_float(row["latitude"]),
+                    "longitude": parse_float(row["longitude"]),
+                    "weekday_open_time": parse_time(row.get("week_days_opentime")),
+                    "weekday_close_time": parse_time(row.get("weekdays_close_time")),
+                    "saturday_open_time": parse_time(row.get("Saturday_open_time")),
+                    "saturday_close_time": parse_time(row.get("saturday_close_time")),
+                    "sunday_holiday_open_time": parse_time(row.get("sunday_holidays_open_time")),
+                    "sunday_holiday_close_time": parse_time(row.get("Sunday_holidays_close_time")),
+                    "opening_hrs_notes": row.get("opening_hours_note", ""),
+                    "id_access_needed": parse_bool(row.get("id_access_needed")),
+                    "additional_access_notes": row.get("additional_access_notes", ""),
+                    "thumbnail_image": thumbnail,
+                    "uoa_map_link": row.get("uoa_map_link", ""),
+                },
+            )
+
+    def seed_spaces(self):
+        """Seed spaces within locations."""
+        rows = load_csv("Space.csv")
+
+        for row in tqdm(rows, desc="Spaces"):
+            try:
+                location = Location.objects.get(
+                    external_id=parse_int(row["location_id"])
+                )
+            except Exception:
+                logger.error(f"Missing location for space {row['space_id']}")
+                if self.skip_errors:
+                    continue
+                raise
+
+            thumbnail = row.get("thumbnail_image", "").replace("\\", "/")
+
+            self.safe_execute(
+                row.get("space_id"),
+                Space.objects.update_or_create,
+                external_id=parse_int(row["space_id"]),
+                defaults={
+                    "location": location,
+                    "name": row["name"].strip(),
+                    "space_type": row["space_type"],
+                    "description": row.get("description", ""),
+                    "thumbnail_image": thumbnail,
+                    "weekday_open_time": parse_time(row.get("week_days_opentime")),
+                    "weekday_close_time": parse_time(row.get("weekdays_close_time")),
+                    "saturday_open_time": parse_time(row.get("Saturday_open_time")),
+                    "saturday_close_time": parse_time(row.get("saturday_close_time")),
+                    "sunday_holiday_open_time": parse_time(row.get("sunday_holidays_open_time")),
+                    "sunday_holiday_close_time": parse_time(row.get("Sunday_holidays_close_time")),
+                    "opening_hrs_notes": row.get("opening_hours_note", ""),
+                    "sensory_experience": row.get("sensory_experience", ""),
+                    "wayfinding": row.get("wayfinding", ""),
+                    "is_quiet_zone": parse_bool(row.get("is_quiet_zone")),
+                },
+            )
+    
+
+    def seed_location_facilities(self):
+        """Seed facility availability for each location."""
+        rows = load_csv("LocationFacility.csv")
+
+        for row in tqdm(rows, desc="Location Facilities"):
+            try:
+                location = Location.objects.get(
+                    external_id=parse_int(row["location_id"])
+                )
+                facility = Facility.objects.get(
+                    external_id=parse_int(row["facility_id"])
+                )
+            except Exception:
+                if self.skip_errors:
+                    continue
+                raise
+
+            self.safe_execute(
+                f"{row['location_id']}-{row['facility_id']}",
+                LocationFacility.objects.update_or_create,
+                location=location,
+                facility=facility,
+                defaults={
+                    "status": parse_bool(row.get("status")),
+                    "notes": row.get("notes", ""),
+                },
+            )
+
+
+    def seed_space_facilities(self):
+        """Seed facility availability for each space."""
+        rows = load_csv("SpaceFacility.csv")
+
+        for row in tqdm(rows, desc="Space Facilities"):
+            try:
+                space = Space.objects.get(
+                    external_id=parse_int(row["space_id"])
+                )
+                facility = Facility.objects.get(
+                    external_id=parse_int(row["facility_id"])
+                )
+            except Exception:
+                if self.skip_errors:
+                    continue
+                raise
+
+            self.safe_execute(
+                f"{row['space_id']}-{row['facility_id']}",
+                SpaceFacility.objects.update_or_create,
+                space=space,
+                facility=facility,
+                defaults={
+                    "status": parse_bool(row.get("status")),
+                    "notes": row.get("notes", ""),
+                },
+            )
+
+    def seed_gallery(self):
+        """Seed location gallery images."""
+        rows = load_csv("LocationGalleryImage.csv")
+
+        for row in tqdm(rows, desc="Gallery"):
+            try:
+                location = Location.objects.get(
+                    external_id=parse_int(row["location_id"])
+                )
+            except Exception:
+                continue
+
+            image = row.get("image", "").replace("\\", "/")
+
+            self.safe_execute(
+                f"{row['location_id']}-{row.get('image')}",
+                LocationGalleryImage.objects.update_or_create,
+                location=location,
+                image=image,
+                defaults={"caption": row.get("caption", "")},
+            )
+
+    def seed_location_sensory_profiles(self):
+        """Compute location-level sensory ratings from space data."""
+
+        from django.db.models import Avg
+
+        locations = Location.objects.all()
+
+        for location in tqdm(locations, desc="Location Sensory Profiles"):
+
+            aggregated = (
+                SpaceSensoryProfile.objects
+                .filter(space__location=location)
+                .values("sensory_attribute")
+                .annotate(avg_rating=Avg("rating"))
+            )
+
+            for row in aggregated:
+
+                attr_id = row["sensory_attribute"]
+                avg_rating = row["avg_rating"]
+
+                self.safe_execute(
+                    f"{location.id}-{attr_id}",
+                    LocationSensoryProfile.objects.update_or_create,
+                    location=location,
+                    sensory_attribute_id=attr_id,
+                    defaults={
+                        "rating": avg_rating,   # ✔ computed value
+                        "notes": "Auto-calculated from spaces"
+                    },
+                )
+
+
+    def seed_space_sensory_profiles(self):
+        """Seed sensory ratings for spaces."""
+        rows = load_csv("SpaceSensoryProfile.csv")
+
+        for row in tqdm(rows, desc="Space Sensory Profiles"):
+            try:
+                space = Space.objects.get(
+                    external_id=parse_int(row["space_id"])
+                )
+                attr = SensoryAttribute.objects.get(
+                    external_id=parse_int(row["sensory_attribute_id"])
+                )
+            except Exception:
+                if self.skip_errors:
+                    continue
+                raise
+
+            self.safe_execute(
+                f"{row['space_id']}-{row['sensory_attribute_id']}",
+                SpaceSensoryProfile.objects.update_or_create,
+                space=space,
+                sensory_attribute=attr,
+                defaults={
+                    "rating": int(row["space_ratings"]),
+                    "notes": row.get("notes", ""),
+                },
+            )
+
+    def update_space_safety(self):
+        """Compute whether spaces are safe for neurodivergent users."""
+        spaces = Space.objects.annotate(
+            avg_rating=Avg("space_sensory_profiles__rating")
         )
+
+        for space in tqdm(spaces, desc="Safety calc"):
+            if space.avg_rating is not None:
+                space.is_safe_space_neurodivergent_students = (
+                    space.avg_rating <= SAFE_SPACE_THRESHOLD
+                )
+                space.save(update_fields=["is_safe_space_neurodivergent_students"])
