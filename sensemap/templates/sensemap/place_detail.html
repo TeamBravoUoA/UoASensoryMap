@@ -47,11 +47,29 @@
           <p class="detail-page-desc" id="dp-desc"></p>
         </section>
 
+        <section class="info-tabs" aria-label="Place Information">
+          <div class="tab-buttons" role="tablist">
+            <button class="tab-btn active" data-tab="tab-sensory" type="button">Sensory Experience</button>
+            <button class="tab-btn" data-tab="tab-wayfinding" type="button">Wayfinding</button>
+            <button class="tab-btn" data-tab="tab-physical" type="button">Physical Access</button>
+          </div>
+          
+          <div class="tab-panel active" id="tab-sensory">
+          
+          </div>
+
+          <div class="tab-panel" id="tab-wayfinding">
+          
+          </div>
+
+        <div class="tab-panel" id="tab-physical">
+          
+        </div>
+        </section>
         <section id="dp-access-section">
           <h3>Access</h3>
           <div id="dp-access"></div>
         </section>
-
         <section>
           <h3>Opening hours</h3>
           <table class="hours-table" id="dp-hours"></table>
@@ -73,17 +91,14 @@
           <div class="spaces-list" id="dp-spaces"></div>
         </section>
 
-        <section id="dp-gallery-section" hidden>
+        <section id="dp-gallery-section">
           <h3>Gallery</h3>
           <div class="gallery" id="dp-gallery"></div>
         </section>
       </article>
     </main>
   </div>
-
-  <script>
-    const LOCATION_ID = {{ location_id }};
-  </script>
+{{ location_id|json_script:"location-id" }}
   <script src="{% static 'sensemap/js/place_detail.js' %}"></script>
 </body>
 </html>
