@@ -1,3 +1,5 @@
+# TO BE UPDATED WITH REAL SCANNER RULES, FOR NOW IM RUNNING "thread_model.py" for API LLM Model connection only
+
 """AI enrichment (plain-language explanations) """
 
 import os
@@ -9,19 +11,21 @@ load_dotenv()
 
 OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
 
-# Models tried in priority order. Qwen-Coder first (supervisor's recommendation,
-# used whenever available); GPT-OSS-20B is the reliable fallback; Llama is a last
-# resort. All end in :free to stay on the free tier.
+# Models tried in priority order. OpenAI is tried first as it's the most
+# responsive on the free tier; Qwen-Coder is the secondary fallback; 
+# Llama is a last resort. All end in :free to stay on the free tier.
 FALLBACK_MODELS = [
-    "qwen/qwen3-coder:free",
     "openai/gpt-oss-20b:free",
+    "qwen/qwen3-coder:free",
     "meta-llama/llama-3.3-70b-instruct:free",
 ]
 
+#API Retry
 MAX_RETRIES_PER_MODEL = 2   # quick retries on a busy (429) model before falling back
 BASE_WAIT = 2               # base seconds for backoff
 
 
+#To be updated with actual scanner rules
 def _build_prompt(finding):
     """Turn a scanner finding into a prompt for the model.
 
@@ -34,6 +38,8 @@ def _build_prompt(finding):
             "message": "Possible SQL injection",
         }
     """
+    
+#To be updated with actual scanner rules
     return (
         "You are a security code reviewer. A static analysis tool flagged the "
         "following issue. In 2-3 short sentences, explain the risk in plain "
@@ -44,7 +50,7 @@ def _build_prompt(finding):
         f"Code:\n{finding.get('code', 'n/a')}"
     )
 
-
+#API Key authorization
 def _call_model(model, prompt, api_key):
     """Make one request to a single model. Returns the requests.Response."""
     return requests.post(
@@ -60,7 +66,7 @@ def _call_model(model, prompt, api_key):
         timeout=60,
     )
 
-
+#Try on different models according to availability 
 def _try_model(model, prompt, api_key):
     """Try one model, with brief retries on rate-limit.
 
