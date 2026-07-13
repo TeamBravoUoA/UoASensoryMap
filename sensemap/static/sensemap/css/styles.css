@@ -1081,3 +1081,37 @@ textarea {
   .place-thumb { width: 100%; height: 160px; }
   .sensory-line { grid-template-columns: 1fr 80px auto; }
 }
+.info-tabs {
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  background: #fff;
+  margin: 1.5rem 0;
+}
+
+.tab-buttons {
+  display: flex;
+  border-bottom: 1px solid #ccc;
+}
+
+.tab-btn {
+  background: none;
+  border: 0;
+  padding: 1rem 1.25rem 0.6rem;
+  font: inherit;
+  color: #003466;
+  cursor: pointer;
+}
+
+.tab-btn.active {
+  color: #000;
+  font-weight: 700;
+  border-bottom: 3px solid #000;
+}
+
+.tab-panel {
+  display: none;
+}
+
+.tab-panel.active {
+  display: block;
+}

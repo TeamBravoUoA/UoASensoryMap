@@ -112,6 +112,9 @@ class Location(ExternalIDModel, TimeStampedModel):
     )
 
     description = models.TextField(blank=True)
+    sensory_experience = models.TextField(blank=True)
+    wayfinding = models.TextField(blank=True)
+    physical_access = models.TextField(blank=True)
 
     latitude = models.DecimalField(max_digits=9, decimal_places=6)
     longitude = models.DecimalField(max_digits=9, decimal_places=6)
