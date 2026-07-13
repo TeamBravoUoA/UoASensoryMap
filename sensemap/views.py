@@ -120,13 +120,13 @@ def meta(request):
     return Response(
         {
             "categories": [
-                {"key": key, "label": label} for key, label in Location.CATEGORY_CHOICES
+                {"key": key, "label": label} for key, label in Location.Category.choices
             ],
             "campuses": [
-                {"key": key, "label": label} for key, label in Location.CAMPUS_CHOICES
+                {"key": key, "label": label} for key, label in Location.Campus.choices
             ],
             "space_types": [
-                {"key": key, "label": label} for key, label in Space.SPACE_TYPE_CHOICES
+                {"key": key, "label": label} for key, label in Space.SpaceType.choices
             ],
             "sensory_attributes": list(
                 SensoryAttribute.objects.values_list("name", flat=True)
