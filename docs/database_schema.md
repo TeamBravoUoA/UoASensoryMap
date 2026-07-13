@@ -1,58 +1,37 @@
-# Database Schema
+# UoA Sensory Map Database Schema
 
-## Current MVP Schema
+## Core entities
 
-### Location
-
-Stores each campus location shown on the sensory map.
-
-| Field | Type | Notes |
+| Entity | Purpose | Key relationships |
 | --- | --- | --- |
-| `id` | Auto ID | Primary key |
-| `name` | Text | Location name |
-| `description` | Text | Optional summary for users |
-| `category` | Choice | `study`, `social`, `quiet`, `food`, `facility`, `other` |
-| `latitude` | Float | Map coordinate |
-| `longitude` | Float | Map coordinate |
-| `auditory` | Integer | 1 low/calm to 5 high/intense |
-| `visual` | Integer | 1 low/calm to 5 high/intense |
-| `olfactory` | Integer | 1 low/calm to 5 high/intense |
-| `thermal` | Integer | 1 low/calm to 5 high/intense |
-| `vestibular` | Integer | 1 low/calm to 5 high/intense |
-| `is_quiet_zone` | Boolean | Marks low-stimulation spaces |
-| `created_at` | Date/time | Created automatically |
-| `updated_at` | Date/time | Updated automatically |
+| `Location` | A campus building or place shown on the map. | Has many `Space`, `LocationFacility`, `LocationSensoryProfile`, `LocationGalleryImage`, and `FeedbackReport` records. |
+| `Space` | A specific area within a location, including quiet and sensory spaces. | Belongs to one `Location`; has many `SpaceFacility`, `SpaceSensoryProfile`, and `FeedbackReport` records. |
+| `Facility` | A reusable amenity such as Wi-Fi or step-free access. | Linked to locations through `LocationFacility` and spaces through `SpaceFacility`. |
+| `SensoryAttribute` | A sensory dimension such as Auditory, Visual, or Crowding. | Linked to location and space ratings through sensory profile records. |
+| `FeedbackReport` | A moderated visitor report submitted for one location or one space. | Targets exactly one `Location` or `Space`; starts with `pending` status. |
 
-## Planned Schema Extensions
+## Relationship tables
 
-### QuietZone
-
-Can be split from `Location.is_quiet_zone` later if the team needs richer quiet
-zone details such as opening hours, capacity, access notes, or rules.
-
-### Report
-
-Will store user-submitted condition reports.
-
-| Field | Type | Notes |
+| Entity | Links | Additional data |
 | --- | --- | --- |
-| `location` | Foreign key | Links to `Location` |
-| `comment` | Text | User observation |
-| `auditory` | Integer | Optional current rating |
-| `visual` | Integer | Optional current rating |
-| `olfactory` | Integer | Optional current rating |
-| `thermal` | Integer | Optional current rating |
-| `vestibular` | Integer | Optional current rating |
-| `status` | Choice | `pending`, `approved`, `rejected` |
-| `created_at` | Date/time | Created automatically |
+| `LocationFacility` | `Location` to `Facility` | Availability status and notes. |
+| `SpaceFacility` | `Space` to `Facility` | Availability status and notes. |
+| `LocationSensoryProfile` | `Location` to `SensoryAttribute` | Rating from 1 to 5 and notes. |
+| `SpaceSensoryProfile` | `Space` to `SensoryAttribute` | Rating from 1 to 5 and notes. |
+| `LocationGalleryImage` | `Location` to an image | Image file and caption. |
 
-### Facility
+## Integrity rules
 
-Will store reusable facility tags for locations.
+- Imported entities use a unique `external_id` for repeatable dataset loading.
+- A location-space name pair is unique.
+- A facility can be linked to a location or space only once.
+- A sensory attribute can be rated only once per location or space.
+- Sensory ratings are constrained to values from 1 to 5.
+- A feedback report targets one location or one space, never both or neither.
+- Quiet zones are represented by `Space.is_quiet_zone`; this avoids duplicating a quiet-space record in a separate table.
 
-| Field | Type | Notes |
-| --- | --- | --- |
-| `name` | Text | Facility label, such as WiFi or power |
-| `icon` | Text | Optional icon name |
-| `locations` | Many-to-many | Locations that provide this facility |
+## API ownership through Week 6
 
+- Locations are read-only public data and expose nested spaces, quiet zones, facilities, and sensory profiles.
+- Reports are submitted through `POST /api/reports/` and are created as `pending` for moderation.
+- Location filters support category, sensory axis/rating, quiet-zone status, search, ordering, and available facilities.

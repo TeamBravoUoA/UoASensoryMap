@@ -1,118 +1,264 @@
-from django.shortcuts import render
-from django.db.models import Q
-from rest_framework import viewsets
+from django.db.models import Avg, Q
+from django.shortcuts import get_object_or_404, render
+from rest_framework import mixins, viewsets
+from rest_framework.decorators import api_view
+from rest_framework.exceptions import ValidationError
+from rest_framework.response import Response
 
-from .models import Location, SensoryAttribute
-from .serializers import LocationSerializer
+from .models import (
+    Facility,
+    SensoryAttribute,
+    Location,
+    Space,
+    FeedbackReport,
+)
+from .serializers import (
+    FacilitySerializer,
+    LocationListSerializer,
+    LocationDetailSerializer,
+    SpaceSerializer,
+    FeedbackReportSerializer,
+)
 
 
-class LocationViewSet(viewsets.ModelViewSet):
-    """Full CRUD API for locations at /api/locations/.
+class LocationViewSet(viewsets.ReadOnlyModelViewSet):
+    """Read-only public API for locations at /api/locations/.
 
-    Supports listing, retrieving, creating, updating and deleting.
-    Supports simple filtering with query parameters:
-      /api/locations/?category=quiet
-      /api/locations/?quiet=true
-      /api/locations/?axis=auditory&level=1
-      /api/locations/?axis=auditory&max_level=2
-      /api/locations/?axis=visual&min_level=3
-      /api/locations/?search=library
-      /api/locations/?ordering=-auditory
+    Content is curated through the Django admin; the API is read-only for
+    the public site. Supports the following query parameters:
+
+      ?search=<text>            name / also_known_as / description
+      ?category=<key>           Location.CATEGORY_CHOICES key
+      ?campus=<key>             Location.CAMPUS_CHOICES key
+      ?space_type=<key>         only locations containing that space type
+      ?quiet=true               only locations with a quiet-zone space
+      ?neurodivergent=true      only locations with a neurodivergent-safe space
+      ?axis=<name>              sensory attribute name (for example, Auditory)
+      ?rating=<1-5>             exact rating for the selected sensory attribute
+      ?min_rating=<1-5>         minimum rating for the selected sensory attribute
+      ?max_rating=<1-5>         maximum rating for the selected sensory attribute
+      ?facility=<name>          available location facility; comma-separated values use AND
+      ?ordering=name,-name,...  safe ordering by name, category, campus, created_at,
+                                updated_at, or avg_sensory
     """
 
-    queryset = Location.objects.all()
-    serializer_class = LocationSerializer
-
-    ordering_fields = {
-        "name",
-        "category",
-        "campus",
-        "created_at",
-        "updated_at",
+    ORDERING_FIELDS = {
+        "name": "name",
+        "category": "category",
+        "campus": "campus",
+        "created_at": "created_at",
+        "updated_at": "updated_at",
+        "avg_sensory": "avg_sensory",
     }
 
+    def get_serializer_class(self):
+        if self.action == "retrieve":
+            return LocationDetailSerializer
+        return LocationListSerializer
+
     def get_queryset(self):
-        queryset = (
-            super()
-            .get_queryset()
+        qs = (
+            Location.objects.all()
             .prefetch_related(
-                "location_facilities__facility",
+                "spaces",
                 "location_sensory_profiles__sensory_attribute",
+                "location_facilities__facility",
+                "gallery_images",
+                "feedback_reports",
+                "spaces__space_facilities__facility",
+                "spaces__space_sensory_profiles__sensory_attribute",
             )
         )
-        category = self.request.query_params.get("category")
-        quiet = self.request.query_params.get("quiet")
-        axis = self.request.query_params.get("axis")
-        level = self.request.query_params.get("level")
-        min_level = self.request.query_params.get("min_level")
-        max_level = self.request.query_params.get("max_level")
-        search = self.request.query_params.get("search")
-        ordering = self.request.query_params.get("ordering")
+        params = self.request.query_params
 
-        if category:
-            queryset = queryset.filter(category=category)
-
-        if quiet in {"true", "1", "yes"}:
-            queryset = queryset.filter(spaces__is_quiet_zone=True)
-        elif quiet in {"false", "0", "no"}:
-            queryset = queryset.exclude(spaces__is_quiet_zone=True)
-
-        if axis:
-            exact_level = self._parse_sensory_level(level)
-            lower_bound = self._parse_sensory_level(min_level)
-            upper_bound = self._parse_sensory_level(max_level)
-            sensory_filter = {
-                "location_sensory_profiles__sensory_attribute__name__iexact": axis
-            }
-
-            axis_exists = SensoryAttribute.objects.filter(name__iexact=axis).exists()
-            has_level_filter = any(
-                value is not None for value in [exact_level, lower_bound, upper_bound]
-            )
-
-            if axis_exists and not has_level_filter:
-                queryset = queryset.filter(**sensory_filter)
-            if axis_exists and exact_level is not None:
-                queryset = queryset.filter(
-                    **sensory_filter,
-                    location_sensory_profiles__rating=exact_level,
-                )
-            if axis_exists and lower_bound is not None:
-                queryset = queryset.filter(
-                    **sensory_filter,
-                    location_sensory_profiles__rating__gte=lower_bound,
-                )
-            if axis_exists and upper_bound is not None:
-                queryset = queryset.filter(
-                    **sensory_filter,
-                    location_sensory_profiles__rating__lte=upper_bound,
-                )
-
+        search = params.get("search", "").strip()
         if search:
-            queryset = queryset.filter(
+            qs = qs.filter(
                 Q(name__icontains=search)
                 | Q(also_known_as__icontains=search)
                 | Q(description__icontains=search)
             )
 
-        if ordering:
-            field = ordering.lstrip("-")
-            if field in self.ordering_fields:
-                queryset = queryset.order_by(ordering)
+        category = params.get("category")
+        if category:
+            qs = qs.filter(category=category)
 
-        return queryset.distinct()
+        campus = params.get("campus")
+        if campus:
+            qs = qs.filter(campus=campus)
 
-    def _parse_sensory_level(self, value):
-        if value is None or not value.isdigit():
+        space_type = params.get("space_type")
+        if space_type:
+            qs = qs.filter(spaces__space_type=space_type)
+
+        if params.get("quiet") in ("true", "1"):
+            qs = qs.filter(spaces__is_quiet_zone=True)
+
+        if params.get("neurodivergent") in ("true", "1"):
+            qs = qs.filter(spaces__is_safe_space_neurodivergent_students=True)
+
+        qs = self._filter_sensory_axis(qs, params)
+        qs = self._filter_facilities(qs, params)
+        qs = self._apply_ordering(qs, params)
+
+        return qs.distinct()
+
+    def _filter_sensory_axis(self, queryset, params):
+        axis = params.get("axis", "").strip()
+        rating = self._rating_param(params, "rating", "level")
+        min_rating = self._rating_param(params, "min_rating", "min_level")
+        max_rating = self._rating_param(params, "max_rating", "max_level")
+
+        if not axis:
+            if any(value is not None for value in (rating, min_rating, max_rating)):
+                raise ValidationError({"axis": "An axis is required when filtering by rating."})
+            return queryset
+
+        axis_filter = Q(
+            location_sensory_profiles__sensory_attribute__name__iexact=axis
+        )
+        if axis.isdigit():
+            axis_filter |= Q(
+                location_sensory_profiles__sensory_attribute__external_id=int(axis)
+            )
+
+        profile_filter = axis_filter
+        if rating is not None:
+            profile_filter &= Q(location_sensory_profiles__rating=rating)
+        if min_rating is not None:
+            profile_filter &= Q(location_sensory_profiles__rating__gte=min_rating)
+        if max_rating is not None:
+            profile_filter &= Q(location_sensory_profiles__rating__lte=max_rating)
+        return queryset.filter(profile_filter)
+
+    def _filter_facilities(self, queryset, params):
+        values = params.getlist("facility") + params.getlist("facilities")
+        facility_names = [
+            name.strip()
+            for value in values
+            for name in value.split(",")
+            if name.strip()
+        ]
+        for facility_name in facility_names:
+            facility_filter = Q(
+                location_facilities__status=True,
+                location_facilities__facility__name__iexact=facility_name,
+            )
+            if facility_name.isdigit():
+                facility_filter |= Q(
+                    location_facilities__status=True,
+                    location_facilities__facility__external_id=int(facility_name),
+                )
+            queryset = queryset.filter(facility_filter)
+        return queryset
+
+    def _apply_ordering(self, queryset, params):
+        requested_fields = [
+            field.strip()
+            for field in params.get("ordering", "").split(",")
+            if field.strip()
+        ]
+        ordering = []
+        needs_average = False
+        for requested in requested_fields:
+            descending = requested.startswith("-")
+            field_name = requested[1:] if descending else requested
+            mapped = self.ORDERING_FIELDS.get(field_name)
+            if not mapped:
+                continue
+            if mapped == "avg_sensory":
+                needs_average = True
+            ordering.append(f"-{mapped}" if descending else mapped)
+
+        if needs_average:
+            queryset = queryset.annotate(avg_sensory=Avg("location_sensory_profiles__rating"))
+        return queryset.order_by(*ordering) if ordering else queryset
+
+    @staticmethod
+    def _rating_param(params, *names):
+        raw_value = next((params.get(name) for name in names if params.get(name) is not None), None)
+        if raw_value is None or raw_value == "":
             return None
+        try:
+            value = int(raw_value)
+        except (TypeError, ValueError) as exc:
+            raise ValidationError({names[0]: "Rating must be an integer from 1 to 5."}) from exc
+        if value not in range(1, 6):
+            raise ValidationError({names[0]: "Rating must be between 1 and 5."})
+        return value
 
-        level = int(value)
-        if 1 <= level <= 5:
-            return level
 
-        return None
+class SpaceViewSet(viewsets.ReadOnlyModelViewSet):
+    """Read-only access to individual spaces at /api/spaces/."""
+
+    serializer_class = SpaceSerializer
+
+    def get_queryset(self):
+        qs = Space.objects.all().prefetch_related(
+            "space_facilities__facility",
+            "space_sensory_profiles__sensory_attribute",
+        )
+        location = self.request.query_params.get("location")
+        if location:
+            qs = qs.filter(location_id=location)
+        space_type = self.request.query_params.get("space_type")
+        if space_type:
+            qs = qs.filter(space_type=space_type)
+        return qs
+
+
+class FacilityViewSet(viewsets.ReadOnlyModelViewSet):
+    queryset = Facility.objects.all()
+    serializer_class = FacilitySerializer
+
+
+class FeedbackReportViewSet(mixins.CreateModelMixin, viewsets.GenericViewSet):
+    """Public can submit feedback (always created as 'pending')."""
+
+    queryset = FeedbackReport.objects.all()
+    serializer_class = FeedbackReportSerializer
+
+    def perform_create(self, serializer):
+        serializer.save(status=FeedbackReport.Status.PENDING)
+
+
+@api_view(["GET"])
+def meta(request):
+    """Choices + reference data the frontend uses to build filters/legends."""
+    return Response(
+        {
+            "categories": [
+                {"key": key, "label": label} for key, label in Location.Category.choices
+            ],
+            "campuses": [
+                {"key": key, "label": label} for key, label in Location.Campus.choices
+            ],
+            "space_types": [
+                {"key": key, "label": label} for key, label in Space.SpaceType.choices
+            ],
+            "sensory_attributes": list(
+                SensoryAttribute.objects.values_list("name", flat=True)
+            ),
+            "facilities": list(Facility.objects.values_list("name", flat=True)),
+        }
+    )
 
 
 def index(request):
     """Render the home page (map + list of locations)."""
     return render(request, "sensemap/index.html")
+
+
+def places(request):
+    """Render the full-page browser listing every location as cards."""
+    return render(request, "sensemap/places.html")
+
+
+def place_detail(request, slug):
+    """Render a dedicated detail page for a single location.
+
+    The URL is human-readable (/place/<slug>/) while the template still
+    receives the numeric ID so the client can fetch /api/locations/<id>/.
+    """
+    location = get_object_or_404(Location, slug=slug)
+    return render(request, "sensemap/place_detail.html", {"location_id": location.id})

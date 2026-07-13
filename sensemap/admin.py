@@ -4,17 +4,66 @@ from .models import (
     SensoryAttribute,
     Location,
     Space,
+    LocationFacility,
+    SpaceFacility,
     LocationGalleryImage,
     LocationSensoryProfile,
     SpaceSensoryProfile,
     FeedbackReport,
 )
 
-admin.site.register(Facility)
-admin.site.register(SensoryAttribute)
-admin.site.register(Location)
-admin.site.register(Space)
-admin.site.register(LocationGalleryImage)
-admin.site.register(LocationSensoryProfile)
-admin.site.register(SpaceSensoryProfile)
-admin.site.register(FeedbackReport)
+
+class ShowAllFieldsAdmin(admin.ModelAdmin):
+    def get_list_display(self, request):
+        return [field.name for field in self.model._meta.fields]
+
+@admin.register(Facility)
+class FacilityAdmin(ShowAllFieldsAdmin):
+    search_fields = ("name",)
+
+
+@admin.register(SensoryAttribute)
+class SensoryAttributeAdmin(ShowAllFieldsAdmin):
+    search_fields = ("name",)
+
+
+@admin.register(Location)
+class LocationAdmin(ShowAllFieldsAdmin):
+    search_fields = ("name", "also_known_as")
+    list_filter = ("category", "campus")
+
+
+@admin.register(Space)
+class SpaceAdmin(ShowAllFieldsAdmin):
+    search_fields = ("name",)
+    list_filter = ("space_type", "is_quiet_zone")
+
+
+@admin.register(LocationFacility)
+class LocationFacilityAdmin(ShowAllFieldsAdmin):
+    list_filter = ("status",)
+
+
+@admin.register(SpaceFacility)
+class SpaceFacilityAdmin(ShowAllFieldsAdmin):
+    list_filter = ("status",)
+
+
+@admin.register(LocationGalleryImage)
+class LocationGalleryImageAdmin(ShowAllFieldsAdmin):
+    pass
+
+
+@admin.register(LocationSensoryProfile)
+class LocationSensoryProfileAdmin(ShowAllFieldsAdmin):
+    list_filter = ("sensory_attribute",)
+
+
+@admin.register(SpaceSensoryProfile)
+class SpaceSensoryProfileAdmin(ShowAllFieldsAdmin):
+    list_filter = ("sensory_attribute",)
+
+
+@admin.register(FeedbackReport)
+class FeedbackReportAdmin(ShowAllFieldsAdmin):
+    list_filter = ("status", "is_anonymous")
