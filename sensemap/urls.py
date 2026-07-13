@@ -3,12 +3,18 @@ from rest_framework.routers import DefaultRouter
 
 from . import views
 
-# The router auto-generates the REST URLs for each viewset, e.g.:
-#   GET  /api/locations/            list (lightweight)
-#   GET  /api/locations/<id>/       detail (full)
-#   GET  /api/spaces/               list spaces (?location= / ?space_type=)
-#   GET  /api/facilities/           list facilities
-#   POST /api/feedback/             submit feedback (created as 'pending')
+"""
+API router.
+
+The router automatically generates standard REST endpoints for each ViewSet.
+
+Examples:
+    GET    /api/locations/          List locations
+    GET    /api/locations/<id>/     Retrieve a location
+    GET    /api/spaces/             List spaces
+    GET    /api/facilities/         List facilities
+    POST   /api/feedback/           Submit feedback
+"""
 router = DefaultRouter()
 router.register(r"locations", views.LocationViewSet, basename="location")
 router.register(r"spaces", views.SpaceViewSet, basename="space")
@@ -16,10 +22,12 @@ router.register(r"facilities", views.FacilityViewSet, basename="facility")
 router.register(r"feedback", views.FeedbackReportViewSet, basename="feedback")
 
 urlpatterns = [
+    # Template views
     path("", views.index, name="index"),
     path("places/", views.places, name="places"),
     path("place/<slug:slug>/", views.place_detail, name="place_detail"),
-    path("feedback/", views.feedback, name="feedback"),
+
+    # API endpoints
     path("api/meta/", views.meta, name="meta"),
     path("api/", include(router.urls)),
 ]

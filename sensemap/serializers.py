@@ -2,7 +2,7 @@
 
 The data model is hierarchical:
     Location (a building / place on a campus)
-      └── Space (a study/quiet/social/sensory area inside it)
+      └── Space (a study/quiet/social area inside it)
 Both Locations and Spaces carry facilities (with availability) and
 sensory profiles (1-5 ratings against named SensoryAttributes).
 
@@ -237,6 +237,9 @@ class LocationDetailSerializer(LocationListSerializer):
             "sunday_holiday_close_time",
             "opening_hrs_notes",
             "additional_access_notes",
+            "sensory_experience",
+            "wayfinding",
+            "physical_access",
             "uoa_map_link",
             "thumbnail_image",
             "facilities",
