@@ -79,8 +79,6 @@ python -m security
 
 ## Tools
 
-## Tools
-
 - **Python / Django** — the application under analysis and the language the scanner is written in.
 - **OSV API** — vulnerability database queried by the SCA layer for known CVEs.
 - **checkov** — external IaC scanner wrapped by the IaC layer, delegated to rather than custom-built.
