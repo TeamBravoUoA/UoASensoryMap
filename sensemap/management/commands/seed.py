@@ -3,7 +3,7 @@ import json
 import time
 import logging
 from pathlib import Path
-from datetime import datetime
+from datetime import datetime, time
 from django.core.management.base import BaseCommand
 from django.db import transaction
 from django.db.models import Avg
@@ -20,7 +20,7 @@ from sensemap.models import (
     SpaceSensoryProfile,
 )
 
-# Reference data ------------------------------------------------------------ #
+# Reference data
 FACILITIES = [
     "Wi-Fi",
     "Power outlets",
