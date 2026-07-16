@@ -14,7 +14,7 @@ import os
 from pathlib import Path
 
 import dj_database_url
-from python_dotenv import load_dotenv
+from dotenv import load_dotenv
 
 load_dotenv()
 
