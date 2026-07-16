@@ -119,6 +119,12 @@ class LocationReadOnlyTests(TestCase):
         self.assertEqual(res.status_code, 405)
 
 
+class FeedbackPageTests(TestCase):
+    def test_feedback_page_is_available_without_trailing_slash(self):
+        res = self.client.get("/feedback")
+        self.assertEqual(res.status_code, 200)
+
+
 class FeedbackAPITests(TestCase):
     def setUp(self):
         self.loc = make_location()
