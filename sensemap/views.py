@@ -154,7 +154,3 @@ def place_detail(request, slug):
     """
     location = get_object_or_404(Location, slug=slug)
     return render(request, "sensemap/place_detail.html", {"location_id": location.id})
-
-def feedback(request):
-    """Render the feedback submission page."""
-    return render(request, "sensemap/feedback.html")
