@@ -39,37 +39,37 @@
       key: "olfactory",
       label: "Olfactory (Smell)",
       description: "How pleasant or strong are the smells?",
-      icon: "food_drink.svg",
+      icon: "smell.svg",
     },
     {
       key: "auditory",
       label: "Auditory (Sound)",
       description: "How loud or quiet is the environment?",
-      icon: "quiet.svg",
+      icon: "sensory.svg",
     },
     {
       key: "visual",
       label: "Visual (Light)",
       description: "How bright or dim is the lighting?",
-      icon: "sensory.svg",
+      icon: "light.svg",
     },
     {
       key: "thermal",
       label: "Thermal (Temperature)",
       description: "How warm or cool does this place feel?",
-      icon: "facility.svg",
+      icon: "temp.svg",
     },
     {
       key: "crowding",
       label: "Crowding (People)",
       description: "How busy or crowded is this space?",
-      icon: "social.svg",
+      icon: "crowd.svg",
     },
     {
       key: "tactile",
       label: "Tactile (Surfaces)",
       description: "How comfortable are the surfaces and textures?",
-      icon: "study.svg",
+      icon: "touch.svg",
     },
   ];
 

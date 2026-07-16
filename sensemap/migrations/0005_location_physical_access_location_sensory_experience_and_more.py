@@ -6,7 +6,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('sensemap', '0004_location_slug'),
+        ('sensemap', '0005_alter_location_category'),
     ]
 
     operations = [

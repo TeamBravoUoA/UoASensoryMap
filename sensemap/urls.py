@@ -21,11 +21,14 @@ router.register(r"spaces", views.SpaceViewSet, basename="space")
 router.register(r"facilities", views.FacilityViewSet, basename="facility")
 router.register(r"feedback", views.FeedbackReportViewSet, basename="feedback")
 
+
 urlpatterns = [
     # Template views
     path("", views.index, name="index"),
     path("places/", views.places, name="places"),
     path("place/<slug:slug>/", views.place_detail, name="place_detail"),
+    path("feedback/", views.feedback, name="feedback"),
+
 
     # API endpoints
     path("api/meta/", views.meta, name="meta"),
