@@ -206,6 +206,19 @@
       const d = await res.json();
 
       el("dp-name").textContent = d.name;
+
+      const thumb = el("dp-thumb");
+      if (thumb) {
+        if (d.thumbnail) {
+          thumb.src = d.thumbnail;
+          thumb.alt = d.name || "";
+          thumb.hidden = false;
+        } else {
+          thumb.removeAttribute("src");
+          thumb.hidden = true;
+        }
+      }
+
       el("dp-category").textContent =
         d.category_display || categoryLabel(d.category);
 

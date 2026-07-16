@@ -180,7 +180,6 @@ class Space(ExternalIDModel, TimeStampedModel):
         STUDY = "study", "Study Space"
         QUIET = "quiet", "Quiet Space"
         SOCIAL = "social", "Social Space"
-        SENSORY = "sensory", "Sensory Room"
         OTHER = "other", "Other"
 
 

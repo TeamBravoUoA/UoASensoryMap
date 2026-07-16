@@ -1,9 +1,9 @@
 import csv
 import json
-import time
+import time as _time
 import logging
 from pathlib import Path
-from datetime import datetime
+from datetime import datetime, time
 from django.core.management.base import BaseCommand
 from django.db import transaction
 from django.db.models import Avg
@@ -20,7 +20,7 @@ from sensemap.models import (
     SpaceSensoryProfile,
 )
 
-# Reference data ------------------------------------------------------------ #
+# Reference data
 FACILITIES = [
     "Wi-Fi",
     "Power outlets",
@@ -345,7 +345,7 @@ def retry(fn, *args, **kwargs):
         except Exception:
             if attempt == MAX_RETRIES - 1:
                 raise
-            time.sleep(RETRY_DELAY)
+            _time.sleep(RETRY_DELAY)
 
 
 class Command(BaseCommand):
