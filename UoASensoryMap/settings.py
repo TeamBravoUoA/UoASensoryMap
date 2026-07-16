@@ -79,7 +79,7 @@ TEMPLATES = [
     },
 ]
 
-WSGI_APPLICATION = 'UoASensoryMap.wsgi.application'
+# WSGI_APPLICATION = 'UoASensoryMap.wsgi.application'
 
 
 # Database
