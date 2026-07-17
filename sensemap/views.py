@@ -156,5 +156,5 @@ def place_detail(request, slug):
     return render(request, "sensemap/place_detail.html", {"location_id": location.id})
 
 def feedback(request):
-    """Render the feedback submission page."""
+    """Render the feedback form page."""
     return render(request, "sensemap/feedback.html")

@@ -1797,6 +1797,7 @@ textarea {
 }
 
 /* ---------- Dedicated place detail page ---------- */
+/* ---------- Dedicated place detail page ---------- */
 .detail-page {
   flex: 1;
   overflow-y: auto;
@@ -2043,6 +2044,193 @@ textarea {
   box-shadow: 0 4px 12px rgba(0, 94, 184, 0.35);
 }
 .more-info:hover::after { transform: translateX(3px); }
+
+/* ---------- Feedback page: sensory rating legend + icon rows ---------- */
+.rating-legend {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 0.6rem;
+  margin: 0.75rem 0 1.25rem;
+}
+.scale-chip {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.15rem;
+  padding: 0.6rem 0.4rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--panel);
+}
+.scale-chip .scale-num { font-size: 1.15rem; font-weight: 800; }
+.scale-chip .scale-label { font-size: 0.72rem; font-weight: 600; color: var(--text); }
+
+.sensory-attributes { display: flex; flex-direction: column; gap: 0.6rem; }
+.sensory-item {
+  display: grid;
+  grid-template-columns: 48px 1fr auto;
+  align-items: center;
+  gap: 0.9rem;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--panel);
+}
+.sensory-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  background: var(--accent-soft);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.sensory-icon img { width: 22px; height: 22px; }
+.sensory-info b { display: block; font-size: 0.92rem; }
+.sensory-info p { margin: 0.15rem 0 0; font-size: 0.78rem; color: var(--muted); }
+.sensory-ratings { display: flex; gap: 0.35rem; }
+.rating-btn {
+  width: 2.15rem;
+  height: 2.15rem;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--panel);
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.rating-btn:hover { background: #f4f6f9; }
+.rating-btn.selected { border-color: transparent; }
+.rating-btn:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+
+@media (max-width: 640px) {
+  .rating-legend { grid-template-columns: repeat(2, 1fr); }
+  .sensory-item { grid-template-columns: 40px 1fr; }
+  .sensory-ratings { grid-column: 1 / -1; justify-content: space-between; }
+}
+
+.sensory-line {
+  display: grid;
+  grid-template-columns: 1fr 120px auto;
+  align-items: center;
+  gap: 0.75rem;
+  font-size: 0.85rem;
+  margin-bottom: 0.45rem;
+}
+.sensory-line.small { grid-template-columns: 1fr 80px auto; font-size: 0.78rem; }
+.s-label { color: var(--text); }
+.s-bar {
+  height: 8px;
+  border-radius: 4px;
+  background: #e2e8f0;
+  overflow: hidden;
+}
+.s-bar b { display: block; height: 100%; }
+.val { color: var(--muted); font-weight: 600; }
+
+@media (max-width: 900px) {
+  .place-card { grid-template-columns: 120px 1fr; }
+  .place-thumb { width: 120px; height: 120px; }
+}
+
+@media (max-width: 520px) {
+  .places-page { padding: 1rem; }
+  .place-card { grid-template-columns: 1fr; }
+  .place-thumb { width: 100%; height: 160px; }
+  .sensory-line { grid-template-columns: 1fr 80px auto; }
+}
+.info-tabs {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: #fff;
+  margin: 0;
+  overflow: hidden;
+  box-shadow: var(--shadow);
+}
+
+.tab-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  border-bottom: 1px solid var(--border);
+  background: var(--accent-soft);
+}
+
+.detail-page-card::before {
+  content: "";
+  grid-area: main-photo;
+  min-height: 310px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background:
+    linear-gradient(145deg, rgba(0, 52, 102, 0.82), rgba(0, 94, 184, 0.36)),
+    url("../icons/uoa.svg") center / min(42%, 13rem) no-repeat,
+    var(--accent-soft);
+  box-shadow: var(--shadow);
+  align-self: stretch;
+}
+
+.detail-page-head {
+  grid-area: title;
+  margin: 0;
+  padding: 0;
+  border-bottom: 0;
+}
+
+.detail-page-title h2 {
+  font-size: clamp(2rem, 4vw, 3rem);
+  line-height: 1.05;
+}
+
+.detail-page-desc {
+  margin: 0;
+}
+
+.detail-page-card section,
+.detail-page-head,
+.detail-page-card::before {
+  min-width: 0;
+}
+
+.detail-page-card section {
+  margin-top: 0;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: clamp(1rem, 2vw, 1.25rem);
+  box-shadow: var(--shadow);
+}
+
+#dp-desc-section {
+  grid-area: desc;
+  background: transparent;
+  border: 0;
+  padding: 0.9rem 1.35rem;
+  font: inherit;
+  font-size: 0.9rem;
+  color: var(--muted);
+  cursor: pointer;
+  border-bottom: 3px solid transparent;
+  transition: color 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+}
+.tab-btn:hover { color: var(--navy); background: rgba(255,255,255,0.5); }
+
+.tab-btn.active {
+  color: var(--navy);
+  font-weight: 700;
+  background: #fff;
+  border-bottom-color: var(--accent);
+}
+
+.tab-panel {
+  display: none;
+  padding: 1.25rem 1.35rem;
+  line-height: 1.65;
+}
+
+.tab-panel.active {
+  display: block;
+}
 
 /* ---------- Feedback page: sensory rating legend + icon rows ---------- */
 .rating-legend {

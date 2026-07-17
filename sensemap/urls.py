@@ -29,7 +29,6 @@ urlpatterns = [
     path("place/<slug:slug>/", views.place_detail, name="place_detail"),
     path("feedback/", views.feedback, name="feedback"),
 
-
     # API endpoints
     path("api/meta/", views.meta, name="meta"),
     path("api/", include(router.urls)),
