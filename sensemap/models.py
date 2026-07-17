@@ -318,7 +318,7 @@ class LocationGalleryImage(TimeStampedModel):
         related_name="gallery_images"
     )
 
-    image = models.ImageField(upload_to="images/locations/gallery/", blank=True, null=True)
+    image = models.ImageField(upload_to="images/locations/galleryimages/", blank=True, null=True)
     caption = models.CharField(max_length=255, blank=True)
 
     class Meta:

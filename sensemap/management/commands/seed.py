@@ -1,9 +1,9 @@
 import csv
 import json
-import time
 import logging
+import time as time_module
 from pathlib import Path
-from datetime import datetime
+from datetime import datetime, time
 from django.core.management.base import BaseCommand
 from django.db import transaction
 from django.db.models import Avg
@@ -54,9 +54,9 @@ LOCATIONS = [
         "category": "library",
         "campus": "old_aberdeen",
         "description": "The University's flagship library, opened in 2011, spans seven floors of study, research and social space. The lower floors offer group seating and discussion areas, while the upper floors are increasingly silent, with Level 6 reserved for silent study. Lift and step-free access are available throughout, and the building is open to the public outside exam periods. Sensory environments vary by floor: higher floors are calm and softly lit, while the ground floor and café can be busy and noisy.",
-        "sensory_experience": "",
-        "wayfinding": "",
-        "physical_access": "",
+        "sensory_experience": "The library is a large, modern building with a mix of open-plan and enclosed spaces. The lower floors are lively and social, while the upper floors are quiet and focused. Lighting is generally bright and even, with natural light on the upper floors. Noise levels vary significantly depending on the floor and time of day.",
+        "wayfinding": "To get to the library, enter through the main entrance on the south side of the building. The lifts and stairs are located centrally, with clear signage directing to each floor. Each floor has a directory and maps available at the lift lobby.",
+        "physical_access": "The library is fully accessible, with step-free access to all floors via lifts. Accessible toilets are available on each floor, and there are designated quiet study areas for those who need a low-stimulation environment.",
         "latitude": 57.165500, "longitude": -2.099600,
         "id_access_needed": False,
         "uoa_map_link": "https://www.abdn.ac.uk/library/",
@@ -345,7 +345,7 @@ def retry(fn, *args, **kwargs):
         except Exception:
             if attempt == MAX_RETRIES - 1:
                 raise
-            time.sleep(RETRY_DELAY)
+            time_module.sleep(RETRY_DELAY)
 
 
 class Command(BaseCommand):
@@ -372,10 +372,10 @@ class Command(BaseCommand):
             self.seed_locations()
             self.seed_spaces()
             self.seed_location_facilities()
-            self.seed_space_facilities()         
-            self.seed_location_sensory_profiles()
+            self.seed_space_facilities()
             self.seed_gallery()
             self.seed_space_sensory_profiles()
+            self.seed_location_sensory_profiles()
             self.update_space_safety()
 
         logger.info("ETL COMPLETED")

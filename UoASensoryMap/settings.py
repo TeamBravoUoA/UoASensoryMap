@@ -32,7 +32,7 @@ MEDIA_ROOT = BASE_DIR / "sensemap" / "media"
 SECRET_KEY = os.getenv("SECRET_KEY", "django-insecure-5coppnu78jr%n2(kqj-xky+t2_k23uw8lwv#2mg-!2!wn6ivcw")
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = os.getenv("DEBUG", "False").lower() in ("true", "1", "yes")
+DEBUG = os.getenv("DEBUG", "True").lower() in ("true", "1", "yes")
 
 _ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", "*")
 ALLOWED_HOSTS = [h.strip() for h in _ALLOWED_HOSTS.split(",") if h.strip()]

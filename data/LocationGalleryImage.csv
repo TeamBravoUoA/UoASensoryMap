@@ -1,27 +1,23 @@
 ﻿location_id,image,caption
-1,,,
-2,,,
-3,,,
-4,,,
-5,,,
-6,,,
-7,,,
-8,,,
-9,,,
-10,,,
-11,,,
-12,,,
-13,,,
-14,,,
-15,,,
-16,,,
-17,,,
-18,,,
-19,,,
-20,,,
-21,,,
-22,,,
-23,,,
-24,,,
-25,,,
-26,,,
+1,images/locations/galleryimages/Sir_Duncan_Rice_Library_2nd_Floor.jpeg,Second Floor of Sir Duncan Rice Library
+1,images/locations/galleryimages/Sir_Duncan_Rice_Library_3rd_Floor.jpeg,Third Floor of Sir Duncan Rice Library
+1,images/locations/galleryimages/Sir_Duncan_Rice_Library_4th_5th_6th_7th_floors.jpeg,Floors 4-7 of Sir Duncan Rice Library
+1,images/locations/galleryimages/Sir_Duncan_Rice_Library_common_area_4th_to_7th_floor.jpeg, Common Area from 4th to 7th Floor of Sir Duncan Rice Library
+1,images/locations/galleryimages/Sir_Duncan_Rice_Library_Common_Space.jpeg,Common Space in Sir Duncan Rice Library
+1,images/locations/galleryimages/Sir_Duncan_Rice_Library_Gallery.jpeg,Gallery(museum) in Sir Duncan Rice Library
+1,images/locations/galleryimages/Sir_Duncan_Rice_Library_Groundfloor_1st_floor.jpeg,First Floor of Sir Duncan Rice Library
+1,images/locations/galleryimages/Sir_Duncan_Rice_Library_Groundfloor_Coffee_Shop.jpeg,Coffee Shop in Sir Duncan Rice Library
+1,images/locations/galleryimages/Sir_Duncan_Rice_Library_Groundfloor_kids_Library.jpeg,Kids Section in Sir Duncan Rice Library
+1,images/locations/galleryimages/Sir_Duncan_Rice_Library_group_study_spaces_4th_5th_6th_floors.jpeg,Group Study Spaces from 4th to 6th Floor of Sir Duncan Rice Library
+1,images/locations/galleryimages/Sir_Duncan_Rice_Library_meeting_room.jpeg,Meeting Room in Sir Duncan Rice Library
+9,images/locations/galleryimages/Student_Union_Common_Area.jpeg,Common Area in the Student Union Building
+9,images/locations/galleryimages/Student_Union_Employability_services.jpeg,Career Services in the Student Union Building
+9,images/locations/galleryimages/Student_Union_Foodcourt.jpeg,Food Court in the Student Union Building
+9,images/locations/galleryimages/Student_Union_Meeting_Room.jpeg,Meeting Room in the Student Union Building
+9,images/locations/galleryimages/Student_Union_Room_game.jpeg,Game Room in the Student Union Building
+9,images/locations/galleryimages/Student_Union_Souvenir_Store.jpeg,The Bear Essentials Store in the Student Union Building
+9,images/locations/galleryimages/Student_Union_Union_Brew_Cafe.jpeg,Union Brew Cafe in the Student Union Building
+7,images/locations/galleryimages/Taylor_Building_Courtyard.jpeg,Courtyard outside of Taylor Building
+20,images/locations/galleryimages/William_Guild_Back_Entrance.jpeg,Back Entrance of William Guild Building
+20,images/locations/galleryimages/William_Guild_Space.jpeg,Common Space in William Guild Building
+20,images/locations/galleryimages/William_Guild_Space(2).jpeg,Social Space in William Guild Building
