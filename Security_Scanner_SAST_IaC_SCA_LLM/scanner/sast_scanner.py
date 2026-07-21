@@ -109,6 +109,7 @@ def check_security_misconfig(tree: ast.AST, filepath: str) -> list [Finding]: #-
                             file_path=filepath,
                             line=node.lineno,
                             message="ALLOWED_HOSTS is empty.",
+                            standard_ref="OWASP Top 10:2025 A02 – Security Misconfiguration",
                         ))
                     else:
                         # Condition 2 — the list has items, so check each one individually
@@ -125,5 +126,6 @@ def check_security_misconfig(tree: ast.AST, filepath: str) -> list [Finding]: #-
                                     file_path=filepath,
                                     line=node.lineno,
                                     message="ALLOWED_HOSTS contains '*', allowing any host.",
+                                    standard_ref="OWASP Top 10:2025 A02 – Security Misconfiguration",
                                 ))
     return findings
