@@ -17,12 +17,12 @@
   --border: #d7dde5;
   --focus: #ffbf47;
 
-  /* Sensory scale colours (1 calm -> 5 intense), colour-blind aware */
-  --s1: #2e7d32; /* green  */
-  --s2: #7cb342; /* lime   */
-  --s3: #f9a825; /* amber  */
-  --s4: #ef6c00; /* orange */
-  --s5: #c62828; /* red    */
+  /* Sensory scale colours (1 red -> 5 deep green) */
+  --s1: #c62828; /* red */
+  --s2: #e65100; /* deep orange */
+  --s3: #f9a825; /* goldish */
+  --s4: #7cb342; /* light green */
+  --s5: #2e7d32; /* deep green */
   --quiet: #5e35b1; /* purple for quiet zones */
 
   --radius: 12px;
