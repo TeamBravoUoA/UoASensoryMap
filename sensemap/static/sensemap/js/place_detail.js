@@ -9,7 +9,7 @@
 
   const LOCATION_ID = JSON.parse(locationEl.textContent);
 
-  const SCALE_COLOURS = ["#2e7d32", "#7cb342", "#f9a825", "#ef6c00", "#c62828"];
+  const SCALE_COLOURS = ["#c62828", "#ef6c00", "#f9a825", "#7cb342", "#2e7d32" ]
 
   const el = (id) => document.getElementById(id);
 
@@ -206,6 +206,19 @@
       const d = await res.json();
 
       el("dp-name").textContent = d.name;
+
+      const thumb = el("dp-thumb");
+      if (thumb) {
+        if (d.thumbnail) {
+          thumb.src = d.thumbnail;
+          thumb.alt = d.name || "";
+          thumb.hidden = false;
+        } else {
+          thumb.removeAttribute("src");
+          thumb.hidden = true;
+        }
+      }
+
       el("dp-category").textContent =
         d.category_display || categoryLabel(d.category);
 

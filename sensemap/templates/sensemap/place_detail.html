@@ -6,7 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Place details &middot; UoA Sensory Map</title>
   <meta name="description" content="Detailed sensory information for a University of Aberdeen location." />
-  <link rel="stylesheet" href="{% static 'sensemap/css/styles.css' %}" />
+  <link rel="stylesheet" href="{% static 'sensemap/css/styles.css' %}?v=11" />
   <link rel="icon" type="image/png" href="{% static 'sensemap/icons/logo.png' %}">
 </head>
 <body>
@@ -38,8 +38,12 @@
             <h2 id="dp-name"></h2>
             <p class="detail-page-sub" id="dp-sub"></p>
             <p class="detail-page-also" id="dp-also"></p>
+            <div class="detail-page-actions">
+              <a class="btn" id="dp-map-link" href="#" target="_blank" rel="noopener">View on University map</a>
+              <a class="btn" id="dp-feedback-link" href="/feedback/">Leave feedback</a>
+            </div>
           </div>
-          <a class="btn" id="dp-map-link" href="#" target="_blank" rel="noopener">View on University map</a>
+          <img id="dp-thumb" class="detail-page-thumb" alt="" hidden />
         </header>
 
         <section id="dp-desc-section">
@@ -70,7 +74,7 @@
           <h3>Access</h3>
           <div id="dp-access"></div>
         </section>
-        <section>
+        <section id="dp-hours-section">
           <h3>Opening hours</h3>
           <table class="hours-table" id="dp-hours"></table>
           <p class="muted-note" id="dp-hours-notes"></p>
@@ -99,6 +103,6 @@
     </main>
   </div>
 {{ location_id|json_script:"location-id" }}
-  <script src="{% static 'sensemap/js/place_detail.js' %}"></script>
+  <script src="{% static 'sensemap/js/place_detail.js' %}?v=8"></script>
 </body>
 </html>
