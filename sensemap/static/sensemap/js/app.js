@@ -15,20 +15,24 @@
   // Location category metadata (matches Location.CATEGORY_CHOICES). Drives the
   // map marker icon/colour and the on-map "Place categories" legend.
   const CATEGORY_META = {
-    teaching_building: { label: "Teaching Building", iconUrl: "teaching_building.svg", color: "#1565c0", desc: "Lecture theatres, seminar and class rooms." },
-    cultural_space: { label: "Cultural Space", iconUrl: "cultural_space.svg", color: "#6a1b9a", desc: "Museums, galleries and exhibitions." },
-    conference_events: { label: "Conference / Events", iconUrl: "conference_events.svg", color: "#00838f", desc: "Event and conference venues." },
-    library: { label: "Library", iconUrl: "library.svg", color: "#283593", desc: "Libraries and study collections." },
-    social_building: { label: "Social Building", iconUrl: "social_building.svg", color: "#f9a825", desc: "Hubs, unions and social spaces." },
-    student_services: { label: "Student Services", iconUrl: "student_services.svg", color: "#2e7d32", desc: "Support, advice and wellbeing services." },
-    research_laboratory: { label: "Research / Labs", iconUrl: "research_laboratory.svg", color: "#00897b", desc: "Research buildings and laboratories." },
+    teaching_building: { label: "Teaching Building", iconUrl: "study.svg", color: "#1565c0", desc: "Lecture theatres, seminar and class rooms." },
+    cultural_space: { label: "Cultural Space", iconUrl: "social.svg", color: "#f9a825", desc: "Museums, galleries and exhibitions." },
+    conference_events: { label: "Conference / Events", iconUrl: "social.svg", color: "#f9a825", desc: "Event and conference venues." },
+    library: { label: "Library", iconUrl: "study.svg", color: "#1565c0", desc: "Libraries and study collections." },
+    social_building: { label: "Social Building", iconUrl: "social.svg", color: "#f9a825", desc: "Hubs, unions and social spaces." },
+    student_services: { label: "Student Services", iconUrl: "facility.svg", color: "#2e7d32", desc: "Support, advice and wellbeing services." },
+    research_laboratory: { label: "Research / Labs", iconUrl: "study.svg", color: "#1565c0", desc: "Research buildings and laboratories." },
     garden: { label: "Garden", iconUrl: "garden.svg", color: "#558b2f", desc: "Gardens and outdoor green space." },
+    cafe: { label: "Cafe", iconUrl: "food_drink.svg", color: "#ef6c00", desc: "Cafes and food outlets." },
+    other: { label: "Other", iconUrl: "garden.svg", color: "#607d8b", desc: "Miscellaneous spaces." },
+    sports_facility: { label: "Sports Facility", iconUrl: "sports.svg", color: "#7b1fa2", desc: "Gyms, sports halls and recreational facilities." },
   };
+  
   const CATEGORY_ORDER = [
     "library", "teaching_building", "social_building", "student_services",
-    "cultural_space", "research_laboratory", "conference_events", "garden",
+    "cultural_space", "research_laboratory", "conference_events", "garden", "cafe", "other", "sports_facility"
   ];
-  const FALLBACK_CATEGORY = { label: "Place", iconUrl: "place.svg", color: "#607d8b", desc: "" };
+  const FALLBACK_CATEGORY = { label: "Place", iconUrl: "facility.svg", color: "#607d8b", desc: "" };
 
   // Space type metadata (matches Space.SPACE_TYPE_CHOICES).
   const SPACE_TYPE_META = {
@@ -38,10 +42,12 @@
     food_drink: { label: "Food & Drink", iconUrl: "food_drink.svg", color: "#ef6c00", desc: "Cafes, food courts and places to eat." },
     facility: { label: "Facility", iconUrl: "facility.svg", color: "#00838f", desc: "General support and service facilities." },
     sensory: { label: "Sensory Room", iconUrl: "sensory.svg", color: "#d81b60", desc: "Calming rooms designed for sensory regulation." },
-    other: { label: "Other", iconUrl: "other.svg", color: "#2e7d32", desc: "Outdoor and miscellaneous spaces." },
+    sport: { label: "Sport / Fitness", iconUrl: "sports.svg", color: "#7b1fa2", desc: "Gyms, sports halls and recreational facilities." },
+    other: { label: "Other", iconUrl: "garden.svg", color: "#2e7d32", desc: "Outdoor and miscellaneous spaces." },
+  
   };
-  const SPACE_TYPE_ORDER = ["study", "quiet", "social", "food_drink", "facility", "sensory", "other"];
-  const FALLBACK_SPACE = { label: "Space", iconUrl: "space.svg", color: "#607d8b", desc: "" };
+  const SPACE_TYPE_ORDER = ["study", "quiet", "social", "food_drink", "facility", "sensory", "sport", "other"];
+  const FALLBACK_SPACE = { label: "Space", iconUrl: "facility.svg", color: "#607d8b", desc: "" };
 
   // --- State ----------------------------------------------------------------
   let allLocations = [];
