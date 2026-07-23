@@ -1,31 +1,4 @@
-"""
-Frontend (Selenium / BDD-style) tests for the UoA Sensemap React frontend.
 
-Complements test_api_functional.py: those tests prove the Django REST API
-returns correct data; these prove the React frontend actually renders that
-data and reacts correctly to user interaction (map markers, filters,
-search, the feedback form).
-
-Each test is written Given/When/Then in its docstring so the scenario is
-readable on its own, with the Selenium implementation underneath — a
-lightweight BDD style without needing a separate .feature file/framework.
-
-Install:
-    pip install selenium
-    # plus a matching chromedriver on PATH, or use webdriver-manager
-
-Run (from the Django project root, with the app's manage.py):
-    python manage.py test sensemap.tests.test_frontend_selenium_bdd
-
-Notes / assumptions to true up with your actual frontend markup:
-    - Elements are located via data-testid attributes (e.g.
-      data-testid="location-marker"). Add these to your React components
-      if they don't exist yet — they're far more stable to test against
-      than CSS classes or text content.
-    - "Quiet zone" status is assumed to live on a related Space object,
-      matching the make_location()/Space pattern in test_api_functional.py.
-      Adjust _make_location_with_space() if your model differs.
-"""
 from django.contrib.staticfiles.testing import StaticLiveServerTestCase
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
@@ -259,10 +232,6 @@ class FeedbackFormTests(SensemapFrontendTestCase):
         Given the detail panel for a location is open
         When I submit valid feedback
         Then the submit button should be disabled while the request is in flight
-
-        Note: inherently a little racy since it depends on network timing;
-        if this flakes locally, consider a test-only artificial delay on
-        the feedback endpoint or asserting via a mutation observer instead.
         """
         self.open_detail_panel()
         self.browser.find_element(By.CSS_SELECTOR, FEEDBACK_BOX).send_keys("Nice reading room")
