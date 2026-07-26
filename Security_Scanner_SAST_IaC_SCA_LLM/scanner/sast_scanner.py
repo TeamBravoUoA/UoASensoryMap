@@ -31,7 +31,7 @@ def check_security_misconfig(tree: ast.AST, filepath: str) -> list [Finding]: #-
             if not isinstance(target, ast.Name):
                 continue
 
-            #---1. DEBUG check---
+            #---1.1 DEBUG check---
             # Attack type covered: information disclosure via debug error pages —leaking stack traces and internal app structure to any visitor.
 
             # DEBUG is a setting in settings.py that controls how Django behaves when something goes wrong. It was two different modes. 
@@ -51,7 +51,7 @@ def check_security_misconfig(tree: ast.AST, filepath: str) -> list [Finding]: #-
                         message="DEBUG is set to True. In production this exposes detailed error tracebacks — including internal file paths and code structure — to any visitor.",
                         standard_ref= "OWASP Top 10:2025 A02 – Security Misconfiguration", #Standard name from OWASP matrix documentation
                     ))
-            # --- 2. SECRET_KEY check ---
+            # --- 1.2 SECRET_KEY check ---
             # Attack type covered: cryptographic key exposure — enabling session/token forgery.
 
             # Notes:
@@ -78,7 +78,7 @@ def check_security_misconfig(tree: ast.AST, filepath: str) -> list [Finding]: #-
                         standard_ref="OWASP Top 10:2025 A02 – Security Misconfiguration",  # Standard name from OWASP matrix documentation
                     ))
             
-            # --- 3. ALLOWED_HOSTS check ---
+            # --- 1.3 ALLOWED_HOSTS check ---
             # Attack type covered: Host header injection — allowing any host to connect.
 
             # Notes:
@@ -128,4 +128,7 @@ def check_security_misconfig(tree: ast.AST, filepath: str) -> list [Finding]: #-
                                     message="ALLOWED_HOSTS contains '*', allowing any host.",
                                     standard_ref="OWASP Top 10:2025 A02 – Security Misconfiguration",
                                 ))
+
+# ---RULE 2---
+#Attack type: Security misconfiguration - missing SSL/HSTS 
     return findings

@@ -57,4 +57,4 @@ if all_findings:
         print(f"      Standard: {f.standard_ref}")
 
 else:
-    print ("Security issues found across the entire scanned codebase")
+    print ("No security issues found across the entire scanned codebase")
