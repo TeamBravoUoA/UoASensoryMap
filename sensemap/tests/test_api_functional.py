@@ -1,152 +1,278 @@
-"""Functional tests for the UoA Sensory Map REST API (rich schema)."""
+"""Functional coverage for the public UoA Sensory Map REST API."""
+
+from itertools import count
 
 from django.test import TestCase
 
 from sensemap.models import (
     Facility,
-    SensoryAttribute,
+    FeedbackReport,
     Location,
-    Space,
     LocationFacility,
     LocationSensoryProfile,
-    SpaceSensoryProfile,
-    FeedbackReport,
+    SensoryAttribute,
+    Space,
 )
+
+
+external_ids = count(1)
 
 
 def make_location(**kwargs):
     defaults = {
+        "external_id": next(external_ids),
         "name": "Test Place",
         "category": "library",
         "campus": "old_aberdeen",
-        "latitude": 57.16,
-        "longitude": -2.10,
+        "latitude": "57.160000",
+        "longitude": "-2.100000",
     }
     defaults.update(kwargs)
     return Location.objects.create(**defaults)
 
 
+def make_facility(name):
+    return Facility.objects.create(external_id=next(external_ids), name=name)
+
+
+def make_attribute(name):
+    return SensoryAttribute.objects.create(external_id=next(external_ids), name=name)
+
+
 class LocationModelTests(TestCase):
-    def test_str_returns_name(self):
-        loc = make_location(name="Library")
-        self.assertEqual(str(loc), "Library")
+    def test_str_returns_name_and_generates_slug(self):
+        location = make_location(name="Sir Duncan Rice Library")
+        self.assertEqual(str(location), "Sir Duncan Rice Library")
+        self.assertEqual(location.slug, "sir-duncan-rice-library")
 
 
 class LocationListAPITests(TestCase):
     def setUp(self):
         self.library = make_location(name="The Library", category="library")
-        self.hub = make_location(name="The Hub", category="social_building")
-        # A quiet space inside the library.
-        Space.objects.create(
-            location=self.library, name="Silent Floor", space_type="quiet",
-            is_quiet_zone=True, is_safe_space_neurodivergent_students=True,
+        self.hub = make_location(
+            name="The Hub", category="social_building", campus="foresterhill"
         )
-        # A social space inside the hub.
-        Space.objects.create(location=self.hub, name="Food Court", space_type="social")
+        self.garden = make_location(name="Botanical Garden", category="garden")
+
+        Space.objects.create(
+            external_id=next(external_ids),
+            location=self.library,
+            name="Silent Floor",
+            space_type="quiet",
+            is_quiet_zone=True,
+            is_safe_space_neurodivergent_students=True,
+        )
+        Space.objects.create(
+            external_id=next(external_ids),
+            location=self.hub,
+            name="Food Court",
+            space_type="social",
+        )
+
+        self.auditory = make_attribute("Auditory")
+        self.visual = make_attribute("Visual")
+        LocationSensoryProfile.objects.create(
+            location=self.library, sensory_attribute=self.auditory, rating=1
+        )
+        LocationSensoryProfile.objects.create(
+            location=self.library, sensory_attribute=self.visual, rating=2
+        )
+        LocationSensoryProfile.objects.create(
+            location=self.hub, sensory_attribute=self.auditory, rating=5
+        )
+        LocationSensoryProfile.objects.create(
+            location=self.garden, sensory_attribute=self.auditory, rating=3
+        )
+
+        self.wifi = make_facility("Wi-Fi")
+        self.step_free = make_facility("Step-free access")
+        LocationFacility.objects.create(location=self.library, facility=self.wifi, status=True)
+        LocationFacility.objects.create(
+            location=self.library, facility=self.step_free, status=True
+        )
+        LocationFacility.objects.create(location=self.hub, facility=self.wifi, status=False)
 
     def test_list_returns_all_locations(self):
-        res = self.client.get("/api/locations/")
-        self.assertEqual(res.status_code, 200)
-        self.assertEqual(len(res.json()), 2)
+        response = self.client.get("/api/locations/")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.json()), 3)
 
     def test_list_item_exposes_derived_fields(self):
         data = self.client.get("/api/locations/").json()
-        lib = next(d for d in data if d["name"] == "The Library")
-        self.assertIn("quiet", lib["space_types"])
-        self.assertTrue(lib["has_quiet_zone"])
-        self.assertTrue(lib["has_neurodivergent_safe"])
-        self.assertEqual(lib["category_display"], "Library")
+        library = next(item for item in data if item["name"] == "The Library")
+        self.assertIn("quiet", library["space_types"])
+        self.assertTrue(library["has_quiet_zone"])
+        self.assertTrue(library["has_neurodivergent_safe"])
+        self.assertEqual(library["category_display"], "Library")
+        self.assertEqual(library["facilities_available"], ["Step-free access", "Wi-Fi"])
 
     def test_filter_by_category(self):
         data = self.client.get("/api/locations/?category=social_building").json()
-        self.assertEqual(len(data), 1)
-        self.assertEqual(data[0]["name"], "The Hub")
+        self.assertEqual([item["name"] for item in data], ["The Hub"])
 
-    def test_filter_by_space_type(self):
-        data = self.client.get("/api/locations/?space_type=quiet").json()
-        self.assertEqual(len(data), 1)
-        self.assertEqual(data[0]["name"], "The Library")
+    def test_filter_by_sensory_axis_and_maximum_rating(self):
+        data = self.client.get("/api/locations/?axis=Auditory&max_rating=2").json()
+        self.assertEqual([item["name"] for item in data], ["The Library"])
+
+    def test_filter_by_sensory_axis_and_minimum_rating(self):
+        data = self.client.get("/api/locations/?axis=Auditory&min_rating=3").json()
+        self.assertEqual(
+            {item["name"] for item in data}, {"The Hub", "Botanical Garden"}
+        )
+
+    def test_filter_by_sensory_axis_and_exact_rating(self):
+        data = self.client.get("/api/locations/?axis=Auditory&rating=3").json()
+        self.assertEqual([item["name"] for item in data], ["Botanical Garden"])
+
+    def test_legacy_axis_rating_parameters_remain_supported(self):
+        data = self.client.get("/api/locations/?axis=Auditory&level=5").json()
+        self.assertEqual([item["name"] for item in data], ["The Hub"])
+
+    def test_invalid_axis_rating_returns_400(self):
+        response = self.client.get("/api/locations/?axis=Auditory&max_rating=6")
+        self.assertEqual(response.status_code, 400)
+
+    def test_rating_without_axis_returns_400(self):
+        response = self.client.get("/api/locations/?rating=2")
+        self.assertEqual(response.status_code, 400)
 
     def test_filter_quiet_only(self):
         data = self.client.get("/api/locations/?quiet=true").json()
-        self.assertEqual(len(data), 1)
-        self.assertEqual(data[0]["name"], "The Library")
+        self.assertEqual([item["name"] for item in data], ["The Library"])
 
-    def test_search(self):
-        data = self.client.get("/api/locations/?search=hub").json()
-        self.assertEqual(len(data), 1)
-        self.assertEqual(data[0]["name"], "The Hub")
+    def test_search_matches_name_and_description(self):
+        self.garden.description = "A calm outdoor study destination."
+        self.garden.save(update_fields=["description"])
+        data = self.client.get("/api/locations/?search=outdoor").json()
+        self.assertEqual([item["name"] for item in data], ["Botanical Garden"])
+
+    def test_safe_ordering_is_applied(self):
+        data = self.client.get("/api/locations/?ordering=-name").json()
+        self.assertEqual(
+            [item["name"] for item in data],
+            ["The Library", "The Hub", "Botanical Garden"],
+        )
+
+    def test_unknown_ordering_is_ignored(self):
+        response = self.client.get("/api/locations/?ordering=not_a_model_field")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.json()), 3)
+
+    def test_filter_by_available_facility_name(self):
+        data = self.client.get("/api/locations/?facility=Wi-Fi").json()
+        self.assertEqual([item["name"] for item in data], ["The Library"])
+
+    def test_filter_by_multiple_available_facilities(self):
+        data = self.client.get("/api/locations/?facility=Wi-Fi,Step-free%20access").json()
+        self.assertEqual([item["name"] for item in data], ["The Library"])
+
+    def test_filter_by_available_facility_external_id(self):
+        data = self.client.get(f"/api/locations/?facility={self.wifi.external_id}").json()
+        self.assertEqual([item["name"] for item in data], ["The Library"])
 
 
 class LocationDetailAPITests(TestCase):
     def setUp(self):
-        self.loc = make_location(name="Detail Place")
-        wifi = Facility.objects.create(name="Wi-Fi")
-        LocationFacility.objects.create(location=self.loc, facility=wifi, status=True)
-        for attr in ("Auditory", "Visual", "Crowding"):
-            a = SensoryAttribute.objects.create(name=attr)
-            LocationSensoryProfile.objects.create(
-                location=self.loc, sensory_attribute=a, rating=2
-            )
+        self.location = make_location(name="Detail Place")
+        facility = make_facility("Hearing loop")
+        LocationFacility.objects.create(location=self.location, facility=facility, status=True)
+        auditory = make_attribute("Auditory")
+        LocationSensoryProfile.objects.create(
+            location=self.location, sensory_attribute=auditory, rating=2
+        )
+        Space.objects.create(
+            external_id=next(external_ids),
+            location=self.location,
+            name="Low stimulation room",
+            space_type="sensory",
+            is_quiet_zone=True,
+        )
 
-    def test_detail_includes_nested_data(self):
-        data = self.client.get(f"/api/locations/{self.loc.id}/").json()
+    def test_detail_includes_facilities_profiles_and_quiet_zones(self):
+        data = self.client.get(f"/api/locations/{self.location.id}/").json()
         self.assertEqual(data["name"], "Detail Place")
-        self.assertEqual(len(data["facilities"]), 1)
-        self.assertEqual(data["facilities"][0]["name"], "Wi-Fi")
-        self.assertEqual(len(data["sensory_profiles"]), 3)
-        self.assertEqual(data["avg_sensory"], 2.0)
+        self.assertEqual(data["facilities"][0]["name"], "Hearing loop")
+        self.assertEqual(data["sensory_profiles"][0]["attribute"], "Auditory")
+        self.assertEqual(data["quiet_zones"][0]["name"], "Low stimulation room")
 
-    def test_detail_404_for_missing(self):
-        res = self.client.get("/api/locations/999999/")
-        self.assertEqual(res.status_code, 404)
+    def test_detail_404_for_missing_location(self):
+        response = self.client.get("/api/locations/999999/")
+        self.assertEqual(response.status_code, 404)
 
-    def test_only_accepted_feedback_is_nested(self):
-        FeedbackReport.objects.create(location=self.loc, comment="Pending", status="pending")
-        FeedbackReport.objects.create(location=self.loc, comment="Yay", status="accepted")
-        data = self.client.get(f"/api/locations/{self.loc.id}/").json()
-        self.assertEqual(len(data["feedback"]), 1)
-        self.assertEqual(data["feedback"][0]["comment"], "Yay")
+    def test_location_api_is_read_only(self):
+        response = self.client.post("/api/locations/", data={}, content_type="application/json")
+        self.assertEqual(response.status_code, 405)
 
 
-class LocationReadOnlyTests(TestCase):
-    def test_create_via_api_is_not_allowed(self):
-        res = self.client.post(
-            "/api/locations/",
-            data={"name": "Nope", "latitude": 57.1, "longitude": -2.1},
+class FeedbackReportAPITests(TestCase):
+    def setUp(self):
+        self.location = make_location()
+        self.space = Space.objects.create(
+            external_id=next(external_ids),
+            location=self.location,
+            name="Test Space",
+            space_type="study",
+        )
+
+    def test_report_endpoint_creates_pending_anonymous_report(self):
+        response = self.client.post(
+            "/api/reports/",
+            data={"location": self.location.id, "comment": "Quiet today", "is_anonymous": True},
             content_type="application/json",
         )
-        self.assertEqual(res.status_code, 405)
-
-
-class FeedbackAPITests(TestCase):
-    def setUp(self):
-        self.loc = make_location()
-
-    def test_anonymous_feedback_created_as_pending(self):
-        payload = {"location": self.loc.id, "comment": "Quiet today", "is_anonymous": True}
-        res = self.client.post(
-            "/api/feedback/", data=payload, content_type="application/json"
-        )
-        self.assertEqual(res.status_code, 201)
+        self.assertEqual(response.status_code, 201)
         report = FeedbackReport.objects.get()
-        self.assertEqual(report.status, "pending")
+        self.assertEqual(report.status, FeedbackReport.Status.PENDING)
 
-    def test_feedback_requires_exactly_one_target(self):
-        payload = {"comment": "No target"}
-        res = self.client.post(
-            "/api/feedback/", data=payload, content_type="application/json"
+    def test_legacy_feedback_endpoint_is_kept_for_the_existing_frontend(self):
+        response = self.client.post(
+            "/api/feedback/",
+            data={"location": self.location.id, "comment": "Works too"},
+            content_type="application/json",
         )
-        self.assertEqual(res.status_code, 400)
+        self.assertEqual(response.status_code, 201)
+
+    def test_report_requires_exactly_one_target(self):
+        response = self.client.post(
+            "/api/reports/",
+            data={"location": self.location.id, "space": self.space.id, "comment": "Both"},
+            content_type="application/json",
+        )
+        self.assertEqual(response.status_code, 400)
+
+    def test_non_anonymous_report_requires_name_and_email(self):
+        response = self.client.post(
+            "/api/reports/",
+            data={"location": self.location.id, "comment": "Hello", "is_anonymous": False},
+            content_type="application/json",
+        )
+        self.assertEqual(response.status_code, 400)
+
+    def test_blank_report_comment_is_rejected(self):
+        response = self.client.post(
+            "/api/reports/",
+            data={"location": self.location.id, "comment": "   "},
+            content_type="application/json",
+        )
+        self.assertEqual(response.status_code, 400)
+
+    def test_client_cannot_set_accepted_status(self):
+        response = self.client.post(
+            "/api/reports/",
+            data={"location": self.location.id, "comment": "Please review", "status": "accepted"},
+            content_type="application/json",
+        )
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(FeedbackReport.objects.get().status, FeedbackReport.Status.PENDING)
 
 
 class MetaAPITests(TestCase):
-    def test_meta_returns_choice_lists(self):
-        SensoryAttribute.objects.create(name="Auditory")
-        Facility.objects.create(name="Wi-Fi")
+    def test_meta_returns_current_choice_lists_and_reference_data(self):
+        make_attribute("Auditory")
+        make_facility("Wi-Fi")
         data = self.client.get("/api/meta/").json()
-        self.assertTrue(any(c["key"] == "library" for c in data["categories"]))
-        self.assertTrue(any(c["key"] == "quiet" for c in data["space_types"]))
+        self.assertTrue(any(item["key"] == "library" for item in data["categories"]))
+        self.assertTrue(any(item["key"] == "quiet" for item in data["space_types"]))
         self.assertIn("Auditory", data["sensory_attributes"])
         self.assertIn("Wi-Fi", data["facilities"])
 
