@@ -507,7 +507,15 @@ textarea {
 }
 .detail .detail-head > div { flex: 1; }
 .detail .detail-head h2 { margin: 0; font-size: 1.15rem; }
-.detail .detail-head .sub { font-size: 0.8rem; opacity: 0.9; }
+.detail .detail-head .sub {
+  display: block;
+  margin: 0.45rem 0 0;
+  color: rgba(255, 255, 255, 0.92);
+  font-size: 0.86rem;
+  font-weight: 500;
+  line-height: 1.45;
+  letter-spacing: 0.01em;
+}
 .detail .detail-head .map-link { margin: 0.5rem 0 0; }
 .detail .detail-head .map-link a {
   display: inline-flex;
@@ -971,8 +979,37 @@ textarea {
 @media (max-width: 640px) {
   .detail-page-thumb { width: 100%; height: 200px; }
 }
-.detail-page-title #dp-map-link {
+.detail-page-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.6rem;
   margin-top: 1.1rem;
+}
+.detail-page-actions #dp-feedback-link {
+  padding: 0.65rem 1.25rem;
+  background: rgba(255, 255, 255, 0.16);
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.45);
+  font-weight: 600;
+  font-size: 0.9rem;
+  border-radius: 999px;
+  text-decoration: none;
+  transition: background 0.15s ease, transform 0.15s ease;
+}
+.detail-page-actions #dp-feedback-link::before {
+  content: "\1F4AC";
+  margin-right: 0.35rem;
+  font-size: 0.95em;
+  line-height: 1;
+}
+.detail-page-actions #dp-feedback-link:hover {
+  background: rgba(255, 255, 255, 0.28);
+  transform: translateY(-1px);
+  text-decoration: none;
+}
+.detail-page-title #dp-map-link {
+  margin-top: 0;
   padding: 0.65rem 1.25rem;
   background: #fff;
   color: var(--navy);
@@ -1360,91 +1397,17 @@ textarea {
 }
 
 .detail-page-card::before {
-  content: "";
-  grid-area: main-photo;
-  min-height: 310px;
-  border-radius: 8px;
-  border: 1px solid var(--border);
-  background:
-    linear-gradient(145deg, rgba(0, 52, 102, 0.82), rgba(0, 94, 184, 0.36)),
-    url("../icons/uoa.svg") center / min(42%, 13rem) no-repeat,
-    var(--accent-soft);
-  box-shadow: var(--shadow);
-  align-self: stretch;
-}
-
-.detail-page-head {
-  grid-area: title;
-  margin: 0;
-  padding: 0;
-  border-bottom: 0;
+  content: none;
 }
 
 .detail-page-title h2 {
-  font-size: clamp(2rem, 4vw, 3rem);
-  line-height: 1.05;
+  font-size: clamp(1.8rem, 3.5vw, 2.5rem);
+  line-height: 1.1;
 }
 
-.detail-page-desc {
-  margin: 0;
-}
-
-.detail-page-card section,
-.detail-page-head,
-.detail-page-card::before {
+.detail-page-card > section,
+.detail-page-head {
   min-width: 0;
-}
-
-.detail-page-card section {
-  margin-top: 0;
-  background: var(--panel);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: clamp(1rem, 2vw, 1.25rem);
-  box-shadow: var(--shadow);
-}
-
-#dp-desc-section {
-  grid-area: desc;
-  background: transparent;
-  border: 0;
-  padding: 0.9rem 1.35rem;
-  font: inherit;
-  font-size: 0.9rem;
-  color: var(--muted);
-  cursor: pointer;
-  border-bottom: 3px solid transparent;
-  transition: color 0.15s ease, border-color 0.15s ease, background 0.15s ease;
-}
-.tab-btn:hover { color: var(--navy); background: rgba(255,255,255,0.5); }
-
-.tab-btn.active {
-  color: var(--navy);
-  font-weight: 700;
-  background: #fff;
-  border-bottom-color: var(--accent);
-}
-
-.tab-panel {
-  display: none;
-  padding: 1.25rem 1.35rem;
-  line-height: 1.65;
-}
-
-#dp-facilities-section {
-  grid-area: facilities;
-}
-
-#dp-sensory-section {
-  grid-area: sense-areas;
-}
-
-#dp-spaces-section {
-  grid-area: spaces;
-}
-
-#dp-gallery-section {
-  grid-area: gallery;
 }
 
 .detail-page-card .facilities,
@@ -1460,55 +1423,138 @@ textarea {
   gap: 1rem;
 }
 
-.detail-page-head .btn {
-  align-self: flex-start;
-  border-radius: 999px;
-  background: #f9a825;
-  color: #1b1b1b;
-}
-
-.detail-page-head .btn:hover {
-  background: #efb93b;
-}
-
-.detail-page-card .facilities,
-.detail-page-card .sensory-grid,
-.detail-page-card .spaces-list,
-.detail-page-card .gallery {
-  margin-top: 0.75rem;
-}
-
-.detail-page-card .gallery {
-  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
-}
-
 .detail-page-card .gallery img {
   height: 150px;
+  object-fit: cover;
+  border-radius: 10px;
 }
 
-@media (max-width: 992px) {
-  .detail-page-card {
-    padding: 1rem 0;
-    grid-template-columns: 1fr;
-    grid-template-areas:
-      "title"
-      "main-photo"
-      "desc"
-      "access"
-      "sense-areas"
-      "facilities"
-      "open-times"
-      "spaces"
-      "gallery";
+.detail-page-card {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1.25rem;
+  max-width: 1080px;
+  padding: 0 1.5rem 1.5rem;
+}
+
+.detail-page-head,
+#dp-desc-section,
+.info-tabs,
+#dp-spaces-section,
+#dp-gallery-section {
+  grid-column: 1 / -1;
+}
+
+.detail-page-head {
+  margin: 0 -1.5rem;
+  padding: 2rem 2.25rem;
+}
+
+.detail-page-card > section {
+  margin: 0;
+  padding: 1.25rem;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--panel);
+  box-shadow: var(--shadow);
+}
+
+.detail-page-card > section h3 {
+  margin-bottom: 1rem;
+}
+
+.detail-page-desc {
+  margin: 0;
+}
+
+#dp-access-section,
+#dp-hours-section,
+#dp-facilities-section,
+#dp-sensory-section {
+  min-height: 100%;
+}
+
+#dp-access,
+#dp-facilities,
+#dp-sensory,
+#dp-spaces,
+#dp-gallery {
+  margin-top: 0;
+}
+
+#dp-hours-section .hours-table {
+  margin-top: 0;
+}
+
+#dp-hours-section .hours-table th,
+#dp-hours-section .hours-table td {
+  padding: 0.55rem 0.4rem;
+}
+
+#dp-hours-section .hours-table tr:last-child th,
+#dp-hours-section .hours-table tr:last-child td {
+  border-bottom: 0;
+}
+
+#dp-sensory .sensory-line:last-child,
+#dp-spaces .sensory-line:last-child {
+  margin-bottom: 0;
+}
+
+#dp-spaces .space-card {
+  box-shadow: none;
+}
+
+#dp-gallery a {
+  display: block;
+  overflow: hidden;
+  border-radius: 10px;
+}
+
+#dp-gallery img {
+  width: 100%;
+  display: block;
+  transition: transform 0.2s ease;
+}
+
+#dp-gallery a:hover img {
+  transform: scale(1.03);
+}
+
+@media (max-width: 720px) {
+  .detail-page {
+    padding: 1rem;
   }
 
-  .detail-page-card::before {
-    min-height: 230px;
+  .detail-page-card {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 1rem;
+    padding: 0 1rem 1rem;
+  }
+
+  .detail-page-head {
+    margin: 0 -1rem;
+    padding: 1.5rem;
+  }
+
+  .detail-page-card > section {
+    padding: 1rem;
+  }
+}
+
+@media (max-width: 640px) {
+  .detail-page-thumb {
+    width: 100%;
+    height: 200px;
   }
 
   .detail-page-head .btn {
     width: 100%;
     justify-content: center;
+  }
+
+  #dp-hours-section .hours-table th {
+    width: 50%;
   }
 }
 /* ---------- Feedback page: hero band, layout, cards ---------- */

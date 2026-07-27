@@ -33,14 +33,23 @@ from .models import (
 class FacilitySerializer(serializers.ModelSerializer):
     class Meta:
         model = Facility
-        fields = ["id", "name", "description"]
+        fields = [
+            "id",
+            "external_id",
+            "name",
+            "icon_facility_available",
+            "icon_facility_unavailable",
+        ]
 
 
 class _FacilityLinkSerializer(serializers.ModelSerializer):
     """Base for the through-models (LocationFacility / SpaceFacility)."""
 
+    facility_id = serializers.IntegerField(source="facility.id", read_only=True)
+    facility_external_id = serializers.IntegerField(
+        source="facility.external_id", read_only=True
+    )
     name = serializers.CharField(source="facility.name", read_only=True)
-    description = serializers.CharField(source="facility.description", read_only=True)
     icon_available = serializers.ImageField(
         source="facility.icon_facility_available", read_only=True
     )
@@ -49,7 +58,15 @@ class _FacilityLinkSerializer(serializers.ModelSerializer):
     )
 
     class Meta:
-        fields = ["name", "description", "status", "notes", "icon_available", "icon_unavailable"]
+        fields = [
+            "facility_id",
+            "facility_external_id",
+            "name",
+            "status",
+            "notes",
+            "icon_available",
+            "icon_unavailable",
+        ]
 
 
 class LocationFacilityLinkSerializer(_FacilityLinkSerializer):
@@ -127,6 +144,23 @@ class SpaceSerializer(serializers.ModelSerializer):
             "opening_hrs_notes",
             "wayfinding",
             "sensory_experience",
+            "is_quiet_zone",
+            "is_safe_space_neurodivergent_students",
+            "facilities",
+            "sensory_profiles",
+        ]
+
+
+class QuietZoneSerializer(SpaceSerializer):
+    """Nested representation of the quiet spaces inside a location."""
+
+    class Meta(SpaceSerializer.Meta):
+        fields = [
+            "id",
+            "name",
+            "space_type",
+            "space_type_display",
+            "description",
             "is_quiet_zone",
             "is_safe_space_neurodivergent_students",
             "facilities",
@@ -224,6 +258,7 @@ class LocationDetailSerializer(LocationListSerializer):
         source="location_sensory_profiles", many=True, read_only=True
     )
     spaces = SpaceSerializer(many=True, read_only=True)
+    quiet_zones = serializers.SerializerMethodField()
     gallery_images = GalleryImageSerializer(many=True, read_only=True)
     feedback = serializers.SerializerMethodField()
 
@@ -245,9 +280,14 @@ class LocationDetailSerializer(LocationListSerializer):
             "facilities",
             "sensory_profiles",
             "spaces",
+            "quiet_zones",
             "gallery_images",
             "feedback",
         ]
+
+    def get_quiet_zones(self, obj):
+        quiet_spaces = [space for space in obj.spaces.all() if space.is_quiet_zone]
+        return QuietZoneSerializer(quiet_spaces, many=True, context=self.context).data
 
     def get_feedback(self, obj):
         accepted = [f for f in obj.feedback_reports.all() if f.status == "accepted"]
@@ -272,6 +312,12 @@ class FeedbackReportSerializer(serializers.ModelSerializer):
             "created_at",
         ]
         read_only_fields = ["status", "created_at"]
+
+    def validate_comment(self, value):
+        value = value.strip()
+        if not value:
+            raise serializers.ValidationError("A report comment cannot be blank.")
+        return value
 
     def validate(self, data):
         location = data.get("location")

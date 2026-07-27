@@ -523,7 +523,11 @@
     const filtered = allLocations.filter((loc) => {
       if (campus && loc.campus !== campus) return false;
       if (category && loc.category !== category) return false;
-      if (spaceType && !(loc.space_types || []).includes(spaceType)) return false;
+      if (
+        spaceType &&
+        !(loc.space_types || []).includes(spaceType) &&
+        !(spaceType === "sport" && loc.category === "sports_facility")
+      ) return false;
       if (quietOnly && !loc.has_quiet_zone) return false;
       if (ndOnly && !loc.has_neurodivergent_safe) return false;
       if (search) {
@@ -533,6 +537,9 @@
       return true;
     });
 
+    if (selectedId && !filtered.some((loc) => loc.id === selectedId)) {
+      closeDetail();
+    }
     renderList(filtered);
     renderMarkers(filtered);
     setActiveChip(spaceType);

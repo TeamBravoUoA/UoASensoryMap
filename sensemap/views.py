@@ -1,7 +1,8 @@
-from django.db.models import Prefetch, Q
+from django.db.models import Avg, Q
 from django.shortcuts import get_object_or_404, render
 from rest_framework import mixins, viewsets
 from rest_framework.decorators import api_view
+from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
 
 from .models import (
@@ -32,7 +33,23 @@ class LocationViewSet(viewsets.ReadOnlyModelViewSet):
       ?space_type=<key>         only locations containing that space type
       ?quiet=true               only locations with a quiet-zone space
       ?neurodivergent=true      only locations with a neurodivergent-safe space
+      ?axis=<name>              sensory attribute name (for example, Auditory)
+      ?rating=<1-5>             exact rating for the selected sensory attribute
+      ?min_rating=<1-5>         minimum rating for the selected sensory attribute
+      ?max_rating=<1-5>         maximum rating for the selected sensory attribute
+      ?facility=<name>          available location facility; comma-separated values use AND
+      ?ordering=name,-name,...  safe ordering by name, category, campus, created_at,
+                                updated_at, or avg_sensory
     """
+
+    ORDERING_FIELDS = {
+        "name": "name",
+        "category": "category",
+        "campus": "campus",
+        "created_at": "created_at",
+        "updated_at": "updated_at",
+        "avg_sensory": "avg_sensory",
+    }
 
     def get_serializer_class(self):
         if self.action == "retrieve":
@@ -80,7 +97,95 @@ class LocationViewSet(viewsets.ReadOnlyModelViewSet):
         if params.get("neurodivergent") in ("true", "1"):
             qs = qs.filter(spaces__is_safe_space_neurodivergent_students=True)
 
+        qs = self._filter_sensory_axis(qs, params)
+        qs = self._filter_facilities(qs, params)
+        qs = self._apply_ordering(qs, params)
+
         return qs.distinct()
+
+    def _filter_sensory_axis(self, queryset, params):
+        axis = params.get("axis", "").strip()
+        rating = self._rating_param(params, "rating", "level")
+        min_rating = self._rating_param(params, "min_rating", "min_level")
+        max_rating = self._rating_param(params, "max_rating", "max_level")
+
+        if not axis:
+            if any(value is not None for value in (rating, min_rating, max_rating)):
+                raise ValidationError({"axis": "An axis is required when filtering by rating."})
+            return queryset
+
+        axis_filter = Q(
+            location_sensory_profiles__sensory_attribute__name__iexact=axis
+        )
+        if axis.isdigit():
+            axis_filter |= Q(
+                location_sensory_profiles__sensory_attribute__external_id=int(axis)
+            )
+
+        profile_filter = axis_filter
+        if rating is not None:
+            profile_filter &= Q(location_sensory_profiles__rating=rating)
+        if min_rating is not None:
+            profile_filter &= Q(location_sensory_profiles__rating__gte=min_rating)
+        if max_rating is not None:
+            profile_filter &= Q(location_sensory_profiles__rating__lte=max_rating)
+        return queryset.filter(profile_filter)
+
+    def _filter_facilities(self, queryset, params):
+        values = params.getlist("facility") + params.getlist("facilities")
+        facility_names = [
+            name.strip()
+            for value in values
+            for name in value.split(",")
+            if name.strip()
+        ]
+        for facility_name in facility_names:
+            facility_filter = Q(
+                location_facilities__status=True,
+                location_facilities__facility__name__iexact=facility_name,
+            )
+            if facility_name.isdigit():
+                facility_filter |= Q(
+                    location_facilities__status=True,
+                    location_facilities__facility__external_id=int(facility_name),
+                )
+            queryset = queryset.filter(facility_filter)
+        return queryset
+
+    def _apply_ordering(self, queryset, params):
+        requested_fields = [
+            field.strip()
+            for field in params.get("ordering", "").split(",")
+            if field.strip()
+        ]
+        ordering = []
+        needs_average = False
+        for requested in requested_fields:
+            descending = requested.startswith("-")
+            field_name = requested[1:] if descending else requested
+            mapped = self.ORDERING_FIELDS.get(field_name)
+            if not mapped:
+                continue
+            if mapped == "avg_sensory":
+                needs_average = True
+            ordering.append(f"-{mapped}" if descending else mapped)
+
+        if needs_average:
+            queryset = queryset.annotate(avg_sensory=Avg("location_sensory_profiles__rating"))
+        return queryset.order_by(*ordering) if ordering else queryset
+
+    @staticmethod
+    def _rating_param(params, *names):
+        raw_value = next((params.get(name) for name in names if params.get(name) is not None), None)
+        if raw_value is None or raw_value == "":
+            return None
+        try:
+            value = int(raw_value)
+        except (TypeError, ValueError) as exc:
+            raise ValidationError({names[0]: "Rating must be an integer from 1 to 5."}) from exc
+        if value not in range(1, 6):
+            raise ValidationError({names[0]: "Rating must be between 1 and 5."})
+        return value
 
 
 class SpaceViewSet(viewsets.ReadOnlyModelViewSet):
@@ -112,6 +217,9 @@ class FeedbackReportViewSet(mixins.CreateModelMixin, viewsets.GenericViewSet):
 
     queryset = FeedbackReport.objects.all()
     serializer_class = FeedbackReportSerializer
+
+    def perform_create(self, serializer):
+        serializer.save(status=FeedbackReport.Status.PENDING)
 
 
 @api_view(["GET"])

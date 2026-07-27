@@ -19,6 +19,7 @@ router = DefaultRouter()
 router.register(r"locations", views.LocationViewSet, basename="location")
 router.register(r"spaces", views.SpaceViewSet, basename="space")
 router.register(r"facilities", views.FacilityViewSet, basename="facility")
+router.register(r"reports", views.FeedbackReportViewSet, basename="report")
 router.register(r"feedback", views.FeedbackReportViewSet, basename="feedback")
 
 urlpatterns = [

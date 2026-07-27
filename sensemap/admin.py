@@ -10,6 +10,7 @@ from .models import (
     LocationSensoryProfile,
     SpaceSensoryProfile,
     FeedbackReport,
+    FeedbackSensoryRating
 )
 
 
@@ -67,3 +68,7 @@ class SpaceSensoryProfileAdmin(ShowAllFieldsAdmin):
 @admin.register(FeedbackReport)
 class FeedbackReportAdmin(ShowAllFieldsAdmin):
     list_filter = ("status", "is_anonymous")
+
+@admin.register(FeedbackSensoryRating)
+class FeedbackSensoryRatingAdmin(ShowAllFieldsAdmin):
+    pass
