@@ -1,20 +1,24 @@
 """SAST (Static Application Security Testing (analysis of the application's own source code) 
 via AST parsing (Abstract Syntax Tree) it reads the code the way python itself understands it - as structure, not text. Every piece of code becomes a "node" in a tree"""
 
+# For every rule, there is one function assign to the main class (findings)
 #Import findings file from main class 
 from scanner.findings import Finding
 #AST module for Abstract Syntax Tree functionality
 import ast
 
-# For every rule, there is one function assign to the main class (findings)
-
-# ---RULE 1---
-# Attack type Security misconfiguration — DEBUG/SECRET_KEY/ALLOWED_HOSTS
+#Variables where harcdoed fallback inside os.getenv ()/ os.environ.get() is considred unsafe, since each ends up feeding a security-sensitive setting. 
+#Ad new variable names here if a similar risk is found elsewhere. 
+ENV_FALLBACK_WATCHLIST = {
+    "SECRET_KEY": "SEC-MISCONFIG-SECRET-KEY-FALLBACK",
+    "_ALLOWED_HOSTS": "SEC-MISCONFIG-ALLOWED-HOSTS-FALLBACK",
+}
 
 #Parameter tree as type ast.AST
 #Parameter filepath as type str
 def check_security_misconfig(tree: ast.AST, filepath: str) -> list [Finding]: #-> this function will return a list of finding objects
     findings = [] #Empty list which the function will fill up as it walks the three and returns at the end. 
+
 
 #ast.walk(tree) visit every single node in the whole three. Every function, imports, if-statements, etc.
 #The "node" variable becomes each of thise per iteration is a loop for every node in the code.
@@ -31,7 +35,27 @@ def check_security_misconfig(tree: ast.AST, filepath: str) -> list [Finding]: #-
             if not isinstance(target, ast.Name):
                 continue
 
-            #---1.1 DEBUG check---
+            #--- Environment-variable hardcoded fallback check (Applicable to rule 1 & 2)---
+            #Attack type covered: a variable is correctly loaded from an environment variable but hardcoded, unsafe literal is provided as the fallback value -
+            #meaning  the "safe" pattern silently degrades if that env var is ever missing. Applies to any variable in ENV_FALLBACK_WATCHLIST
+            if target.id in ENV_FALLBACK_WATCHLIST:
+                if isinstance (node.value, ast.Call):
+                    if isinstance (node.value.func, ast.Attribute) and node.value.func.attr in ("getenv", "get"):
+                        if len (node.value.args) >= 2:
+                            fallback_arg = node.value.args [1]
+                            
+                            #Only flag if the fallback is a real (non-empty) string literal. 
+                            if isinstance (fallback_arg, ast.Constant) and isinstance (fallback_arg.value, str) and fallback_arg.value:
+                                findings.append (Finding(
+                                     rule_id= ENV_FALLBACK_WATCHLIST [target.id],
+                                     severity="Critical",
+                                     file_path=filepath,
+                                     line=node.lineno,
+                                     message=f"{target.id} is loaded from an environment variable, but a hardcoded fallback value is provided. If the environment variable is ever unset, the app will sillently run with this fallback value, which is visible in source control.", 
+                                     standard_ref="OWASP Top 10:2025 A02 – Security Misconfiguration",
+                                     ))
+
+            # ---RULE 1 Attack type Security misconfiguration — DEBUG ----
             # Attack type covered: information disclosure via debug error pages —leaking stack traces and internal app structure to any visitor.
 
             # DEBUG is a setting in settings.py that controls how Django behaves when something goes wrong. It was two different modes. 
@@ -51,7 +75,8 @@ def check_security_misconfig(tree: ast.AST, filepath: str) -> list [Finding]: #-
                         message="DEBUG is set to True. In production this exposes detailed error tracebacks — including internal file paths and code structure — to any visitor.",
                         standard_ref= "OWASP Top 10:2025 A02 – Security Misconfiguration", #Standard name from OWASP matrix documentation
                     ))
-            # --- 1.2 SECRET_KEY check ---
+
+            # --- RULE 2 Attack type Security misconfiguration — SECRET_KEY ---
             # Attack type covered: cryptographic key exposure — enabling session/token forgery.
 
             # Notes:
@@ -65,40 +90,21 @@ def check_security_misconfig(tree: ast.AST, filepath: str) -> list [Finding]: #-
             
             
             if target.id == "SECRET_KEY":
+                #Shape A: harcoded directly as a string (SECRET_KEY = "abcd123")
                 # Constant = a literal value written directly in the code.
-                # isinstance(..., str) narrows it to strings specifically, since
-                # Constant also covers True/False/numbers.
+                # isinstance(..., str) narrows it to strings specifically, since constant also covers True/False/numbers.
                 if isinstance(node.value, ast.Constant) and isinstance(node.value.value, str):
-                    if isinstance (node.value.func, ast.Attribute) and node.value.func.attr in ("getenv", "get")
-                        if len (node.value.args)>= 2:
-                            fallback_arg = node.value.args[1]
-                            if isinstance (fallback_arg, ast.Constant) and isinstance(fallback_arg.value, str) and fallback_arg.value:
-                                findings.append(Finding(
-                                    rule_id="SEC-MISCONFIG-SECRET-KEY",
-                                    severity="Critical",
-                                    file_path=filepath,
-                                      line=node.lineno,
-                                      message="SECRET_KEY is a hardcoded string literal instead of being loaded from the environment.",
-                                      standard_ref="OWASP Top 10:2025 A02 – Security Misconfiguration",  # Standard name from OWASP matrix documentation
-                                    ))
-            
-            # --- 1.3 ALLOWED_HOSTS check ---
+                    findings.append(Finding(
+                         rule_id="SEC-MISCONFIG-SECRET-KEY",
+                         severity="Critical",
+                         file_path=filepath,
+                         line=node.lineno,
+                         message="SECRET_KEY is a hardcoded string literal instead of being loaded from the environment.",
+                         standard_ref="OWASP Top 10:2025 A02 – Security Misconfiguration",  # Standard name from OWASP matrix documentation
+                     ))
+              
+            # ---RULE 3 Attack type Security misconfiguration — ALLOWED_HOST ---
             # Attack type covered: Host header injection — allowing any host to connect.
-
-            # Notes:
-            # ALLOWED_HOSTS is a setting in settings.py that tells Django which domain names are allowed to serve this app. It has two unsafe states this rule watches for:
-            # • ALLOWED_HOSTS = [] (empty) — with DEBUG=True this blocks every request,
-            #   but developers often "fix" this in a hurry by pasting '*' in without
-            #   thinking about what that actually allows.
-            # • ALLOWED_HOSTS = ['*'] (wildcard) — this tells Django to accept a request
-            #   claiming to be ANY domain name at all, via the Host header. Django trusts
-            #   this value when generating absolute URLs (e.g. links in notifications,
-            #   admin pages) or when caching responses. A malicious Host header can then
-            #   cause the app to generate or cache content pointing at an attacker's domain
-            #   instead of the real one — independent of whether the app itself uses
-            #   passwords or logins.
-            #
-            
             if target.id == "ALLOWED_HOSTS":
                 # This condition only runs if the value is a list literal at all,
                 # e.g. [] or ['*', 'example.com'] — not a variable or function call.

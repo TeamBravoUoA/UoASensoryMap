@@ -1,6 +1,7 @@
 import ast
 from pathlib import Path
 from scanner.sast_scanner import check_security_misconfig
+from ai.threat_model import enrich_findings
 
 PROJECT_ROOT = Path("..")  # one level up from Security_Scanner_SAST_IaC_SCA_LLM = the repo root
 # Set this to True while developing/debugging, False for a clean demo run
@@ -58,3 +59,17 @@ if all_findings:
 
 else:
     print ("No security issues found across the entire scanned codebase")
+
+#Report with LLM model in based on scanner findings output
+if all_findings:
+    print("\n--- AI-enriched explanations ---\n")
+    enriched = enrich_findings(all_findings)
+    for item in enriched:
+        print(f"[{item['severity']}] {item['rule_id']} — {item['file_path']}:{item['line']}")
+        if item["ai_explanation"]:
+            print(f"(enriched by {item['ai_model']})")
+            print(item["ai_explanation"])
+        else:
+            print(f"({item['ai_note']})")
+            print(item["message"])
+        print()

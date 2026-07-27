@@ -1,5 +1,3 @@
-# TO BE UPDATED WITH REAL SCANNER RULES, FOR NOW IM RUNNING "thread_model.py" for API LLM Model connection only
-
 """AI enrichment (plain-language explanations) """
 
 import os
@@ -7,7 +5,12 @@ import time
 import requests
 from dotenv import load_dotenv
 
+
 load_dotenv()
+
+API_KEY = os.environ.get("OPENROUTER_API_KEY")
+if not API_KEY:
+    sys.exit("ERROR: OPENROUTER_API_KEY not found. Confir is created in .env file")
 
 OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
 
@@ -18,6 +21,7 @@ FALLBACK_MODELS = [
     "openai/gpt-oss-20b:free",
     "qwen/qwen3-coder:free",
     "meta-llama/llama-3.3-70b-instruct:free",
+
 ]
 
 #API Retry
@@ -25,30 +29,21 @@ MAX_RETRIES_PER_MODEL = 2   # quick retries on a busy (429) model before falling
 BASE_WAIT = 2               # base seconds for backoff
 
 
-#To be updated with actual scanner rules
-def _build_prompt(finding):
-    """Turn a scanner finding into a prompt for the model.
-
-    `finding` is a dict from the rule-based scanner, e.g.:
-        {
-            "rule": "raw-sql-query",
-            "file": "views.py",
-            "line": 42,
-            "code": "query = \"... \" + user_input",
-            "message": "Possible SQL injection",
-        }
-    """
-    
-#To be updated with actual scanner rules
+def build_prompt(finding):
+    """Turn one Finding object into a prompt asking the model to enrich it."""
     return (
-        "You are a security code reviewer. A static analysis tool flagged the "
-        "following issue. In 2-3 short sentences, explain the risk in plain "
-        "language and suggest how to fix it.\n\n"
-        f"Rule: {finding.get('rule', 'n/a')}\n"
-        f"File: {finding.get('file', 'n/a')} (line {finding.get('line', 'n/a')})\n"
-        f"Message: {finding.get('message', 'n/a')}\n"
-        f"Code:\n{finding.get('code', 'n/a')}"
+        "You are a security code reviewer. A static analysis scanner has "
+        "flagged the following issue. Write a short, plain-language "
+        "explanation (2-3 sentences) of why this matters, followed by a "
+        "concrete code fix.\n\n"
+        f"Rule: {finding.rule_id}\n"
+        f"Severity: {finding.severity}\n"
+        f"File: {finding.file_path}, line {finding.line}\n"
+        f"Standard: {finding.standard_ref}\n"
+        f"Finding: {finding.message}\n"
     )
+    
+
 
 #API Key authorization
 def _call_model(model, prompt, api_key):
@@ -62,8 +57,9 @@ def _call_model(model, prompt, api_key):
         json={
             "model": model,
             "messages": [{"role": "user", "content": prompt}],
+            "stream": False,  
         },
-        timeout=60,
+        timeout=15,  #  15 s it fails fast and moves to the fallback
     )
 
 #Try on different models according to availability 
@@ -73,60 +69,58 @@ def _try_model(model, prompt, api_key):
     Returns the answer text on success, or None to signal 'fall back'.
     """
     for attempt in range(1, MAX_RETRIES_PER_MODEL + 1):
-        response = _call_model(model, prompt, api_key)
-
-        if response.status_code == 200:
-            return response.json()["choices"][0]["message"]["content"].strip()
-
-        # Busy: wait and retry the same model
-        if response.status_code == 429:
-            retry_after = response.headers.get("Retry-After")
-            wait = int(retry_after) if retry_after else BASE_WAIT * attempt
-            time.sleep(wait)
-            continue
+        try:
+            response = _call_model(model, prompt, api_key)
+            if response.status_code == 200:
+                return response.json()["choices"][0]["message"]["content"].strip()
+                
+             # Busy: wait and retry the same model
+            if response.status_code == 429:
+                retry_after = response.headers.get("Retry-After")
+                wait = int(retry_after) if retry_after else BASE_WAIT * attempt
+                time.sleep(wait)
+                continue
 
         # Unavailable / paid-only / other error: don't retry, fall back
-        return None
-
+            return None
+        
+        except (requests.exceptions.RequestException, TimeoutError):
+            #Catch timeouts /network drops and move immediately
+            continue 
+            
     return None  # exhausted retries on 429
 
-
-def explain_finding(finding):
-    """Enrich a single scanner finding with an AI explanation.
-
-    Always returns a dict. On success it adds 'ai_explanation' and the model used.
-    On failure it returns the finding unchanged with a note, so the caller can
-    carry on regardless (the AI layer is optional).
+def enrich_finding(finding):
     """
-    api_key = os.environ.get("OPENROUTER_API_KEY")
-    if not api_key:
-        return {**finding, "ai_explanation": None,
+    Try every model in order for one Finding. Always returns a dict
+    combining the finding's own fields with the enrichment result —
+    never returns None, and never lets enrichment failure block the
+    underlying finding from being reported (additive, never load-bearing).
+    """
+    finding_dict = {
+        "rule_id": finding.rule_id,
+        "severity": finding.severity,
+        "file_path": finding.file_path,
+        "line": finding.line,
+        "message": finding.message,
+        "standard_ref": finding.standard_ref,
+    }
+
+    if not API_KEY:
+        return {**finding_dict, "ai_explanation": None,
                 "ai_note": "No API key set; skipped AI enrichment."}
 
-    prompt = _build_prompt(finding)
-
+    prompt = build_prompt(finding)
     for model in FALLBACK_MODELS:
-        answer = _try_model(model, prompt, api_key)
+        answer = _try_model(model, prompt, API_KEY)
         if answer:
-            return {**finding, "ai_explanation": answer, "ai_model": model}
+            return {**finding_dict, "ai_explanation": answer, "ai_model": model}
 
-    # Every model failed - return the finding unchanged, with a note
-    return {**finding, "ai_explanation": None,
+    # Every model failed — return the finding unchanged, with a note
+    return {**finding_dict, "ai_explanation": None,
             "ai_note": "All AI models unavailable; rule-based finding only."}
 
 
-# Manual check: run this file directly to confirm the connection works.
-if __name__ == "__main__":
-    sample = {
-        "rule": "raw-sql-query",
-        "file": "views.py",
-        "line": 42,
-        "code": "query = \"SELECT * FROM users WHERE name = '\" + user + \"'\"",
-        "message": "Possible SQL injection from string concatenation",
-    }
-    result = explain_finding(sample)
-    if result["ai_explanation"]:
-        print(f"Model used: {result['ai_model']}\n")
-        print(result["ai_explanation"])
-    else:
-        print(result["ai_note"])
+def enrich_findings(findings):
+    """Enrich a list of Findings. Always returns one dict per finding."""
+    return [enrich_finding(f) for f in findings]
