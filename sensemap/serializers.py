@@ -12,6 +12,7 @@ The frontend uses two Location representations:
 """
 
 from rest_framework import serializers
+from django.utils.html import strip_tags
 
 from .models import (
     Facility,
@@ -314,7 +315,7 @@ class FeedbackReportSerializer(serializers.ModelSerializer):
         read_only_fields = ["status", "created_at"]
 
     def validate_comment(self, value):
-        value = value.strip()
+        value = strip_tags(value).strip()
         if not value:
             raise serializers.ValidationError("A report comment cannot be blank.")
         return value
