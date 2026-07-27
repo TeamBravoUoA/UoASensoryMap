@@ -161,6 +161,6 @@ def check_security_misconfig(tree: ast.AST, filepath: str) -> list [Finding]: #-
     
                                      
 
-# ---RULE 2---
+# ---RULE 4--
 #Attack type: Security misconfiguration - missing SSL/HSTS 
     return findings
