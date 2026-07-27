@@ -86,6 +86,7 @@ class Location(ExternalIDModel, TimeStampedModel):
         LIBRARY = "library", "Library"
         SOCIAL_BUILDING = "social_building", "Social Building"
         STUDENT_SERVICES = "student_services", "Student Services"
+        STUDENT_ACCOMMODATION = "student_accommodation", "Student Accommodation"
         RESEARCH_LABORATORY = "research_laboratory", "Research / Laboratories"
         GARDEN = "garden", "Garden"
         SPORTS_FACILITY = "sports_facility", "Sports Facility"
@@ -93,6 +94,7 @@ class Location(ExternalIDModel, TimeStampedModel):
         NURSERY = "nursery", "Nursery"
         SHOP = "shop", "Shop"
         CAFE = "cafe", "Cafe"
+
 
     name = models.CharField(max_length=255, unique=True, db_index=True)
     slug = models.SlugField(max_length=255, unique=True, blank=True)
