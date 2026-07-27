@@ -69,14 +69,18 @@ def check_security_misconfig(tree: ast.AST, filepath: str) -> list [Finding]: #-
                 # isinstance(..., str) narrows it to strings specifically, since
                 # Constant also covers True/False/numbers.
                 if isinstance(node.value, ast.Constant) and isinstance(node.value.value, str):
-                    findings.append(Finding(
-                        rule_id="SEC-MISCONFIG-SECRET-KEY",
-                        severity="Critical",
-                        file_path=filepath,
-                        line=node.lineno,
-                        message="SECRET_KEY is a hardcoded string literal instead of being loaded from the environment.",
-                        standard_ref="OWASP Top 10:2025 A02 – Security Misconfiguration",  # Standard name from OWASP matrix documentation
-                    ))
+                    if isinstance (node.value.func, ast.Attribute) and node.value.func.attr in ("getenv", "get")
+                        if len (node.value.args)>= 2:
+                            fallback_arg = node.value.args[1]
+                            if isinstance (fallback_arg, ast.Constant) and isinstance(fallback_arg.value, str) and fallback_arg.value:
+                                findings.append(Finding(
+                                    rule_id="SEC-MISCONFIG-SECRET-KEY",
+                                    severity="Critical",
+                                    file_path=filepath,
+                                      line=node.lineno,
+                                      message="SECRET_KEY is a hardcoded string literal instead of being loaded from the environment.",
+                                      standard_ref="OWASP Top 10:2025 A02 – Security Misconfiguration",  # Standard name from OWASP matrix documentation
+                                    ))
             
             # --- 1.3 ALLOWED_HOSTS check ---
             # Attack type covered: Host header injection — allowing any host to connect.
@@ -128,6 +132,28 @@ def check_security_misconfig(tree: ast.AST, filepath: str) -> list [Finding]: #-
                                     message="ALLOWED_HOSTS contains '*', allowing any host.",
                                     standard_ref="OWASP Top 10:2025 A02 – Security Misconfiguration",
                                 ))
+
+                        #Condition 3 - dynamic ALLOWED_HOSTS dynamic construction check
+                elif isinstance (node.value, ast.ListComp):
+                    findings.append(Finding(
+                         rule_id="SEC-MISCONFIG-ALLOWED-HOSTS-DYNAMIC",
+                         severity="Medium",
+                         file_path=filepath,
+                         line=node.lineno,
+                         message=(
+                             "ALLOWED_HOSTS is built dynamically (e.g. via a list comprehension "
+                             "over an environment variable) rather than as a plain list literal. "
+                             "This rule cannot verify what value it actually resolves to without "
+                             "running the code, so a dangerous default hidden inside the "
+                             "expression — e.g. os.getenv('ALLOWED_HOSTS', '*') falling back to "
+                             "a wildcard if the environment variable is unset — would go "
+                             "completely undetected. Manually confirm the fallback value used "
+                             "here is a safe, explicit domain list, not an empty string or '*'."
+                        ),
+                        standard_ref="OWASP Top 10:2025 A02 – Security Misconfiguration",
+        ))
+    
+                                     
 
 # ---RULE 2---
 #Attack type: Security misconfiguration - missing SSL/HSTS 
