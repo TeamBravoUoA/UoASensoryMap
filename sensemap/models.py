@@ -86,6 +86,7 @@ class Location(ExternalIDModel, TimeStampedModel):
         LIBRARY = "library", "Library"
         SOCIAL_BUILDING = "social_building", "Social Building"
         STUDENT_SERVICES = "student_services", "Student Services"
+        STUDENT_ACCOMMODATION = "student_accommodation", "Student Accommodation"
         RESEARCH_LABORATORY = "research_laboratory", "Research / Laboratories"
         GARDEN = "garden", "Garden"
         SPORTS_FACILITY = "sports_facility", "Sports Facility"
@@ -93,6 +94,7 @@ class Location(ExternalIDModel, TimeStampedModel):
         NURSERY = "nursery", "Nursery"
         SHOP = "shop", "Shop"
         CAFE = "cafe", "Cafe"
+
 
     name = models.CharField(max_length=255, unique=True, db_index=True)
     slug = models.SlugField(max_length=255, unique=True, blank=True)
@@ -180,7 +182,6 @@ class Space(ExternalIDModel, TimeStampedModel):
         STUDY = "study", "Study Space"
         QUIET = "quiet", "Quiet Space"
         SOCIAL = "social", "Social Space"
-        SENSORY = "sensory", "Sensory Room"
         OTHER = "other", "Other"
 
 
@@ -471,3 +472,60 @@ class FeedbackReport(TimeStampedModel):
         if self.space:
             return f"Feedback - {self.space.name}"
         return f"Feedback - {self.location.name}"
+
+
+class FeedbackSensoryRating(TimeStampedModel):
+    """
+    User sensory rating feedback tied to either a Location OR a Space.
+    """
+
+
+    location = models.ForeignKey(
+        Location,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="sensory_feedback"
+    )
+
+    space = models.ForeignKey(
+        Space,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="sensory_feedback"
+    )
+
+    sensory_attribute = models.ForeignKey(
+            SensoryAttribute,
+            on_delete=models.CASCADE,
+            related_name="sensory_feedback"
+        )
+
+    rating = models.PositiveSmallIntegerField(
+            validators=[
+                MinValueValidator(1),
+                MaxValueValidator(5)
+            ]
+        )
+
+    is_anonymous = models.BooleanField(default=True)
+
+    reporter_name = models.CharField(max_length=255, blank=True)
+    reporter_email = models.EmailField(blank=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def clean(self):
+        # Require identity only for non-anonymous feedback
+        if not self.is_anonymous:
+            if not self.reporter_name or not self.reporter_email:
+                raise ValidationError(
+                    "Name and email are required for non-anonymous feedback."
+                )
+
+    def __str__(self):
+        if self.space:
+            return f"Sensory Rating Feedback - {self.space.name}"
+        return f"Sensory Rating Feedback - {self.location.name}"
