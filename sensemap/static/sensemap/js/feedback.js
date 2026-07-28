@@ -141,6 +141,24 @@
     const wrap = el("sensory-attributes");
     if (wrap) wrap.addEventListener("click", onRatingClick);
 
+    const params = new URLSearchParams(window.location.search);
+    const locationName = params.get("location_name") || "";
+    const locationId = params.get("location_id") || "";
+    const locationInput = el("search-location");
+    if (locationInput && locationName) {
+      locationInput.value = locationName;
+    }
+    if (locationId) {
+      const form = el("feedback-form");
+      if (form && !form.querySelector('input[name="location_id"]')) {
+        const hidden = document.createElement("input");
+        hidden.type = "hidden";
+        hidden.name = "location_id";
+        hidden.value = locationId;
+        form.appendChild(hidden);
+      }
+    }
+
     el("feedback-loader").hidden = true;
     el("feedback-card").hidden = false;
   }

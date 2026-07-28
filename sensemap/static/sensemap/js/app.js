@@ -24,13 +24,13 @@
     research_laboratory: { label: "Research / Labs", iconUrl: "study.svg", color: "#1565c0", desc: "Research buildings and laboratories." },
     garden: { label: "Garden", iconUrl: "garden.svg", color: "#558b2f", desc: "Gardens and outdoor green space." },
     cafe: { label: "Cafe", iconUrl: "food_drink.svg", color: "#ef6c00", desc: "Cafes and food outlets." },
-    other: { label: "Other", iconUrl: "garden.svg", color: "#607d8b", desc: "Miscellaneous spaces." },
+    outdoor: { label: "Outdoor", iconUrl: "garden.svg", color: "#607d8b", desc: "Outdoor and miscellaneous spaces." },
     sports_facility: { label: "Sports Facility", iconUrl: "sports.svg", color: "#7b1fa2", desc: "Gyms, sports halls and recreational facilities." },
   };
   
   const CATEGORY_ORDER = [
     "library", "teaching_building", "social_building", "student_services",
-    "cultural_space", "research_laboratory", "conference_events", "garden", "cafe", "other", "sports_facility"
+    "cultural_space", "research_laboratory", "conference_events", "garden", "cafe", "outdoor", "sports_facility"
   ];
   const FALLBACK_CATEGORY = { label: "Place", iconUrl: "facility.svg", color: "#607d8b", desc: "" };
 
@@ -40,13 +40,13 @@
     quiet: { label: "Quiet Space", iconUrl: "quiet.svg", color: "#5e35b1", desc: "Low-stimulation areas to rest and decompress." },
     social: { label: "Social Space", iconUrl: "social.svg", color: "#f9a825", desc: "Lounges and meeting spots, often lively." },
     food_drink: { label: "Food & Drink", iconUrl: "food_drink.svg", color: "#ef6c00", desc: "Cafes, food courts and places to eat." },
-    facility: { label: "Facility", iconUrl: "facility.svg", color: "#00838f", desc: "General support and service facilities." },
-    sensory: { label: "Sensory Room", iconUrl: "sensory.svg", color: "#d81b60", desc: "Calming rooms designed for sensory regulation." },
+    // facility: { label: "Facility", iconUrl: "facility.svg", color: "#00838f", desc: "General support and service facilities." },
+    // sensory: { label: "Sensory Room", iconUrl: "sensory.svg", color: "#d81b60", desc: "Calming rooms designed for sensory regulation." },
     sport: { label: "Sport / Fitness", iconUrl: "sports.svg", color: "#7b1fa2", desc: "Gyms, sports halls and recreational facilities." },
-    other: { label: "Other", iconUrl: "garden.svg", color: "#2e7d32", desc: "Outdoor and miscellaneous spaces." },
+    outdoor: { label: "Outdoor", iconUrl: "garden.svg", color: "#2e7d32", desc: "Outdoor and miscellaneous spaces." },
   
   };
-  const SPACE_TYPE_ORDER = ["study", "quiet", "social", "food_drink", "facility", "sensory", "sport", "other"];
+  const SPACE_TYPE_ORDER = ["study", "quiet", "social", "food_drink", "sport", "outdoor"];
   const FALLBACK_SPACE = { label: "Space", iconUrl: "facility.svg", color: "#607d8b", desc: "" };
 
   // --- State ----------------------------------------------------------------
@@ -84,6 +84,15 @@
     return m ? m.pop() : "";
   }
 
+  function feedbackPageUrl() {
+    const btn = el("open-feedback-btn");
+    const params = new URLSearchParams();
+    if (btn && btn.dataset.locationId) params.set("location_id", btn.dataset.locationId);
+    if (btn && btn.dataset.locationName) params.set("location_name", btn.dataset.locationName);
+    const query = params.toString();
+    return query ? "/feedback/?" + query : "/feedback/";
+  }
+
   // --- Map ------------------------------------------------------------------
   function initMap() {
     map = L.map("map", { scrollWheelZoom: true }).setView(CAMPUS_CENTER, 16);
@@ -94,8 +103,15 @@
     }).addTo(map);
   }
 
-  function makeIcon(loc) {
-    const meta = CATEGORY_META[loc.category] || FALLBACK_CATEGORY;
+  function markerMeta(loc, activeSpaceType) {
+    if (activeSpaceType && SPACE_TYPE_META[activeSpaceType]) {
+      return SPACE_TYPE_META[activeSpaceType];
+    }
+    return CATEGORY_META[loc.category] || FALLBACK_CATEGORY;
+  }
+
+  function makeIcon(loc, activeSpaceType) {
+    const meta = markerMeta(loc, activeSpaceType);
     // Border colour conveys average sensory intensity; fill + SVG icon conveys category.
     const border = loc.avg_sensory == null ? "#9e9e9e" : scaleColour(loc.avg_sensory, false);
     const ring = loc.has_quiet_zone ? "box-shadow:0 0 0 4px rgba(94,53,177,0.35);" : "";
@@ -117,12 +133,12 @@
     });
   }
 
-  function renderMarkers(locations) {
+  function renderMarkers(locations, activeSpaceType) {
     Object.values(markers).forEach((m) => map.removeLayer(m));
     markers = {};
     locations.forEach((loc) => {
       const marker = L.marker([loc.latitude, loc.longitude], {
-        icon: makeIcon(loc),
+        icon: makeIcon(loc, activeSpaceType),
         keyboard: true,
         title: loc.name,
         alt: loc.name + (loc.has_quiet_zone ? " (quiet zone)" : ""),
@@ -523,9 +539,13 @@
     const filtered = allLocations.filter((loc) => {
       if (campus && loc.campus !== campus) return false;
       if (category && loc.category !== category) return false;
+      const hasSpaceType = (key) => (loc.space_types || []).includes(key);
       if (
         spaceType &&
-        !(loc.space_types || []).includes(spaceType) &&
+        !hasSpaceType(spaceType) &&
+        !(spaceType === "food_drink" && hasSpaceType("other")) &&
+        !(spaceType === "sport" && hasSpaceType("other")) &&
+        !(spaceType === "outdoor" && hasSpaceType("other")) &&
         !(spaceType === "sport" && loc.category === "sports_facility")
       ) return false;
       if (quietOnly && !loc.has_quiet_zone) return false;
@@ -541,16 +561,26 @@
       closeDetail();
     }
     renderList(filtered);
-    renderMarkers(filtered);
+    renderMarkers(filtered, spaceType);
     setActiveChip(spaceType);
   }
 
   // --- Feedback form --------------------------------------------------------
   function setupFeedbackForm() {
+    const openBtn = el("open-feedback-btn");
+    if (openBtn) {
+      openBtn.addEventListener("click", function () {
+        window.location.href = feedbackPageUrl();
+      });
+    }
+
     const backdrop = el("feedback-modal");
     const form = el("feedback-form");
     const status = el("feedback-status");
     const anon = el("feedback-anon");
+
+    // The home page can run without the inline feedback modal.
+    if (!backdrop || !form || !status || !anon) return;
 
     function syncAnon() {
       const show = !anon.checked;
@@ -558,19 +588,6 @@
       el("feedback-email-field").hidden = !show;
     }
     anon.addEventListener("change", syncAnon);
-
-    el("open-feedback-btn").addEventListener("click", function () {
-      el("feedback-location-id").value = el("open-feedback-btn").dataset.locationId || "";
-      el("feedback-modal-title").textContent =
-        "Leave feedback: " + (el("open-feedback-btn").dataset.locationName || "");
-      status.textContent = "";
-      status.className = "form-status";
-      form.reset();
-      anon.checked = true;
-      syncAnon();
-      backdrop.classList.add("open");
-      el("feedback-modal-title").focus();
-    });
 
     function closeModal() {
       backdrop.classList.remove("open");
@@ -622,24 +639,30 @@
   function setupControls() {
     ["search", "filter-campus", "filter-category", "filter-space-type", "filter-quiet", "filter-nd"].forEach((id) => {
       const node = el(id);
+      if (!node) return;
       const evt = node.type === "checkbox" || node.tagName === "SELECT" ? "change" : "input";
       node.addEventListener(evt, applyFilters);
     });
-    el("detail-close").addEventListener("click", closeDetail);
+    const detailClose = el("detail-close");
+    if (detailClose) detailClose.addEventListener("click", closeDetail);
     setupLegend();
     setupNavSearch();
     setupSidebar();
     document.addEventListener("keydown", (e) => {
+      const feedbackModal = el("feedback-modal");
+      const helpModal = el("help-modal");
+      const spaceTypesModal = el("space-types-modal");
+      const sidebar = el("sidebar");
       if (e.key === "Escape") {
-        if (el("feedback-modal").classList.contains("open")) {
-          el("feedback-modal").classList.remove("open");
-        } else if (el("help-modal").classList.contains("open")) {
+        if (feedbackModal && feedbackModal.classList.contains("open")) {
+          feedbackModal.classList.remove("open");
+        } else if (helpModal && helpModal.classList.contains("open")) {
           closeHelp();
-        } else if (el("space-types-modal").classList.contains("open")) {
+        } else if (spaceTypesModal && spaceTypesModal.classList.contains("open")) {
           closeSpaceTypes();
         } else if (detailEl.classList.contains("open")) {
           closeDetail();
-        } else if (el("sidebar").classList.contains("open")) {
+        } else if (sidebar && sidebar.classList.contains("open")) {
           closeSidebar();
         }
       }
@@ -654,10 +677,12 @@
 
   function setupSidebar() {
     // The floating "Places" button opens the dedicated full-page browser.
-    el("toggle-list").addEventListener("click", () => {
+    const toggleList = el("toggle-list");
+    if (toggleList) toggleList.addEventListener("click", () => {
       window.location.href = "/places/";
     });
-    el("sidebar-close").addEventListener("click", closeSidebar);
+    const sidebarClose = el("sidebar-close");
+    if (sidebarClose) sidebarClose.addEventListener("click", closeSidebar);
   }
 
   // --- Legend controls ------------------------------------------------------
@@ -672,23 +697,27 @@
   function setupLegend() {
     // Open the standalone "Space types" panel.
     const modal = el("space-types-modal");
-    el("open-space-types").addEventListener("click", () => {
+    const openSpaceTypes = el("open-space-types");
+    if (openSpaceTypes) openSpaceTypes.addEventListener("click", () => {
       modal.classList.add("open");
       el("space-types-title").focus();
     });
-    el("space-types-close").addEventListener("click", closeSpaceTypes);
-    modal.addEventListener("click", (e) => {
+    const closeSpaceTypesBtn = el("space-types-close");
+    if (closeSpaceTypesBtn) closeSpaceTypesBtn.addEventListener("click", closeSpaceTypes);
+    if (modal) modal.addEventListener("click", (e) => {
       if (e.target === modal) closeSpaceTypes();
     });
 
     // Open the Help modal.
     const helpModal = el("help-modal");
-    el("open-help").addEventListener("click", () => {
+    const openHelp = el("open-help");
+    if (openHelp) openHelp.addEventListener("click", () => {
       helpModal.classList.add("open");
       el("help-title").focus();
     });
-    el("help-close").addEventListener("click", closeHelp);
-    helpModal.addEventListener("click", (e) => {
+    const helpClose = el("help-close");
+    if (helpClose) helpClose.addEventListener("click", closeHelp);
+    if (helpModal) helpModal.addEventListener("click", (e) => {
       if (e.target === helpModal) closeHelp();
     });
   }
@@ -837,7 +866,24 @@
     };
     fill("filter-campus", metaData.campuses || [], "All campuses");
     fill("filter-category", metaData.categories || [], "All categories");
-    fill("filter-space-type", metaData.space_types || [], "Any space type");
+
+    const uiSpaceTypes = [
+      { key: "study", label: "Study Space" },
+      { key: "quiet", label: "Quiet Space" },
+      { key: "social", label: "Social Space" },
+      { key: "food_drink", label: "Food & Drink" },
+      { key: "sport", label: "Sport / Fitness" },
+      { key: "outdoor", label: "Outdoor" },
+    ];
+    const apiSpaceTypes = metaData.space_types || [];
+    const byKey = {};
+    apiSpaceTypes.forEach((o) => {
+      byKey[o.key] = { key: o.key, label: o.label };
+    });
+    uiSpaceTypes.forEach((o) => {
+      if (!byKey[o.key]) byKey[o.key] = o;
+    });
+    fill("filter-space-type", Object.values(byKey), "Any space type");
   }
 
   async function loadData() {
@@ -861,7 +907,7 @@
         return;
       }
       renderList(allLocations);
-      renderMarkers(allLocations);
+      renderMarkers(allLocations, el("filter-space-type").value);
       const bounds = L.latLngBounds(allLocations.map((l) => [l.latitude, l.longitude]));
       if (bounds.isValid()) map.fitBounds(bounds.pad(0.2));
 
@@ -877,10 +923,26 @@
   }
 
   document.addEventListener("DOMContentLoaded", function () {
-    initMap();
-    setupControls();
-    setupFeedbackForm();
-    renderChips();
+    try {
+      initMap();
+    } catch (err) {
+      console.error("initMap failed", err);
+    }
+    try {
+      setupControls();
+    } catch (err) {
+      console.error("setupControls failed", err);
+    }
+    try {
+      setupFeedbackForm();
+    } catch (err) {
+      console.error("setupFeedbackForm failed", err);
+    }
+    try {
+      renderChips();
+    } catch (err) {
+      console.error("renderChips failed", err);
+    }
     loadData();
   });
 })();

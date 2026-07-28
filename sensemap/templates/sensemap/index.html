@@ -167,7 +167,7 @@
     </div>
   </section>
 
-  <!-- ---------- Feedback modal ---------- -->
+  {% comment %} <!-- ---------- Feedback modal ---------- -->
   <div class="modal-backdrop" id="feedback-modal" role="dialog" aria-modal="true" aria-labelledby="feedback-modal-title">
     <div class="modal">
       <h2 id="feedback-modal-title" tabindex="-1">Leave feedback</h2>
@@ -198,7 +198,7 @@
         </div>
       </form>
     </div>
-  </div>
+  </div> {% endcomment %}
 
   <!-- ---------- Standalone "Space types" legend modal ---------- -->
   <div class="modal-backdrop" id="space-types-modal" role="dialog" aria-modal="true" aria-labelledby="space-types-title">
@@ -232,6 +232,6 @@
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
           integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
-  <script src="{% static 'sensemap/js/app.js' %}?v=8"></script>
+  <script src="{% static 'sensemap/js/app.js' %}?v=12"></script>
 </body>
 </html>
