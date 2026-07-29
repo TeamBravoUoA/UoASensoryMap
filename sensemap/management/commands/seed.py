@@ -423,11 +423,10 @@ class Command(BaseCommand):
     def seed_locations(self):
         """Seed university locations."""
         rows = load_csv("Location.csv")
-
+        print(rows[0].keys())
         for row in tqdm(rows, desc="Locations"):
 
             thumbnail = row.get("thumbnails_image", "").replace("\\", "/")
-
             self.safe_execute(
                 row.get("location_id"),
                 Location.objects.update_or_create,
@@ -449,6 +448,9 @@ class Command(BaseCommand):
                     "opening_hrs_notes": row.get("opening_hours_note", ""),
                     "id_access_needed": parse_bool(row.get("id_access_needed")),
                     "additional_access_notes": row.get("additional_access_notes", ""),
+                    "sensory_experience": row.get("sensory_experience", ""),
+                    "wayfinding": row.get("wayfinding", ""),
+                    "physical_access": row.get("physical_access", ""),
                     "thumbnail_image": thumbnail,
                     "uoa_map_link": row.get("uoa_map_link", ""),
                 },

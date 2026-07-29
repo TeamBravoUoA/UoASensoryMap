@@ -249,23 +249,12 @@
       renderSpaces(d.spaces || []);
       renderGallery(d.gallery_images || []);
 
-      const sensory = document.getElementById("tab-sensory");
-      if (sensory)
-        sensory.innerHTML = `<p>${escapeHtml(
-          d.sensory_experience || "No information available."
-        )}</p>`;
-
       const wayfinding = document.getElementById("tab-wayfinding");
       if (wayfinding)
         wayfinding.innerHTML = `<p>${escapeHtml(
           d.wayfinding || "No information available."
         )}</p>`;
 
-      const physical = document.getElementById("tab-physical");
-      if (physical)
-        physical.innerHTML = `<p>${escapeHtml(
-          d.physical_access || "No information available."
-        )}</p>`;
 
       const mapLink = el("dp-map-link");
 
