@@ -292,6 +292,7 @@ from sensemap.models import (
 
 def make_location(**kwargs):
     defaults = {
+        "external_id": next(external_ids),
         "name": "Test Place",
         "category": "library",
         "campus": "old_aberdeen",
@@ -323,7 +324,7 @@ class FeedbackSecurityTests(TestCase):
         # The raw script tag should never be stored/returned verbatim.
         self.assertNotIn("<script>", report.comment)
 
-    def test_img_onerror_payload_is_not_reflected_unescaped(self):
+    def test_tag_only_comment_is_rejected_after_sanitising(self):
         payload = {
             "location": self.loc.id,
             "comment": "<img src=x onerror=alert(1)>",
@@ -332,9 +333,8 @@ class FeedbackSecurityTests(TestCase):
         res = self.client.post(
             "/api/feedback/", data=payload, content_type="application/json"
         )
-        self.assertEqual(res.status_code, 201)
-        report = FeedbackReport.objects.get()
-        self.assertNotIn("onerror=", report.comment)
+        self.assertEqual(res.status_code, 400)
+        self.assertFalse(FeedbackReport.objects.exists())
 
     def test_sql_injection_style_search_does_not_error_or_leak(self):
         make_location(name="The Hub", category="social_building")
@@ -400,7 +400,10 @@ class FeedbackTargetValidationTests(TestCase):
     def setUp(self):
         self.loc = make_location()
         self.space = Space.objects.create(
-            location=self.loc, name="Study Room", space_type="quiet"
+            external_id=next(external_ids),
+            location=self.loc,
+            name="Study Room",
+            space_type="quiet",
         )
 
     def test_feedback_with_both_location_and_space_is_rejected(self):
@@ -451,10 +454,16 @@ class LocationFilterEdgeCaseTests(TestCase):
         self.library = make_location(name="The Library", category="library")
         self.hub = make_location(name="The Hub", category="social_building")
         Space.objects.create(
+            external_id=next(external_ids),
             location=self.library, name="Silent Floor", space_type="quiet",
             is_quiet_zone=True,
         )
-        Space.objects.create(location=self.hub, name="Food Court", space_type="social")
+        Space.objects.create(
+            external_id=next(external_ids),
+            location=self.hub,
+            name="Food Court",
+            space_type="social",
+        )
 
     def test_combined_category_and_quiet_filters(self):
         data = self.client.get("/api/locations/?category=library&quiet=true").json()
@@ -505,9 +514,15 @@ class SerializerDerivedFieldEdgeCaseTests(TestCase):
     def test_mixed_quiet_and_social_spaces(self):
         loc = make_location(name="Mixed Place")
         Space.objects.create(
+            external_id=next(external_ids),
             location=loc, name="Quiet Room", space_type="quiet", is_quiet_zone=True,
         )
-        Space.objects.create(location=loc, name="Lounge", space_type="social")
+        Space.objects.create(
+            external_id=next(external_ids),
+            location=loc,
+            name="Lounge",
+            space_type="social",
+        )
         data = self.client.get("/api/locations/").json()
         item = next(d for d in data if d["name"] == "Mixed Place")
         self.assertIn("quiet", item["space_types"])
@@ -557,9 +572,8 @@ class MetaAPIEdgeCaseTests(TestCase):
         self.assertTrue(len(data["categories"]) > 0)
         self.assertTrue(len(data["space_types"]) > 0)
 
-    def test_meta_sensory_attributes_has_no_duplicates(self):
-        SensoryAttribute.objects.create(name="Auditory")
-        SensoryAttribute.objects.create(name="Auditory")  # duplicate name, separate row
+    def test_meta_returns_unique_sensory_attribute_names(self):
+        SensoryAttribute.objects.create(external_id=next(external_ids), name="Auditory")
         data = self.client.get("/api/meta/").json()
         names = data["sensory_attributes"]
         self.assertEqual(len(names), len(set(names)))
