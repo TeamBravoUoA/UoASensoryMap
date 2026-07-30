@@ -15,4 +15,14 @@ class Migration(migrations.Migration):
             name='wayfinding',
             field=models.TextField(blank=True),
         ),
+        migrations.AddField(
+            model_name='location',
+            name='physical_access',
+            field=models.TextField(blank=True),
+        ),
+        migrations.AddField(
+            model_name='location',
+            name='sensory_experience',
+            field=models.TextField(blank=True),
+        ),
     ]

@@ -7,7 +7,7 @@ class Migration(migrations.Migration):
 
     dependencies = [
         ('sensemap', '0005_alter_location_category'),
-        ('sensemap', '0005_location_physical_access_location_sensory_experience_and_more'),
+        ('sensemap', '0006_location_physical_access_location_sensory_experience_and_more'),
     ]
 
     operations = [
