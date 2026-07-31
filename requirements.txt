@@ -11,3 +11,4 @@ sqlparse==0.5.5
 tqdm==4.66.5
 tzdata==2026.2
 whitenoise==6.8.2
+requests==2.34.2
