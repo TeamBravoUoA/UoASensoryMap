@@ -4,8 +4,8 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Place details &middot; UoA Sensory Map</title>
-  <meta name="description" content="Detailed sensory information for a University of Aberdeen location." />
+  <title>Space details &middot; UoA Sensory Map</title>
+  <meta name="description" content="Detailed sensory information for a space at the University of Aberdeen." />
   <link rel="stylesheet" href="{% static 'sensemap/css/styles.css' %}?v=11" />
   <link rel="icon" type="image/png" href="{% static 'sensemap/icons/logo.png' %}">
 </head>
@@ -29,7 +29,7 @@
     </header>
 
     <main class="detail-page" id="detail-main">
-      <div class="detail-page-loader" id="detail-loader">Loading place details&hellip;</div>
+      <div class="detail-page-loader" id="detail-loader">Loading space details&hellip;</div>
       <div class="detail-page-error" id="detail-error" hidden></div>
       <article class="detail-page-card" id="detail-card" hidden>
         <header class="detail-page-head">
@@ -37,9 +37,8 @@
             <span class="detail-page-category" id="dp-category"></span>
             <h2 id="dp-name"></h2>
             <p class="detail-page-sub" id="dp-sub"></p>
-            <p class="detail-page-also" id="dp-also"></p>
             <div class="detail-page-actions">
-              <a class="btn" id="dp-map-link" href="#" target="_blank" rel="noopener">View on University map</a>
+              <a class="btn" id="dp-back" href="#" style="border-radius:999px;padding:0.4rem 0.85rem;font-size:0.85rem;text-decoration:none;">Back to place</a>
               <a class="btn" id="dp-feedback-link" href="/feedback/">Leave feedback</a>
             </div>
           </div>
@@ -51,19 +50,6 @@
           <p class="detail-page-desc" id="dp-desc"></p>
         </section>
 
-        <section class="info-tabs" aria-label="Place Information">
-          <div class="tab-buttons" role="tablist">
-            <button class="tab-btn active" data-tab="tab-physical" type="button">Physical Access</button>
-          </div>
-
-        <div class="tab-panel active" id="tab-physical">
-          
-        </div>
-        </section>
-        <section id="dp-access-section">
-          <h3>Access</h3>
-          <div id="dp-access"></div>
-        </section>
         <section id="dp-hours-section">
           <h3>Opening hours</h3>
           <table class="hours-table" id="dp-hours"></table>
@@ -75,24 +61,24 @@
           <div class="facilities" id="dp-facilities"></div>
         </section>
 
+        <section id="dp-sensory-experience-section">
+          <h3>Sensory experience</h3>
+          <p id="dp-sensory-experience"></p>
+        </section>
+
+        <section id="dp-wayfinding-section">
+          <h3>Finding it</h3>
+          <p id="dp-wayfinding"></p>
+        </section>
+
         <section id="dp-sensory-section">
           <h3>Sensory profile</h3>
           <div class="sensory-grid" id="dp-sensory"></div>
         </section>
-
-        <section id="dp-spaces-section">
-          <h3>Student Spaces</h3>
-          <div class="spaces-list" id="dp-spaces"></div>
-        </section>
-
-        <section id="dp-gallery-section">
-          <h3>Gallery</h3>
-          <div class="gallery" id="dp-gallery"></div>
-        </section>
       </article>
     </main>
   </div>
-{{ location_id|json_script:"location-id" }}
-  <script src="{% static 'sensemap/js/place_detail.js' %}?v=18"></script>
+{{ space_id|json_script:"space-id" }}
+  <script src="{% static 'sensemap/js/space_detail.js' %}?v=3"></script>
 </body>
 </html>

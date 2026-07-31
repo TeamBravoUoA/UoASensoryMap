@@ -7,6 +7,26 @@
 
   // --- Config ---------------------------------------------------------------
   const CAMPUS_CENTER = [57.1648, -2.1015]; // Old Aberdeen campus
+
+  // Bounding box around all seeded Old Aberdeen locations (lat 57.16259–57.167984,
+  // lng -2.106355–-2.093883), padded out a bit so buildings on the edge of
+  // campus aren't clipped. Used to restrict the "real" full-colour tiles to
+  // just the campus, so everywhere else falls back to the darkened base layer.
+  const CAMPUS_BOUNDS = L.latLngBounds(
+    [57.16095, -2.1079], // SW
+    [57.1693, -2.09505]  // NE
+  );
+  const CAMPUS_POLYGON = [
+    [57.16095, -2.1079],
+    [57.16095, -2.09505],
+    [57.1693, -2.09505],
+    [57.1693, -2.1079],
+  ];
+  const CAMPUS_FADE_STEPS = [
+    { pane: "campus-tiles-outer", scale: 1.50, opacity: 0.26, zIndex: 230 },
+    { pane: "campus-tiles-mid", scale: 1.45, opacity: 0.55, zIndex: 240 },
+    { pane: "campus-tiles-core", scale: 1.40, opacity: 1, zIndex: 250 },
+  ];
   const SCALE_COLOURS = ["#2e7d32", "#7cb342", "#f9a825", "#ef6c00", "#c62828"];
   const QUIET_COLOUR = "#5e35b1";
 
@@ -24,13 +44,13 @@
     research_laboratory: { label: "Research / Labs", iconUrl: "study.svg", color: "#1565c0", desc: "Research buildings and laboratories." },
     garden: { label: "Garden", iconUrl: "garden.svg", color: "#558b2f", desc: "Gardens and outdoor green space." },
     cafe: { label: "Cafe", iconUrl: "food_drink.svg", color: "#ef6c00", desc: "Cafes and food outlets." },
-    other: { label: "Other", iconUrl: "garden.svg", color: "#607d8b", desc: "Miscellaneous spaces." },
+    outdoor: { label: "Outdoor", iconUrl: "garden.svg", color: "#607d8b", desc: "Outdoor and miscellaneous spaces." },
     sports_facility: { label: "Sports Facility", iconUrl: "sports.svg", color: "#7b1fa2", desc: "Gyms, sports halls and recreational facilities." },
   };
   
   const CATEGORY_ORDER = [
     "library", "teaching_building", "social_building", "student_services",
-    "cultural_space", "research_laboratory", "conference_events", "garden", "cafe", "other", "sports_facility"
+    "cultural_space", "research_laboratory", "conference_events", "garden", "cafe", "outdoor", "sports_facility"
   ];
   const FALLBACK_CATEGORY = { label: "Place", iconUrl: "facility.svg", color: "#607d8b", desc: "" };
 
@@ -40,19 +60,22 @@
     quiet: { label: "Quiet Space", iconUrl: "quiet.svg", color: "#5e35b1", desc: "Low-stimulation areas to rest and decompress." },
     social: { label: "Social Space", iconUrl: "social.svg", color: "#f9a825", desc: "Lounges and meeting spots, often lively." },
     food_drink: { label: "Food & Drink", iconUrl: "food_drink.svg", color: "#ef6c00", desc: "Cafes, food courts and places to eat." },
-    facility: { label: "Facility", iconUrl: "facility.svg", color: "#00838f", desc: "General support and service facilities." },
-    sensory: { label: "Sensory Room", iconUrl: "sensory.svg", color: "#d81b60", desc: "Calming rooms designed for sensory regulation." },
+    // facility: { label: "Facility", iconUrl: "facility.svg", color: "#00838f", desc: "General support and service facilities." },
+    // sensory: { label: "Sensory Room", iconUrl: "sensory.svg", color: "#d81b60", desc: "Calming rooms designed for sensory regulation." },
     sport: { label: "Sport / Fitness", iconUrl: "sports.svg", color: "#7b1fa2", desc: "Gyms, sports halls and recreational facilities." },
-    other: { label: "Other", iconUrl: "garden.svg", color: "#2e7d32", desc: "Outdoor and miscellaneous spaces." },
+    outdoor: { label: "Outdoor", iconUrl: "garden.svg", color: "#2e7d32", desc: "Outdoor and miscellaneous spaces." },
   
   };
-  const SPACE_TYPE_ORDER = ["study", "quiet", "social", "food_drink", "facility", "sensory", "sport", "other"];
+  const SPACE_TYPE_ORDER = ["study", "quiet", "social", "food_drink", "sport", "outdoor"];
   const FALLBACK_SPACE = { label: "Space", iconUrl: "facility.svg", color: "#607d8b", desc: "" };
 
   // --- State ----------------------------------------------------------------
   let allLocations = [];
   let markers = {}; // id -> L.marker
   let map;
+  let campusTilePanes = {};
+  let campusCorePolygon = CAMPUS_POLYGON.slice();
+  let campusOutlineLayer;
   // radar chart removed
   let selectedId = null;
   let detailCache = {};
@@ -84,18 +107,179 @@
     return m ? m.pop() : "";
   }
 
-  // --- Map ------------------------------------------------------------------
-  function initMap() {
-    map = L.map("map", { scrollWheelZoom: true }).setView(CAMPUS_CENTER, 16);
-    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-      maxZoom: 19,
-      attribution:
-        '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+  function feedbackPageUrl() {
+    const btn = el("open-feedback-btn");
+    const params = new URLSearchParams();
+    if (btn && btn.dataset.locationId) params.set("location_id", btn.dataset.locationId);
+    if (btn && btn.dataset.locationName) params.set("location_name", btn.dataset.locationName);
+    const query = params.toString();
+    return query ? "/feedback/?" + query : "/feedback/";
+  }
+
+  function polygonCentroid(points) {
+    const sum = points.reduce((acc, point) => {
+      acc.lat += point[0];
+      acc.lng += point[1];
+      return acc;
+    }, { lat: 0, lng: 0 });
+
+    return [sum.lat / points.length, sum.lng / points.length];
+  }
+
+  function scalePolygon(points, factor) {
+    const center = polygonCentroid(points);
+    return points.map((point) => [
+      center[0] + (point[0] - center[0]) * factor,
+      center[1] + (point[1] - center[1]) * factor,
+    ]);
+  }
+
+  function hullCross(origin, a, b) {
+    return (a.longitude - origin.longitude) * (b.latitude - origin.latitude) -
+      (a.latitude - origin.latitude) * (b.longitude - origin.longitude);
+  }
+
+  function convexHull(points) {
+    const deduped = [];
+    const seen = {};
+
+    points.forEach((point) => {
+      const key = point.latitude + "," + point.longitude;
+      if (!seen[key]) {
+        seen[key] = true;
+        deduped.push(point);
+      }
+    });
+
+    if (deduped.length < 3) return CAMPUS_POLYGON.slice();
+
+    deduped.sort((left, right) => {
+      if (left.longitude !== right.longitude) return left.longitude - right.longitude;
+      return left.latitude - right.latitude;
+    });
+
+    const lower = [];
+    deduped.forEach((point) => {
+      while (lower.length >= 2 && hullCross(lower[lower.length - 2], lower[lower.length - 1], point) <= 0) {
+        lower.pop();
+      }
+      lower.push(point);
+    });
+
+    const upper = [];
+    deduped.slice().reverse().forEach((point) => {
+      while (upper.length >= 2 && hullCross(upper[upper.length - 2], upper[upper.length - 1], point) <= 0) {
+        upper.pop();
+      }
+      upper.push(point);
+    });
+
+    return lower
+      .slice(0, -1)
+      .concat(upper.slice(0, -1))
+      .map((point) => [point.latitude, point.longitude]);
+  }
+
+  function buildCampusCorePolygon(locations) {
+    const oldAberdeenPoints = locations
+      .filter((loc) => loc.campus === "old_aberdeen")
+      .map((loc) => ({
+        latitude: Number(loc.latitude),
+        longitude: Number(loc.longitude),
+      }))
+      .filter((loc) => Number.isFinite(loc.latitude) && Number.isFinite(loc.longitude));
+
+    if (oldAberdeenPoints.length < 3) return CAMPUS_POLYGON.slice();
+
+    const hull = convexHull(oldAberdeenPoints);
+    return hull.length >= 3 ? hull : CAMPUS_POLYGON.slice();
+  }
+
+  function drawCampusOutline() {
+    if (!map) return;
+    if (campusOutlineLayer) map.removeLayer(campusOutlineLayer);
+
+    campusOutlineLayer = L.polygon(campusCorePolygon, {
+      color: "#ffffff",
+      weight: 1.2,
+      opacity: 0.4,
+      fill: false,
+      dashArray: "4 7",
+      interactive: false,
     }).addTo(map);
   }
 
-  function makeIcon(loc) {
-    const meta = CATEGORY_META[loc.category] || FALLBACK_CATEGORY;
+  function updateCampusFadePolygons(locations) {
+    campusCorePolygon = buildCampusCorePolygon(locations || []);
+
+    drawCampusOutline();
+    syncCampusTileClip();
+  }
+
+  function syncCampusTileClip() {
+    if (!map) return;
+
+    CAMPUS_FADE_STEPS.forEach((step) => {
+      const pane = campusTilePanes[step.pane];
+      const polygonPoints = scalePolygon(campusCorePolygon, step.scale);
+      if (!pane || !polygonPoints.length) return;
+
+      const polygon = polygonPoints
+        .map((latLng) => map.latLngToContainerPoint(latLng))
+        .map((point) => point.x + "px " + point.y + "px")
+        .join(", ");
+
+      const clip = "polygon(" + polygon + ")";
+      pane.style.clipPath = clip;
+      pane.style.webkitClipPath = clip;
+    });
+  }
+
+  // --- Map ------------------------------------------------------------------
+  function initMap() {
+    map = L.map("map", { scrollWheelZoom: true }).setView(CAMPUS_CENTER, 16);
+
+    // Base layer: light, label-free tiles everywhere. This is what shows through
+    // for anywhere off-campus, so the city around Old Aberdeen recedes into the
+    // background instead of competing with the campus markers.
+    L.tileLayer("https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}.png", {
+      maxZoom: 19,
+      subdomains: "abcd",
+      attribution:
+        '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, ' +
+        '&copy; <a href="https://carto.com/attributions">CARTO</a>',
+    }).addTo(map);
+
+    // Three stacked overlays create a soft transition from campus to surroundings.
+    CAMPUS_FADE_STEPS.forEach((step) => {
+      const pane = map.createPane(step.pane);
+      pane.style.zIndex = String(step.zIndex);
+      pane.style.pointerEvents = "none";
+      campusTilePanes[step.pane] = pane;
+
+      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        maxZoom: 19,
+        pane: step.pane,
+        opacity: step.opacity,
+        attribution:
+          '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+      }).addTo(map);
+    });
+
+    updateCampusFadePolygons([]);
+    map.on("zoom move resize", syncCampusTileClip);
+    syncCampusTileClip();
+  }
+
+  function markerMeta(loc, activeSpaceType) {
+    if (activeSpaceType && SPACE_TYPE_META[activeSpaceType]) {
+      return SPACE_TYPE_META[activeSpaceType];
+    }
+    return CATEGORY_META[loc.category] || FALLBACK_CATEGORY;
+  }
+
+  function makeIcon(loc, activeSpaceType) {
+    const meta = markerMeta(loc, activeSpaceType);
     // Border colour conveys average sensory intensity; fill + SVG icon conveys category.
     const border = loc.avg_sensory == null ? "#9e9e9e" : scaleColour(loc.avg_sensory, false);
     const ring = loc.has_quiet_zone ? "box-shadow:0 0 0 4px rgba(94,53,177,0.35);" : "";
@@ -117,12 +301,12 @@
     });
   }
 
-  function renderMarkers(locations) {
+  function renderMarkers(locations, activeSpaceType) {
     Object.values(markers).forEach((m) => map.removeLayer(m));
     markers = {};
     locations.forEach((loc) => {
       const marker = L.marker([loc.latitude, loc.longitude], {
-        icon: makeIcon(loc),
+        icon: makeIcon(loc, activeSpaceType),
         keyboard: true,
         title: loc.name,
         alt: loc.name + (loc.has_quiet_zone ? " (quiet zone)" : ""),
@@ -376,6 +560,8 @@
             (f) =>
               '<span class="facility small ' +
               (f.status ? "on" : "") +
+              '" title="' +
+              (f.notes ? escapeHtml(f.notes).replace(/"/g, '&quot;') : "") +
               '">' +
               (f.status ? "\u2713 " : "\u2014 ") +
               escapeHtml(f.name) +
@@ -408,6 +594,12 @@
           "</h4>" +
           flags +
           "</header>" +
+          (s.thumbnail_image
+            ? '<img class="space-thumb" src="' +
+              escapeHtml(s.thumbnail_image) +
+              '" alt="' + escapeHtml(s.name) + '" loading="lazy" style="max-width:100%;height:auto;display:block">'
+            : "") +
+          (s.id ? '<p class="detail-more"><a href="/space/' + s.id + '/">Space details &rarr;</a></p>' : "") +
           (s.description ? "<p>" + escapeHtml(s.description) + "</p>" : "") +
           (s.sensory_experience
             ? '<p class="muted-note"><strong>Sensory:</strong> ' + escapeHtml(s.sensory_experience) + "</p>"
@@ -523,10 +715,13 @@
     const filtered = allLocations.filter((loc) => {
       if (campus && loc.campus !== campus) return false;
       if (category && loc.category !== category) return false;
+      const hasSpaceType = (key) => (loc.space_types || []).includes(key);
       if (
         spaceType &&
-        !(loc.space_types || []).includes(spaceType) &&
-        !(spaceType === "sport" && loc.category === "sports_facility")
+        !hasSpaceType(spaceType) &&
+        !(spaceType === "food_drink" && (loc.category === "cafe" || hasSpaceType("other"))) &&
+        !(spaceType === "sport" && (loc.category === "sports_facility" || hasSpaceType("other"))) &&
+        !(spaceType === "outdoor" && (loc.category === "garden" || loc.category === "outdoor" || hasSpaceType("other")))
       ) return false;
       if (quietOnly && !loc.has_quiet_zone) return false;
       if (ndOnly && !loc.has_neurodivergent_safe) return false;
@@ -541,16 +736,26 @@
       closeDetail();
     }
     renderList(filtered);
-    renderMarkers(filtered);
+    renderMarkers(filtered, spaceType);
     setActiveChip(spaceType);
   }
 
   // --- Feedback form --------------------------------------------------------
   function setupFeedbackForm() {
+    const openBtn = el("open-feedback-btn");
+    if (openBtn) {
+      openBtn.addEventListener("click", function () {
+        window.location.href = feedbackPageUrl();
+      });
+    }
+
     const backdrop = el("feedback-modal");
     const form = el("feedback-form");
     const status = el("feedback-status");
     const anon = el("feedback-anon");
+
+    // The home page can run without the inline feedback modal.
+    if (!backdrop || !form || !status || !anon) return;
 
     function syncAnon() {
       const show = !anon.checked;
@@ -558,19 +763,6 @@
       el("feedback-email-field").hidden = !show;
     }
     anon.addEventListener("change", syncAnon);
-
-    el("open-feedback-btn").addEventListener("click", function () {
-      el("feedback-location-id").value = el("open-feedback-btn").dataset.locationId || "";
-      el("feedback-modal-title").textContent =
-        "Leave feedback: " + (el("open-feedback-btn").dataset.locationName || "");
-      status.textContent = "";
-      status.className = "form-status";
-      form.reset();
-      anon.checked = true;
-      syncAnon();
-      backdrop.classList.add("open");
-      el("feedback-modal-title").focus();
-    });
 
     function closeModal() {
       backdrop.classList.remove("open");
@@ -622,24 +814,30 @@
   function setupControls() {
     ["search", "filter-campus", "filter-category", "filter-space-type", "filter-quiet", "filter-nd"].forEach((id) => {
       const node = el(id);
+      if (!node) return;
       const evt = node.type === "checkbox" || node.tagName === "SELECT" ? "change" : "input";
       node.addEventListener(evt, applyFilters);
     });
-    el("detail-close").addEventListener("click", closeDetail);
+    const detailClose = el("detail-close");
+    if (detailClose) detailClose.addEventListener("click", closeDetail);
     setupLegend();
     setupNavSearch();
     setupSidebar();
     document.addEventListener("keydown", (e) => {
+      const feedbackModal = el("feedback-modal");
+      const helpModal = el("help-modal");
+      const spaceTypesModal = el("space-types-modal");
+      const sidebar = el("sidebar");
       if (e.key === "Escape") {
-        if (el("feedback-modal").classList.contains("open")) {
-          el("feedback-modal").classList.remove("open");
-        } else if (el("help-modal").classList.contains("open")) {
+        if (feedbackModal && feedbackModal.classList.contains("open")) {
+          feedbackModal.classList.remove("open");
+        } else if (helpModal && helpModal.classList.contains("open")) {
           closeHelp();
-        } else if (el("space-types-modal").classList.contains("open")) {
+        } else if (spaceTypesModal && spaceTypesModal.classList.contains("open")) {
           closeSpaceTypes();
         } else if (detailEl.classList.contains("open")) {
           closeDetail();
-        } else if (el("sidebar").classList.contains("open")) {
+        } else if (sidebar && sidebar.classList.contains("open")) {
           closeSidebar();
         }
       }
@@ -654,10 +852,12 @@
 
   function setupSidebar() {
     // The floating "Places" button opens the dedicated full-page browser.
-    el("toggle-list").addEventListener("click", () => {
+    const toggleList = el("toggle-list");
+    if (toggleList) toggleList.addEventListener("click", () => {
       window.location.href = "/places/";
     });
-    el("sidebar-close").addEventListener("click", closeSidebar);
+    const sidebarClose = el("sidebar-close");
+    if (sidebarClose) sidebarClose.addEventListener("click", closeSidebar);
   }
 
   // --- Legend controls ------------------------------------------------------
@@ -672,23 +872,27 @@
   function setupLegend() {
     // Open the standalone "Space types" panel.
     const modal = el("space-types-modal");
-    el("open-space-types").addEventListener("click", () => {
+    const openSpaceTypes = el("open-space-types");
+    if (openSpaceTypes) openSpaceTypes.addEventListener("click", () => {
       modal.classList.add("open");
       el("space-types-title").focus();
     });
-    el("space-types-close").addEventListener("click", closeSpaceTypes);
-    modal.addEventListener("click", (e) => {
+    const closeSpaceTypesBtn = el("space-types-close");
+    if (closeSpaceTypesBtn) closeSpaceTypesBtn.addEventListener("click", closeSpaceTypes);
+    if (modal) modal.addEventListener("click", (e) => {
       if (e.target === modal) closeSpaceTypes();
     });
 
     // Open the Help modal.
     const helpModal = el("help-modal");
-    el("open-help").addEventListener("click", () => {
+    const openHelp = el("open-help");
+    if (openHelp) openHelp.addEventListener("click", () => {
       helpModal.classList.add("open");
       el("help-title").focus();
     });
-    el("help-close").addEventListener("click", closeHelp);
-    helpModal.addEventListener("click", (e) => {
+    const helpClose = el("help-close");
+    if (helpClose) helpClose.addEventListener("click", closeHelp);
+    if (helpModal) helpModal.addEventListener("click", (e) => {
       if (e.target === helpModal) closeHelp();
     });
   }
@@ -837,7 +1041,24 @@
     };
     fill("filter-campus", metaData.campuses || [], "All campuses");
     fill("filter-category", metaData.categories || [], "All categories");
-    fill("filter-space-type", metaData.space_types || [], "Any space type");
+
+    const uiSpaceTypes = [
+      { key: "study", label: "Study Space" },
+      { key: "quiet", label: "Quiet Space" },
+      { key: "social", label: "Social Space" },
+      { key: "food_drink", label: "Food & Drink" },
+      { key: "sport", label: "Sport / Fitness" },
+      { key: "outdoor", label: "Outdoor" },
+    ];
+    const apiSpaceTypes = metaData.space_types || [];
+    const byKey = {};
+    apiSpaceTypes.forEach((o) => {
+      byKey[o.key] = { key: o.key, label: o.label };
+    });
+    uiSpaceTypes.forEach((o) => {
+      if (!byKey[o.key]) byKey[o.key] = o;
+    });
+    fill("filter-space-type", Object.values(byKey), "Any space type");
   }
 
   async function loadData() {
@@ -861,7 +1082,8 @@
         return;
       }
       renderList(allLocations);
-      renderMarkers(allLocations);
+      renderMarkers(allLocations, el("filter-space-type").value);
+      updateCampusFadePolygons(allLocations);
       const bounds = L.latLngBounds(allLocations.map((l) => [l.latitude, l.longitude]));
       if (bounds.isValid()) map.fitBounds(bounds.pad(0.2));
 
@@ -877,10 +1099,26 @@
   }
 
   document.addEventListener("DOMContentLoaded", function () {
-    initMap();
-    setupControls();
-    setupFeedbackForm();
-    renderChips();
+    try {
+      initMap();
+    } catch (err) {
+      console.error("initMap failed", err);
+    }
+    try {
+      setupControls();
+    } catch (err) {
+      console.error("setupControls failed", err);
+    }
+    try {
+      setupFeedbackForm();
+    } catch (err) {
+      console.error("setupFeedbackForm failed", err);
+    }
+    try {
+      renderChips();
+    } catch (err) {
+      console.error("renderChips failed", err);
+    }
     loadData();
   });
 })();

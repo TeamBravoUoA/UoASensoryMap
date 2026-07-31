@@ -1,3 +1,5 @@
+# TO BE DELETED FOR API LLM Model TESTING ONLY
+
 """
 Test OpenRouter connection with model fallback.
 Tries each model in order; falls back to the next on rate-limit or unavailability.
@@ -17,14 +19,15 @@ if not API_KEY:
 
 OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
 
-# Models tried in priority order. Supervisor-recommended Qwen-Coder first,
-# then resilient free fallbacks. All must end in :free to stay free.
-MODELS = [
-    "qwen/qwen3-coder:free",            # 1st choice (supervisor recommended)
-    "openai/gpt-oss-20b:free",          # 2nd choice (known working, strong at code)
-    "meta-llama/llama-3.3-70b-instruct:free",  # 3rd fallback
-]
 
+# Models tried in priority order. OpenAI is tried first as it's the most
+# responsive on the free tier; Qwen-Coder is the secondary fallback; 
+# Llama is a last resort. All end in :free to stay on the free tier.
+MODELS = [
+    "openai/gpt-oss-20b:free",
+    "qwen/qwen3-coder:free",
+    "meta-llama/llama-3.3-70b-instruct:free",
+]
 MAX_RETRIES_PER_MODEL = 2   # quick retries on 429 before moving to next model
 BASE_WAIT = 2
 

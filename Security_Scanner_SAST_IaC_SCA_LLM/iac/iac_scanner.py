@@ -1,0 +1,1 @@
+# wraps tfsec/checkov, normalizes output to Finding
