@@ -18,6 +18,7 @@ from .serializers import (
     LocationDetailSerializer,
     SpaceSerializer,
     FeedbackReportSerializer,
+    FeedbackSensoryRatingBatchSerializer,
 )
 
 
@@ -65,8 +66,10 @@ class LocationViewSet(viewsets.ReadOnlyModelViewSet):
                 "location_facilities__facility",
                 "gallery_images",
                 "feedback_reports",
+                "sensory_feedback__sensory_attribute",
                 "spaces__space_facilities__facility",
                 "spaces__space_sensory_profiles__sensory_attribute",
+                "spaces__sensory_feedback__sensory_attribute",
             )
         )
         params = self.request.query_params
@@ -197,6 +200,7 @@ class SpaceViewSet(viewsets.ReadOnlyModelViewSet):
         qs = Space.objects.all().select_related("location").prefetch_related(
             "space_facilities__facility",
             "space_sensory_profiles__sensory_attribute",
+            "sensory_feedback__sensory_attribute",
         )
         location = self.request.query_params.get("location")
         if location:
@@ -272,3 +276,13 @@ def space_detail(request, space_id):
 def feedback(request):
     """Render the feedback form page."""
     return render(request, "sensemap/feedback.html")
+
+
+@api_view(["POST"])
+def sensory_feedback(request):
+    """Public endpoint to submit a batch of sensory ratings."""
+    serializer = FeedbackSensoryRatingBatchSerializer(data=request.data)
+    if serializer.is_valid():
+        created = serializer.save()
+        return Response({"ok": True, "count": len(created)}, status=201)
+    return Response(serializer.errors, status=400)

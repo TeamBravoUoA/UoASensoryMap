@@ -38,8 +38,9 @@
       <div class="feedback-page-loader" id="feedback-loader">Loading feedback form&hellip;</div>
       <div class="feedback-page-error" id="feedback-error" hidden></div>
 
-      <div class="feedback-layout" id="feedback-card">
+      <div class="feedback-layout" id="feedback-card" hidden>
         <article class="feedback-page-card">
+          <div id="feedback-message" role="status" style="padding:1rem 0;font-weight:600;"></div>
           <header class="feedback-page-head">
             <div class="feedback-page-title">
               <h3 class="section-heading"><span class="section-icon" aria-hidden="true">&#128172;</span>About this form</h3>
@@ -124,6 +125,11 @@
               <a href="/" class="cancel-link">Cancel</a>
             </div>
           </form>
+
+          <section id="live-profile" class="live-profile" hidden>
+            <h3 class="section-heading">Updated sensory profile</h3>
+            <div id="live-profile-grid" class="sensory-grid"></div>
+          </section>
         </article>
 
         <aside class="feedback-sidebar">
@@ -160,6 +166,6 @@
     </footer> {% endcomment %}
   </div>
 
-  <script src="{% static 'sensemap/js/feedback.js' %}?v=1"></script>
+  <script src="{% static 'sensemap/js/feedback.js' %}?v=4"></script>
 </body>
 </html>

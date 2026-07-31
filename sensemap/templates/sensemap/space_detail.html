@@ -38,7 +38,7 @@
             <h2 id="dp-name"></h2>
             <p class="detail-page-sub" id="dp-sub"></p>
             <div class="detail-page-actions">
-              <a class="btn" id="dp-back" href="#">Back to place</a>
+              <a class="btn" id="dp-back" href="#" style="border-radius:999px;padding:0.4rem 0.85rem;font-size:0.85rem;text-decoration:none;">Back to place</a>
               <a class="btn" id="dp-feedback-link" href="/feedback/">Leave feedback</a>
             </div>
           </div>
@@ -79,6 +79,6 @@
     </main>
   </div>
 {{ space_id|json_script:"space-id" }}
-  <script src="{% static 'sensemap/js/space_detail.js' %}?v=2"></script>
+  <script src="{% static 'sensemap/js/space_detail.js' %}?v=3"></script>
 </body>
 </html>

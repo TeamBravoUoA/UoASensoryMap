@@ -32,5 +32,6 @@ urlpatterns = [
 
     # API endpoints
     path("api/meta/", views.meta, name="meta"),
+    path("api/sensory-feedback/", views.sensory_feedback, name="sensory_feedback"),
     path("api/", include(router.urls)),
 ]

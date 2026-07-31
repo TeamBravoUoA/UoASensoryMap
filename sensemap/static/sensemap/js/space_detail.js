@@ -134,7 +134,7 @@
       }
 
       el("dp-feedback-link").href =
-        "/feedback/?space=" + encodeURIComponent(s.name);
+        "/feedback/?space_id=" + encodeURIComponent(s.id) + "&space=" + encodeURIComponent(s.name);
 
       el("detail-loader").hidden = true;
       el("detail-card").hidden = false;
