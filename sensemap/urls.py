@@ -27,9 +27,11 @@ urlpatterns = [
     path("", views.index, name="index"),
     path("places/", views.places, name="places"),
     path("place/<slug:slug>/", views.place_detail, name="place_detail"),
+    path("space/<int:space_id>/", views.space_detail, name="space_detail"),
     path("feedback/", views.feedback, name="feedback"),
 
     # API endpoints
     path("api/meta/", views.meta, name="meta"),
+    path("api/sensory-feedback/", views.sensory_feedback, name="sensory_feedback"),
     path("api/", include(router.urls)),
 ]

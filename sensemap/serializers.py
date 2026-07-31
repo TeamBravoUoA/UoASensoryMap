@@ -25,6 +25,7 @@ from .models import (
     LocationSensoryProfile,
     SpaceSensoryProfile,
     FeedbackReport,
+    FeedbackSensoryRating,
 )
 
 
@@ -116,6 +117,26 @@ class FeedbackPublicSerializer(serializers.ModelSerializer):
         return data
 
 
+class SpaceLocationSerializer(serializers.ModelSerializer):
+    """Minimal location info for the /places space cards."""
+
+    category_display = serializers.CharField(source="get_category_display", read_only=True)
+    campus_display = serializers.CharField(source="get_campus_display", read_only=True)
+
+    class Meta:
+        model = Location
+        fields = [
+            "id",
+            "name",
+            "slug",
+            "campus",
+            "campus_display",
+            "category",
+            "category_display",
+            "id_access_needed",
+        ]
+
+
 class SpaceSerializer(serializers.ModelSerializer):
     space_type_display = serializers.CharField(
         source="get_space_type_display", read_only=True
@@ -123,9 +144,8 @@ class SpaceSerializer(serializers.ModelSerializer):
     facilities = SpaceFacilityLinkSerializer(
         source="space_facilities", many=True, read_only=True
     )
-    sensory_profiles = SpaceSensoryProfileSerializer(
-        source="space_sensory_profiles", many=True, read_only=True
-    )
+    sensory_profiles = serializers.SerializerMethodField()
+    location = SpaceLocationSerializer(read_only=True)
 
     class Meta:
         model = Space
@@ -149,7 +169,32 @@ class SpaceSerializer(serializers.ModelSerializer):
             "is_safe_space_neurodivergent_students",
             "facilities",
             "sensory_profiles",
+            "location",
         ]
+
+    def get_sensory_profiles(self, obj):
+        base = {}
+        for p in obj.space_sensory_profiles.all():
+            base[p.sensory_attribute.name] = {"rating": p.rating, "notes": p.notes}
+
+        feedback = {}
+        for r in obj.sensory_feedback.all():
+            feedback.setdefault(r.sensory_attribute.name, []).append(r.rating)
+
+        attrs = set(base.keys()) | set(feedback.keys())
+        result = []
+        for name in sorted(attrs):
+            notes = base.get(name, {}).get("notes", "")
+            if name in feedback:
+                fb_avg = round(sum(feedback[name]) / len(feedback[name]))
+                if name in base:
+                    rating = round((base[name]["rating"] + fb_avg) / 2)
+                else:
+                    rating = fb_avg
+            else:
+                rating = base[name]["rating"]
+            result.append({"attribute": name, "rating": rating, "notes": notes})
+        return result
 
 
 class QuietZoneSerializer(SpaceSerializer):
@@ -246,7 +291,7 @@ class LocationListSerializer(serializers.ModelSerializer):
         ratings = [p.rating for p in obj.location_sensory_profiles.all()]
         if not ratings:
             return None
-        return round(sum(ratings) / len(ratings), 1)
+        return round(sum(ratings) / len(ratings))
 
 
 class LocationDetailSerializer(LocationListSerializer):
@@ -255,9 +300,7 @@ class LocationDetailSerializer(LocationListSerializer):
     facilities = LocationFacilityLinkSerializer(
         source="location_facilities", many=True, read_only=True
     )
-    sensory_profiles = LocationSensoryProfileSerializer(
-        source="location_sensory_profiles", many=True, read_only=True
-    )
+    sensory_profiles = serializers.SerializerMethodField()
     spaces = SpaceSerializer(many=True, read_only=True)
     quiet_zones = serializers.SerializerMethodField()
     gallery_images = GalleryImageSerializer(many=True, read_only=True)
@@ -293,6 +336,30 @@ class LocationDetailSerializer(LocationListSerializer):
     def get_feedback(self, obj):
         accepted = [f for f in obj.feedback_reports.all() if f.status == "accepted"]
         return FeedbackPublicSerializer(accepted, many=True).data
+
+    def get_sensory_profiles(self, obj):
+        base = {}
+        for p in obj.location_sensory_profiles.all():
+            base[p.sensory_attribute.name] = {"rating": p.rating, "notes": p.notes}
+
+        feedback = {}
+        for r in obj.sensory_feedback.all():
+            feedback.setdefault(r.sensory_attribute.name, []).append(r.rating)
+
+        attrs = set(base.keys()) | set(feedback.keys())
+        result = []
+        for name in sorted(attrs):
+            notes = base.get(name, {}).get("notes", "")
+            if name in feedback:
+                fb_avg = round(sum(feedback[name]) / len(feedback[name]))
+                if name in base:
+                    rating = round((base[name]["rating"] + fb_avg) / 2)
+                else:
+                    rating = fb_avg
+            else:
+                rating = base[name]["rating"]
+            result.append({"attribute": name, "rating": rating, "notes": notes})
+        return result
 
 
 # --------------------------------------------------------------------------- #
@@ -333,3 +400,53 @@ class FeedbackReportSerializer(serializers.ModelSerializer):
                     "Name and email are required when feedback is not anonymous."
                 )
         return data
+
+
+class FeedbackSensoryRatingBatchSerializer(serializers.Serializer):
+    """Accept a batch of sensory ratings for a location or space."""
+
+    location = serializers.PrimaryKeyRelatedField(
+        queryset=Location.objects.all(), required=False
+    )
+    space = serializers.PrimaryKeyRelatedField(
+        queryset=Space.objects.all(), required=False
+    )
+    is_anonymous = serializers.BooleanField(default=True)
+    reporter_name = serializers.CharField(allow_blank=True, required=False)
+    reporter_email = serializers.EmailField(allow_blank=True, required=False)
+    ratings = serializers.DictField(
+        child=serializers.IntegerField(min_value=1, max_value=5)
+    )
+
+    def validate(self, data):
+        has_loc = bool(data.get("location"))
+        has_space = bool(data.get("space"))
+        if has_loc == has_space:
+            raise serializers.ValidationError(
+                "Provide exactly one of 'location' or 'space'."
+            )
+        return data
+
+    def create(self, validated_data):
+        location = validated_data.get("location")
+        space = validated_data.get("space")
+        is_anonymous = validated_data.get("is_anonymous", True)
+        reporter_name = validated_data.get("reporter_name", "")
+        reporter_email = validated_data.get("reporter_email", "")
+        ratings = validated_data.get("ratings", {})
+
+        created = []
+        for attr_name, rating in ratings.items():
+            attr = SensoryAttribute.objects.get(name__iexact=attr_name)
+            created.append(
+                FeedbackSensoryRating.objects.create(
+                    location=location,
+                    space=space,
+                    sensory_attribute=attr,
+                    rating=rating,
+                    is_anonymous=is_anonymous,
+                    reporter_name=reporter_name,
+                    reporter_email=reporter_email,
+                )
+            )
+        return created

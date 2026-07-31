@@ -122,6 +122,17 @@
           )
           .join("");
 
+        const facs = (s.facilities || [])
+          .map(
+            (f) => `
+              <span class="facility small ${f.status ? "on" : ""}" title="${
+                f.notes ? escapeHtml(f.notes).replace(/"/g, "&quot;") : ""
+              }">
+                ${f.status ? "✓" : "—"} ${escapeHtml(f.name)}
+              </span>`
+          )
+          .join("");
+
         return `
           <article class="space-card">
             <header>
@@ -134,15 +145,7 @@
 
             ${s.description ? `<p>${escapeHtml(s.description)}</p>` : ""}
 
-            ${
-              s.sensory_experience
-                ? `<p class="muted-note"><strong>Sensory:</strong> ${escapeHtml(
-                    s.sensory_experience
-                  )}</p>`
-                : ""
-            }
-
-            ${profiles ? `<div class="space-sensory">${profiles}</div>` : ""}
+            <a class="btn" style="margin-top:0.6rem;border-radius:999px;padding:0.4rem 0.85rem;font-size:0.85rem;text-decoration:none;" href="/space/${s.id}/">Space details &rarr;</a>
           </article>`;
       })
       .join("");
@@ -167,8 +170,8 @@
         (img) => `
       <a href="${escapeHtml(img.image)}" target="_blank" rel="noopener">
         <img
-          src="${escapeHtml(img.thumbnail || img.image)}"
-          alt="${escapeHtml(img.alt_text || "Gallery image")}"
+          src="${escapeHtml(img.image)}"
+          alt="${escapeHtml(img.caption || "Gallery image")}"
           loading="lazy">
       </a>`
       )
@@ -262,18 +265,6 @@
       renderSpaces(d.spaces || []);
       renderGallery(d.gallery_images || []);
 
-      const sensory = document.getElementById("tab-sensory");
-      if (sensory)
-        sensory.innerHTML = `<p>${escapeHtml(
-          d.sensory_experience || "No information available."
-        )}</p>`;
-
-      const wayfinding = document.getElementById("tab-wayfinding");
-      if (wayfinding)
-        wayfinding.innerHTML = `<p>${escapeHtml(
-          d.wayfinding || "No information available."
-        )}</p>`;
-
       const physical = document.getElementById("tab-physical");
       if (physical)
         physical.innerHTML = `<p>${escapeHtml(
@@ -287,6 +278,9 @@
       } else {
         mapLink.hidden = true;
       }
+
+      el("dp-feedback-link").href =
+        "/feedback/?location_id=" + encodeURIComponent(d.id) + "&location=" + encodeURIComponent(d.name);
 
       el("detail-loader").hidden = true;
       el("detail-card").hidden = false;
