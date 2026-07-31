@@ -116,6 +116,26 @@ class FeedbackPublicSerializer(serializers.ModelSerializer):
         return data
 
 
+class SpaceLocationSerializer(serializers.ModelSerializer):
+    """Minimal location info for the /places space cards."""
+
+    category_display = serializers.CharField(source="get_category_display", read_only=True)
+    campus_display = serializers.CharField(source="get_campus_display", read_only=True)
+
+    class Meta:
+        model = Location
+        fields = [
+            "id",
+            "name",
+            "slug",
+            "campus",
+            "campus_display",
+            "category",
+            "category_display",
+            "id_access_needed",
+        ]
+
+
 class SpaceSerializer(serializers.ModelSerializer):
     space_type_display = serializers.CharField(
         source="get_space_type_display", read_only=True
@@ -126,6 +146,7 @@ class SpaceSerializer(serializers.ModelSerializer):
     sensory_profiles = SpaceSensoryProfileSerializer(
         source="space_sensory_profiles", many=True, read_only=True
     )
+    location = SpaceLocationSerializer(read_only=True)
 
     class Meta:
         model = Space
@@ -149,6 +170,7 @@ class SpaceSerializer(serializers.ModelSerializer):
             "is_safe_space_neurodivergent_students",
             "facilities",
             "sensory_profiles",
+            "location",
         ]
 
 

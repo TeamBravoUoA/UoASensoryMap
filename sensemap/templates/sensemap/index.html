@@ -9,11 +9,10 @@
 
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
         integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
-  <link rel="stylesheet" href="{% static 'sensemap/css/styles.css' %}?v=8" />
+  <link rel="stylesheet" href="{% static 'sensemap/css/styles.css' %}?v=11" />
   <link rel="icon" type="image/png" href="{% static 'sensemap/icons/logo.png' %}">
 </head>
 <body>
-  <a href="#location-list" class="skip-link">Skip to locations list</a>
 
   <div class="app">
     <!-- ---------- Navbar ---------- -->
@@ -167,7 +166,7 @@
     </div>
   </section>
 
-  {% comment %} <!-- ---------- Feedback modal ---------- -->
+  <!-- ---------- Feedback modal ---------- -->
   <div class="modal-backdrop" id="feedback-modal" role="dialog" aria-modal="true" aria-labelledby="feedback-modal-title">
     <div class="modal">
       <h2 id="feedback-modal-title" tabindex="-1">Leave feedback</h2>
@@ -198,7 +197,7 @@
         </div>
       </form>
     </div>
-  </div> {% endcomment %}
+  </div>
 
   <!-- ---------- Standalone "Space types" legend modal ---------- -->
   <div class="modal-backdrop" id="space-types-modal" role="dialog" aria-modal="true" aria-labelledby="space-types-title">
@@ -232,6 +231,6 @@
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
           integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
-  <script src="{% static 'sensemap/js/app.js' %}?v=13"></script>
+  <script src="{% static 'sensemap/js/app.js' %}?v=17"></script>
 </body>
 </html>

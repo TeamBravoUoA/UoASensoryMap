@@ -560,6 +560,8 @@
             (f) =>
               '<span class="facility small ' +
               (f.status ? "on" : "") +
+              '" title="' +
+              (f.notes ? escapeHtml(f.notes).replace(/"/g, '&quot;') : "") +
               '">' +
               (f.status ? "\u2713 " : "\u2014 ") +
               escapeHtml(f.name) +
@@ -592,6 +594,12 @@
           "</h4>" +
           flags +
           "</header>" +
+          (s.thumbnail_image
+            ? '<img class="space-thumb" src="' +
+              escapeHtml(s.thumbnail_image) +
+              '" alt="' + escapeHtml(s.name) + '" loading="lazy" style="max-width:100%;height:auto;display:block">'
+            : "") +
+          (s.id ? '<p class="detail-more"><a href="/space/' + s.id + '/">Space details &rarr;</a></p>' : "") +
           (s.description ? "<p>" + escapeHtml(s.description) + "</p>" : "") +
           (s.sensory_experience
             ? '<p class="muted-note"><strong>Sensory:</strong> ' + escapeHtml(s.sensory_experience) + "</p>"
@@ -711,10 +719,9 @@
       if (
         spaceType &&
         !hasSpaceType(spaceType) &&
-        !(spaceType === "food_drink" && hasSpaceType("other")) &&
-        !(spaceType === "sport" && hasSpaceType("other")) &&
-        !(spaceType === "outdoor" && hasSpaceType("other")) &&
-        !(spaceType === "sport" && loc.category === "sports_facility")
+        !(spaceType === "food_drink" && (loc.category === "cafe" || hasSpaceType("other"))) &&
+        !(spaceType === "sport" && (loc.category === "sports_facility" || hasSpaceType("other"))) &&
+        !(spaceType === "outdoor" && (loc.category === "garden" || loc.category === "outdoor" || hasSpaceType("other")))
       ) return false;
       if (quietOnly && !loc.has_quiet_zone) return false;
       if (ndOnly && !loc.has_neurodivergent_safe) return false;

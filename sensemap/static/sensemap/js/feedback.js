@@ -163,5 +163,12 @@
     el("feedback-card").hidden = false;
   }
 
+  function prefillLocation() {
+    const params = new URLSearchParams(window.location.search);
+    const loc = params.get("location");
+    if (loc) el("search-location").value = decodeURIComponent(loc);
+  }
+
   initSensoryForm();
+  prefillLocation();
 })();

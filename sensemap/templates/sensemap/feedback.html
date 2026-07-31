@@ -6,7 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Feedback &middot; UoA Sensory Map</title>
   <meta name="feedback" content="Detailed sensor feedback for a University of Aberdeen location." />
-  <link rel="stylesheet" href="{% static 'sensemap/css/styles.css' %}" />
+  <link rel="stylesheet" href="{% static 'sensemap/css/styles.css' %}?v=11" />
   <link rel="icon" type="image/png" href="{% static 'sensemap/icons/logo.png' %}">
 </head>
 <body>
@@ -148,8 +148,8 @@
 
           <div class="sidebar-card help-card">
             <h3 class="sidebar-card-title">Need help?</h3>
-            <p>If you have any questions or need assistance, please contact us.</p>
-            <a href="/contact/" class="more-info">Contact us</a>
+            <p>For additional feedback or questions, contact us directly by email.</p>
+            <a href="mailto:feedback@abdn.ac.uk" class="more-info">feedback@abdn.ac.uk</a>
           </div>
         </aside>
       </div>
@@ -160,6 +160,6 @@
     </footer> {% endcomment %}
   </div>
 
-  <script src="{% static 'sensemap/js/feedback.js' %}"></script>
+  <script src="{% static 'sensemap/js/feedback.js' %}?v=1"></script>
 </body>
 </html>

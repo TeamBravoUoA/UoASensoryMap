@@ -122,6 +122,17 @@
           )
           .join("");
 
+        const facs = (s.facilities || [])
+          .map(
+            (f) => `
+              <span class="facility small ${f.status ? "on" : ""}" title="${
+                f.notes ? escapeHtml(f.notes).replace(/"/g, "&quot;") : ""
+              }">
+                ${f.status ? "✓" : "—"} ${escapeHtml(f.name)}
+              </span>`
+          )
+          .join("");
+
         return `
           <article class="space-card">
             <header>
@@ -132,6 +143,10 @@
               ${flags}
             </header>
 
+            ${s.thumbnail_image ? `<img class="space-thumb" src="${escapeHtml(s.thumbnail_image)}" alt="${escapeHtml(s.name)}" loading="lazy" style="max-width:100%;height:auto;display:block">` : ""}
+
+            <p class="detail-more"><a href="/space/${s.id}/">Space details &rarr;</a></p>
+
             ${s.description ? `<p>${escapeHtml(s.description)}</p>` : ""}
 
             ${
@@ -141,6 +156,16 @@
                   )}</p>`
                 : ""
             }
+
+            ${
+              s.wayfinding
+                ? `<p class="muted-note"><strong>Finding it:</strong> ${escapeHtml(
+                    s.wayfinding
+                  )}</p>`
+                : ""
+            }
+
+            ${facs ? `<div class="facilities">${facs}</div>` : ""}
 
             ${profiles ? `<div class="space-sensory">${profiles}</div>` : ""}
           </article>`;
@@ -167,8 +192,8 @@
         (img) => `
       <a href="${escapeHtml(img.image)}" target="_blank" rel="noopener">
         <img
-          src="${escapeHtml(img.thumbnail || img.image)}"
-          alt="${escapeHtml(img.alt_text || "Gallery image")}"
+          src="${escapeHtml(img.image)}"
+          alt="${escapeHtml(img.caption || "Gallery image")}"
           loading="lazy">
       </a>`
       )
@@ -262,18 +287,6 @@
       renderSpaces(d.spaces || []);
       renderGallery(d.gallery_images || []);
 
-      const sensory = document.getElementById("tab-sensory");
-      if (sensory)
-        sensory.innerHTML = `<p>${escapeHtml(
-          d.sensory_experience || "No information available."
-        )}</p>`;
-
-      const wayfinding = document.getElementById("tab-wayfinding");
-      if (wayfinding)
-        wayfinding.innerHTML = `<p>${escapeHtml(
-          d.wayfinding || "No information available."
-        )}</p>`;
-
       const physical = document.getElementById("tab-physical");
       if (physical)
         physical.innerHTML = `<p>${escapeHtml(
@@ -287,6 +300,9 @@
       } else {
         mapLink.hidden = true;
       }
+
+      el("dp-feedback-link").href =
+        "/feedback/?location=" + encodeURIComponent(d.name);
 
       el("detail-loader").hidden = true;
       el("detail-card").hidden = false;

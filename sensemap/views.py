@@ -194,7 +194,7 @@ class SpaceViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = SpaceSerializer
 
     def get_queryset(self):
-        qs = Space.objects.all().prefetch_related(
+        qs = Space.objects.all().select_related("location").prefetch_related(
             "space_facilities__facility",
             "space_sensory_profiles__sensory_attribute",
         )
@@ -262,6 +262,12 @@ def place_detail(request, slug):
     """
     location = get_object_or_404(Location, slug=slug)
     return render(request, "sensemap/place_detail.html", {"location_id": location.id})
+
+
+def space_detail(request, space_id):
+    """Render a dedicated detail page for a single space."""
+    return render(request, "sensemap/space_detail.html", {"space_id": space_id})
+
 
 def feedback(request):
     """Render the feedback form page."""
