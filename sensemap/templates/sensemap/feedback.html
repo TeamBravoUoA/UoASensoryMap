@@ -6,7 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Feedback &middot; UoA Sensory Map</title>
   <meta name="feedback" content="Detailed sensor feedback for a University of Aberdeen location." />
-  <link rel="stylesheet" href="{% static 'sensemap/css/styles.css' %}" />
+  <link rel="stylesheet" href="{% static 'sensemap/css/styles.css' %}?v=11" />
   <link rel="icon" type="image/png" href="{% static 'sensemap/icons/logo.png' %}">
 </head>
 <body>
@@ -38,8 +38,9 @@
       <div class="feedback-page-loader" id="feedback-loader">Loading feedback form&hellip;</div>
       <div class="feedback-page-error" id="feedback-error" hidden></div>
 
-      <div class="feedback-layout" id="feedback-card">
+      <div class="feedback-layout" id="feedback-card" hidden>
         <article class="feedback-page-card">
+          <div id="feedback-message" role="status" style="padding:1rem 0;font-weight:600;"></div>
           <header class="feedback-page-head">
             <div class="feedback-page-title">
               <h3 class="section-heading"><span class="section-icon" aria-hidden="true">&#128172;</span>About this form</h3>
@@ -124,6 +125,11 @@
               <a href="/" class="cancel-link">Cancel</a>
             </div>
           </form>
+
+          <section id="live-profile" class="live-profile" hidden>
+            <h3 class="section-heading">Updated sensory profile</h3>
+            <div id="live-profile-grid" class="sensory-grid"></div>
+          </section>
         </article>
 
         <aside class="feedback-sidebar">
@@ -148,16 +154,27 @@
 
           <div class="sidebar-card help-card">
             <h3 class="sidebar-card-title">Need help?</h3>
-            <p>If you have any questions or need assistance, please contact us.</p>
-            <a href="/contact/" class="more-info">Contact us</a>
+            <p>For additional feedback or questions, contact us directly by email.</p>
+            <a href="mailto:feedback@abdn.ac.uk" class="more-info">feedback@abdn.ac.uk</a>
           </div>
         </aside>
       </div>
     </main>
-
-    {% comment %} <footer class="site-footer">
-      <p>University of Aberdeen &copy; 2024</p>
-    </footer> {% endcomment %}
+<!-- ---------- Footer ---------- -->
+    <footer class="site-footer" aria-label="University legal and policy links">
+      <div class="site-footer-main">
+        <a href="#" class="site-footer-top-link">Top of Page</a>
+        <nav class="site-footer-links" aria-label="Legal links">
+          <a href="https://www.abdn.ac.uk/about/our-website/terms-and-conditions/" target="_blank" rel="noopener">Terms and Conditions of Use</a>
+          <a href="https://www.abdn.ac.uk/privacy/" target="_blank" rel="noopener">Your Privacy</a>
+          <a href="https://www.abdn.ac.uk/accessibility/" target="_blank" rel="noopener">Accessibility</a>
+          <a href="https://www.abdn.ac.uk/about/our-website/cookies/" target="_blank" rel="noopener">Cookies</a>
+          <a href="https://www.abdn.ac.uk/about/our-website/slavery--human-trafficking-statement/" target="_blank" rel="noopener">Slavery &amp; Human Trafficking Statement</a>
+          <a href="https://www.abdn.ac.uk/staffnet/governance/legal-and-compliance/foi-scotland/" target="_blank" rel="noopener">Freedom of Information</a>
+        </nav>
+        <p class="site-footer-charity">The University of Aberdeen is a charity registered in Scotland, No.SC013683</p>
+      </div>
+    </footer>
   </div>
 
   <script src="{% static 'sensemap/js/feedback.js' %}"></script>

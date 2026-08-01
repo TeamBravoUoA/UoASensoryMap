@@ -1812,4 +1812,103 @@ textarea {
   .feedback-layout { grid-template-columns: 1fr; }
   .form-row { grid-template-columns: 1fr; }
 }
- 
+/* Footer */
+.site-footer {
+  margin-top: 2.5rem;
+  color: #ffffff;
+  background: #172238;
+}
+/* .site-footer-top {
+  height: 76px;
+  background: #2a4358;
+} */
+.site-footer-main {
+  position: relative;
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 4.6rem 1.5rem 2.3rem;
+  text-align: center;
+  background: #172238;
+}
+.site-footer-top-link {
+  position: absolute;
+  top: -48px;
+  right: 1.5rem;
+  background: #1f2e48;
+  color: #ffffff;
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 0.95rem;
+  line-height: 1;
+  padding: 1.05rem 1.35rem;
+  border-radius: 12px 12px 0 0;
+  box-shadow: 0 -1px 0 rgba(255, 255, 255, 0.08) inset;
+}
+.site-footer-top-link:hover {
+  background: #27415a;
+}
+.site-footer-links {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 1.05rem 2rem;
+}
+.site-footer-links a {
+  color: #ffffff;
+  text-decoration: none;
+  font-size: 0.98rem;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+}
+.site-footer-links a:hover {
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+}
+.site-footer-charity {
+  margin: 2.9rem 0 0;
+  color: rgba(212, 224, 238, 0.95);
+  font-size: 0.95rem;
+  line-height: 1.45;
+}
+
+@media (max-width: 900px) {
+  .site-footer-main {
+    padding-top: 4.8rem;
+  }
+  .site-footer-top-link {
+    right: 1rem;
+    font-size: 0.88rem;
+    padding: 0.8rem 1.05rem;
+  }
+  .site-footer-links a {
+    font-size: 0.9rem;
+  }
+  .site-footer-charity {
+    font-size: 0.88rem;
+  }
+}
+
+@media (max-width: 560px) {
+  .site-footer-top {
+    height: 56px;
+  }
+  .site-footer-main {
+    padding: 4.3rem 1rem 1.8rem;
+  }
+  .site-footer-top-link {
+    right: 0.75rem;
+    top: -10px;
+    font-size: 0.8rem;
+    border-radius: 10px 10px 0 0;
+  }
+  .site-footer-links {
+    gap: 0.65rem 1rem;
+  }
+  .site-footer-links a {
+    font-size: 0.82rem;
+  }
+  .site-footer-charity {
+    margin-top: 1.5rem;
+    font-size: 0.8rem;
+  }
+}
