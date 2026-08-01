@@ -43,7 +43,28 @@
     );
   }
 
-  // --- Rendering -----------------------------------------------------------
+  function asPlace(space) {
+    const loc = space.location || {};
+    return {
+      id: space.id,
+      name: space.name,
+      description: space.description,
+      thumbnail: space.thumbnail_image,
+      space_types: [space.space_type],
+      slug: loc.slug,
+      category: loc.category,
+      category_display: loc.category_display,
+      campus: loc.campus,
+      campus_display: loc.campus_display,
+      has_quiet_zone: space.is_quiet_zone,
+      has_neurodivergent_safe: space.is_safe_space_neurodivergent_students,
+      id_access_needed: loc.id_access_needed,
+      facilities_available: (space.facilities || [])
+        .filter((f) => f.status)
+        .map((f) => f.name),
+    };
+  }
+
   function thumbHtml(loc) {
     if (loc.thumbnail) {
       return '<img src="' + loc.thumbnail + '" alt="" loading="lazy" />';
@@ -203,13 +224,19 @@
   // --- Init ----------------------------------------------------------------
   async function loadData() {
     try {
-      const [metaRes, locRes] = await Promise.all([
+      const [metaRes, locRes, spaceRes] = await Promise.all([
         fetch("/api/meta/"),
         fetch("/api/locations/"),
+        fetch("/api/spaces/"),
       ]);
       if (!locRes.ok) throw new Error("Request failed: " + locRes.status);
       metaData = metaRes.ok ? await metaRes.json() : null;
       allLocations = await locRes.json();
+
+      if (spaceRes.ok) {
+        const spaces = await spaceRes.json();
+        allLocations = allLocations.concat(spaces.map(asPlace));
+      }
 
       buildSelects();
       buildFacilityChips();

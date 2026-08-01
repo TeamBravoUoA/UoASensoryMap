@@ -269,7 +269,11 @@ class Command(BaseCommand):
                     continue
                 raise
 
-            thumbnail = row.get("thumbnail_image", "").replace("\\", "/")
+            thumbnail = (
+                row.get("thumbnail_image", "")
+                .replace("\\", "/")
+                .replace("thumnail_images", "thumbnail_images")
+            )
 
             self.safe_execute(
                 row.get("space_id"),
