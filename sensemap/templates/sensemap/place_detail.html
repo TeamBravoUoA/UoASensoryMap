@@ -37,20 +37,10 @@
 
         <section class="info-tabs" aria-label="Place Information">
           <div class="tab-buttons" role="tablist">
-            <button class="tab-btn active" data-tab="tab-sensory" type="button">Sensory Experience</button>
-            <button class="tab-btn" data-tab="tab-wayfinding" type="button">Wayfinding</button>
-            <button class="tab-btn" data-tab="tab-physical" type="button">Physical Access</button>
-          </div>
-          
-          <div class="tab-panel active" id="tab-sensory">
-          
+            <button class="tab-btn active" data-tab="tab-physical" type="button">Physical Access</button>
           </div>
 
-          <div class="tab-panel" id="tab-wayfinding">
-          
-          </div>
-
-        <div class="tab-panel" id="tab-physical">
+        <div class="tab-panel active" id="tab-physical">
           
         </div>
         </section>
@@ -89,8 +79,6 @@
 
 {% block page_extras %}
 {{ location_id|json_script:"location-id" }}
-{% endblock %}
-
-{% block page_scripts %}
-  <script src="{% static 'sensemap/js/place_detail.js' %}?v=8"></script>
-{% endblock %}
+  <script src="{% static 'sensemap/js/place_detail.js' %}?v=18"></script>
+</body>
+</html>

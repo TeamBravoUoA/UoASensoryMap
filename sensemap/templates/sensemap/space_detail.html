@@ -1,0 +1,84 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Space details &middot; UoA Sensory Map</title>
+  <meta name="description" content="Detailed sensory information for a space at the University of Aberdeen." />
+  <link rel="stylesheet" href="{% static 'sensemap/css/styles.css' %}?v=11" />
+  <link rel="icon" type="image/png" href="{% static 'sensemap/icons/logo.png' %}">
+</head>
+<body>
+  <a href="#detail-main" class="skip-link">Skip to details</a>
+
+  <div class="app">
+    <header class="site-header">
+      <a href="/" class="brand" aria-label="UoA Sensory Map — go to home page">
+        <img src="{% static 'sensemap/icons/logo.png' %}" alt="" class="brand-mark" aria-hidden="true">
+        <div class="brand-text">
+          <h1>UoA Sensory Map</h1>
+          <p class="tagline">Find calm, sensory-friendly spaces across the University of Aberdeen.</p>
+        </div>
+      </a>
+
+      <nav class="header-links" aria-label="Site">
+        <a class="header-btn" href="/">&#8592; Map view</a>
+        <a class="header-btn" href="/places/">All places</a>
+      </nav>
+    </header>
+
+    <main class="detail-page" id="detail-main">
+      <div class="detail-page-loader" id="detail-loader">Loading space details&hellip;</div>
+      <div class="detail-page-error" id="detail-error" hidden></div>
+      <article class="detail-page-card" id="detail-card" hidden>
+        <header class="detail-page-head">
+          <div class="detail-page-title">
+            <span class="detail-page-category" id="dp-category"></span>
+            <h2 id="dp-name"></h2>
+            <p class="detail-page-sub" id="dp-sub"></p>
+            <div class="detail-page-actions">
+              <a class="btn" id="dp-back" href="#" style="border-radius:999px;padding:0.4rem 0.85rem;font-size:0.85rem;text-decoration:none;">Back to place</a>
+              <a class="btn" id="dp-feedback-link" href="/feedback/">Leave feedback</a>
+            </div>
+          </div>
+          <img id="dp-thumb" class="detail-page-thumb" alt="" hidden />
+        </header>
+
+        <section id="dp-desc-section">
+          <h3>Description</h3>
+          <p class="detail-page-desc" id="dp-desc"></p>
+        </section>
+
+        <section id="dp-hours-section">
+          <h3>Opening hours</h3>
+          <table class="hours-table" id="dp-hours"></table>
+          <p class="muted-note" id="dp-hours-notes"></p>
+        </section>
+
+        <section id="dp-facilities-section">
+          <h3>Facilities</h3>
+          <div class="facilities" id="dp-facilities"></div>
+        </section>
+
+        <section id="dp-sensory-experience-section">
+          <h3>Sensory experience</h3>
+          <p id="dp-sensory-experience"></p>
+        </section>
+
+        <section id="dp-wayfinding-section">
+          <h3>Finding it</h3>
+          <p id="dp-wayfinding"></p>
+        </section>
+
+        <section id="dp-sensory-section">
+          <h3>Sensory profile</h3>
+          <div class="sensory-grid" id="dp-sensory"></div>
+        </section>
+      </article>
+    </main>
+  </div>
+{{ space_id|json_script:"space-id" }}
+  <script src="{% static 'sensemap/js/space_detail.js' %}?v=3"></script>
+</body>
+</html>

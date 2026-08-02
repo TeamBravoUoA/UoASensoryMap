@@ -18,6 +18,7 @@ from .serializers import (
     LocationDetailSerializer,
     SpaceSerializer,
     FeedbackReportSerializer,
+    FeedbackSensoryRatingBatchSerializer,
 )
 
 
@@ -65,8 +66,10 @@ class LocationViewSet(viewsets.ReadOnlyModelViewSet):
                 "location_facilities__facility",
                 "gallery_images",
                 "feedback_reports",
+                "sensory_feedback__sensory_attribute",
                 "spaces__space_facilities__facility",
                 "spaces__space_sensory_profiles__sensory_attribute",
+                "spaces__sensory_feedback__sensory_attribute",
             )
         )
         params = self.request.query_params
@@ -194,9 +197,10 @@ class SpaceViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = SpaceSerializer
 
     def get_queryset(self):
-        qs = Space.objects.all().prefetch_related(
+        qs = Space.objects.all().select_related("location").prefetch_related(
             "space_facilities__facility",
             "space_sensory_profiles__sensory_attribute",
+            "sensory_feedback__sensory_attribute",
         )
         location = self.request.query_params.get("location")
         if location:
@@ -263,6 +267,22 @@ def place_detail(request, slug):
     location = get_object_or_404(Location, slug=slug)
     return render(request, "sensemap/place_detail.html", {"location_id": location.id})
 
+
+def space_detail(request, space_id):
+    """Render a dedicated detail page for a single space."""
+    return render(request, "sensemap/space_detail.html", {"space_id": space_id})
+
+
 def feedback(request):
     """Render the feedback form page."""
     return render(request, "sensemap/feedback.html")
+
+
+@api_view(["POST"])
+def sensory_feedback(request):
+    """Public endpoint to submit a batch of sensory ratings."""
+    serializer = FeedbackSensoryRatingBatchSerializer(data=request.data)
+    if serializer.is_valid():
+        created = serializer.save()
+        return Response({"ok": True, "count": len(created)}, status=201)
+    return Response(serializer.errors, status=400)

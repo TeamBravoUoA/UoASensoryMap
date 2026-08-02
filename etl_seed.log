@@ -58,3 +58,27 @@
 2026-07-28 16:45:36,960 | INFO | ETL COMPLETED
 2026-08-01 19:20:51,280 | INFO | ETL STARTED
 2026-08-01 19:20:52,092 | INFO | ETL COMPLETED
+2026-07-31 01:05:02,826 | INFO | ETL STARTED
+2026-07-31 01:05:06,184 | ERROR | FAILED ROW | id=8 | error=UNIQUE constraint failed: sensemap_location.name
+2026-07-31 01:05:09,195 | ERROR | FAILED ROW | id=10 | error=UNIQUE constraint failed: sensemap_location.name
+2026-07-31 01:05:12,204 | ERROR | FAILED ROW | id=11 | error=UNIQUE constraint failed: sensemap_location.name
+2026-07-31 01:05:15,213 | ERROR | FAILED ROW | id=12 | error=UNIQUE constraint failed: sensemap_location.name
+2026-07-31 01:05:18,224 | ERROR | FAILED ROW | id=13 | error=UNIQUE constraint failed: sensemap_location.name
+2026-07-31 01:05:21,234 | ERROR | FAILED ROW | id=14 | error=UNIQUE constraint failed: sensemap_location.name
+2026-07-31 01:05:24,243 | ERROR | FAILED ROW | id=15 | error=UNIQUE constraint failed: sensemap_location.name
+2026-07-31 01:05:27,256 | ERROR | FAILED ROW | id=16 | error=UNIQUE constraint failed: sensemap_location.name
+2026-07-31 01:05:30,276 | ERROR | FAILED ROW | id=17 | error=UNIQUE constraint failed: sensemap_location.name
+2026-07-31 01:05:33,312 | ERROR | FAILED ROW | id=18 | error=UNIQUE constraint failed: sensemap_location.name
+2026-07-31 01:05:36,322 | ERROR | FAILED ROW | id=19 | error=UNIQUE constraint failed: sensemap_location.name
+2026-07-31 01:05:39,332 | ERROR | FAILED ROW | id=20 | error=UNIQUE constraint failed: sensemap_location.name
+2026-07-31 01:05:42,339 | ERROR | FAILED ROW | id=21 | error=UNIQUE constraint failed: sensemap_location.name
+2026-07-31 01:05:45,350 | ERROR | FAILED ROW | id=22 | error=UNIQUE constraint failed: sensemap_location.name
+2026-07-31 01:05:48,362 | ERROR | FAILED ROW | id=23 | error=UNIQUE constraint failed: sensemap_location.name
+2026-07-31 01:05:51,372 | ERROR | FAILED ROW | id=24 | error=UNIQUE constraint failed: sensemap_location.name
+2026-07-31 01:05:54,384 | ERROR | FAILED ROW | id=26 | error=UNIQUE constraint failed: sensemap_location.name
+2026-07-31 01:05:57,400 | ERROR | FAILED ROW | id=28 | error=UNIQUE constraint failed: sensemap_location.name
+2026-07-31 01:06:00,410 | ERROR | FAILED ROW | id=29 | error=UNIQUE constraint failed: sensemap_location.name
+2026-07-31 01:06:03,420 | ERROR | FAILED ROW | id=30 | error=UNIQUE constraint failed: sensemap_location.name
+2026-07-31 01:06:06,431 | ERROR | FAILED ROW | id=31 | error=UNIQUE constraint failed: sensemap_location.name
+2026-07-31 01:06:09,441 | ERROR | FAILED ROW | id=32 | error=UNIQUE constraint failed: sensemap_location.name
+2026-07-31 01:06:11,440 | INFO | ETL COMPLETED
