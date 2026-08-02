@@ -1,33 +1,17 @@
+{% extends 'sensemap/base.html' %}
 {% load static %}
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Space details &middot; UoA Sensory Map</title>
-  <meta name="description" content="Detailed sensory information for a space at the University of Aberdeen." />
-  <link rel="stylesheet" href="{% static 'sensemap/css/styles.css' %}?v=11" />
-  <link rel="icon" type="image/png" href="{% static 'sensemap/icons/logo.png' %}">
-</head>
-<body>
-  <a href="#detail-main" class="skip-link">Skip to details</a>
 
-  <div class="app">
-    <header class="site-header">
-      <a href="/" class="brand" aria-label="UoA Sensory Map — go to home page">
-        <img src="{% static 'sensemap/icons/logo.png' %}" alt="" class="brand-mark" aria-hidden="true">
-        <div class="brand-text">
-          <h1>UoA Sensory Map</h1>
-          <p class="tagline">Find calm, sensory-friendly spaces across the University of Aberdeen.</p>
-        </div>
-      </a>
-
-      <nav class="header-links" aria-label="Site">
+{% block page_title %}Space details &middot; UoA Sensory Map{% endblock %}
+{% block page_meta_content %}Detailed sensory information for a space at the University of Aberdeen.{% endblock %}
+{% block styles_version %}11{% endblock %}
+{% block skip_target_id %}detail-main{% endblock %}
+{% block skip_text %}Skip to details{% endblock %}
+{% block header_nav %}
         <a class="header-btn" href="/">&#8592; Map view</a>
         <a class="header-btn" href="/places/">All places</a>
-      </nav>
-    </header>
+{% endblock %}
 
+{% block page_content %}
     <main class="detail-page" id="detail-main">
       <div class="detail-page-loader" id="detail-loader">Loading space details&hellip;</div>
       <div class="detail-page-error" id="detail-error" hidden></div>
@@ -77,8 +61,12 @@
         </section>
       </article>
     </main>
-  </div>
+{% endblock %}
+
+{% block page_extras %}
 {{ space_id|json_script:"space-id" }}
+{% endblock %}
+
+{% block page_scripts %}
   <script src="{% static 'sensemap/js/space_detail.js' %}?v=3"></script>
-</body>
-</html>
+{% endblock %}

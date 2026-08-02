@@ -82,3 +82,5 @@
 2026-07-31 01:06:06,431 | ERROR | FAILED ROW | id=31 | error=UNIQUE constraint failed: sensemap_location.name
 2026-07-31 01:06:09,441 | ERROR | FAILED ROW | id=32 | error=UNIQUE constraint failed: sensemap_location.name
 2026-07-31 01:06:11,440 | INFO | ETL COMPLETED
+2026-08-02 02:05:25,360 | INFO | ETL STARTED
+2026-08-02 02:05:26,509 | INFO | ETL COMPLETED

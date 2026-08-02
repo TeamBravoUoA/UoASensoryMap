@@ -79,6 +79,8 @@
 
 {% block page_extras %}
 {{ location_id|json_script:"location-id" }}
+{% endblock %}
+
+{% block page_scripts %}
   <script src="{% static 'sensemap/js/place_detail.js' %}?v=18"></script>
-</body>
-</html>
+{% endblock %}

@@ -34,9 +34,9 @@
     { key: "olfactory", label: "Olfactory (Smell)", description: "How pleasant or strong are the smells?", icon: "smell.svg" },
     { key: "thermal", label: "Thermal (Temperature)", description: "How warm or cool does this place feel?", icon: "temp.svg" },
     { key: "tactile", label: "Tactile (Surfaces)", description: "How comfortable are the surfaces and textures?", icon: "touch.svg" },
-    { key: "vestibular", label: "Vestibular (Movement)", description: "How easy is it to move and navigate?", icon: "sensory.svg" },
-    { key: "predictability", label: "Predictability", description: "How consistent and easy to understand is the space?", icon: "sensory.svg" },
-    { key: "safety_feeling", label: "Safety & Comfort", description: "How safe and secure do you feel?", icon: "sensory.svg" },
+    { key: "vestibular", label: "Vestibular (Movement)", description: "How easy is it to move and navigate?", icon: "vestibular.svg" },
+    { key: "predictability", label: "Predictability", description: "How consistent and easy to understand is the space?", icon: "predict.svg" },
+    { key: "safety_feeling", label: "Safety & Comfort", description: "How safe and secure do you feel?", icon: "safety.svg" },
   ];
 
   function renderOverallScale() {
