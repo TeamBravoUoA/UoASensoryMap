@@ -1,39 +1,19 @@
+{% extends 'sensemap/base.html' %}
 {% load static %}
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Feedback &middot; UoA Sensory Map</title>
-  <meta name="feedback" content="Detailed sensor feedback for a University of Aberdeen location." />
-  <link rel="stylesheet" href="{% static 'sensemap/css/styles.css' %}?v=11" />
-  <link rel="icon" type="image/png" href="{% static 'sensemap/icons/logo.png' %}">
-</head>
-<body>
-  <a href="#feedback-main" class="skip-link">Skip to feedback</a>
 
-  <div class="app">
-    <header class="site-header">
-      <a href="/" class="brand" aria-label="UoA Sensory Map — go to home page">
-        <img src="{% static 'sensemap/icons/logo.png' %}" alt="" class="brand-mark" aria-hidden="true">
-        <div class="brand-text">
-          <h1>UoA Sensory Map</h1>
-          <p class="tagline">Share sensory information about a location to help others plan their visit and improve the campus experience.</p>
-        </div>
-      </a>
-
-      <nav class="header-links" aria-label="Site">
+{% block page_title %}Feedback &middot; UoA Sensory Map{% endblock %}
+{% block page_meta_name %}feedback{% endblock %}
+{% block page_meta_content %}Detailed sensor feedback for a University of Aberdeen location.{% endblock %}
+{% block styles_version %}11{% endblock %}
+{% block skip_target_id %}feedback-main{% endblock %}
+{% block skip_text %}Skip to feedback{% endblock %}
+{% block header_tagline %}Share sensory information about a location to help others plan their visit and improve the campus experience.{% endblock %}
+{% block header_nav %}
         <a class="header-btn" href="/">&#8592; Map view</a>
         <a class="header-btn" href="/places/">All places</a>
-      </nav>
-    </header>
+{% endblock %}
 
-    {% comment %} <div class="feedback-hero">
-      <p class="feedback-hero-eyebrow">Help &amp; guidance</p>
-      <h2 class="feedback-hero-title">Sensory information &amp; feedback</h2>
-      <p class="feedback-hero-sub">Share sensory information about a location to help others plan their visit and improve the campus experience.</p>
-    </div> {% endcomment %}
-
+{% block page_content %}
     <main class="feedback-page" id="feedback-main">
       <div class="feedback-page-loader" id="feedback-loader">Loading feedback form&hellip;</div>
       <div class="feedback-page-error" id="feedback-error" hidden></div>
@@ -160,23 +140,8 @@
         </aside>
       </div>
     </main>
-<!-- ---------- Footer ---------- -->
-    <footer class="site-footer" aria-label="University legal and policy links">
-      <div class="site-footer-main">
-        <a href="#" class="site-footer-top-link">Top of Page</a>
-        <nav class="site-footer-links" aria-label="Legal links">
-          <a href="https://www.abdn.ac.uk/about/our-website/terms-and-conditions/" target="_blank" rel="noopener">Terms and Conditions of Use</a>
-          <a href="https://www.abdn.ac.uk/privacy/" target="_blank" rel="noopener">Your Privacy</a>
-          <a href="https://www.abdn.ac.uk/accessibility/" target="_blank" rel="noopener">Accessibility</a>
-          <a href="https://www.abdn.ac.uk/about/our-website/cookies/" target="_blank" rel="noopener">Cookies</a>
-          <a href="https://www.abdn.ac.uk/about/our-website/slavery--human-trafficking-statement/" target="_blank" rel="noopener">Slavery &amp; Human Trafficking Statement</a>
-          <a href="https://www.abdn.ac.uk/staffnet/governance/legal-and-compliance/foi-scotland/" target="_blank" rel="noopener">Freedom of Information</a>
-        </nav>
-        <p class="site-footer-charity">The University of Aberdeen is a charity registered in Scotland, No.SC013683</p>
-      </div>
-    </footer>
-  </div>
+{% endblock %}
 
+{% block page_scripts %}
   <script src="{% static 'sensemap/js/feedback.js' %}"></script>
-</body>
-</html>
+{% endblock %}
