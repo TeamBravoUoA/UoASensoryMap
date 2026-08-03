@@ -9,6 +9,7 @@ __pycache__/
 # Django
 db.sqlite3
 staticfiles/
+etl_seed.log
 
 # Environment
 .env
