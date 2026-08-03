@@ -172,10 +172,10 @@ class Command(BaseCommand):
             self.seed_locations()
             self.seed_spaces()
             self.seed_location_facilities()
-            self.seed_space_facilities()         
-            self.seed_location_sensory_profiles()
+            self.seed_space_facilities()
             self.seed_gallery()
             self.seed_space_sensory_profiles()
+            self.seed_location_sensory_profiles()
             self.update_space_safety()
 
         logger.info("ETL COMPLETED")
