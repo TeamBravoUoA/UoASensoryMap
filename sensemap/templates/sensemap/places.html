@@ -1,41 +1,25 @@
+{% extends 'sensemap/base.html' %}
 {% load static %}
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>All places &middot; UoA Sensory Map</title>
-  <meta name="description" content="Browse every sensory-rated place across the University of Aberdeen campuses." />
-  <link rel="stylesheet" href="{% static 'sensemap/css/styles.css' %}?v=8" />
-  <link rel="icon" type="image/png" href="{% static 'sensemap/icons/logo.png' %}">
-</head>
-<body>
-  <a href="#places-list" class="skip-link">Skip to places list</a>
 
-  <div class="app">
-    <!-- ---------- Navbar ---------- -->
-    <header class="site-header">
-      <a href="/" class="brand" aria-label="UoA Sensory Map — go to home page">
-        <img src="{% static 'sensemap/icons/logo.png' %}" alt="" class="brand-mark" aria-hidden="true">
-        <div class="brand-text">
-          <h1>UoA Sensory Map</h1>
-          <p class="tagline">Browse every sensory-friendly place on campus.</p>
-        </div>
-      </a>
-
+{% block page_title %}All places &middot; UoA Sensory Map{% endblock %}
+{% block page_meta_content %}Browse every sensory-rated place across the University of Aberdeen campuses.{% endblock %}
+{% block styles_version %}8{% endblock %}
+{% block skip_target_id %}places-list{% endblock %}
+{% block skip_text %}Skip to places list{% endblock %}
+{% block header_tagline %}Browse every sensory-friendly place on campus.{% endblock %}
+{% block header_middle %}
       <div class="nav-search" role="search">
         <label for="places-search" class="visually-hidden">Search places by name or description</label>
         <span class="nav-search-icon" aria-hidden="true">&#128269;</span>
         <input type="search" id="places-search" autocomplete="off"
                placeholder="Search places&hellip;" />
       </div>
-
-      <nav class="header-links" aria-label="Site">
+{% endblock %}
+{% block header_nav %}
         <a class="header-btn" href="/">&#8592; Map view</a>
-      </nav>
-    </header>
+{% endblock %}
 
-    <!-- ---------- Places browser ---------- -->
+{% block page_content %}
     <main class="places-page">
       <!-- Filter by facilities -->
       <section class="filter-by" aria-label="Filter places">
@@ -79,8 +63,8 @@
         <li class="loading">Loading places&hellip;</li>
       </ul>
     </main>
-  </div>
+{% endblock %}
 
+{% block page_scripts %}
   <script src="{% static 'sensemap/js/places.js' %}?v=9"></script>
-</body>
-</html>
+{% endblock %}
