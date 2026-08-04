@@ -58,6 +58,7 @@
       campus_display: loc.campus_display,
       has_quiet_zone: space.is_quiet_zone,
       has_neurodivergent_safe: space.is_safe_space_neurodivergent_students,
+      wayfinding: space.wayfinding,
       id_access_needed: loc.id_access_needed,
       facilities_available: (space.facilities || [])
         .filter((f) => f.status)
@@ -81,7 +82,7 @@
 
   function badgesHtml(loc) {
     let html = "";
-    if (loc.has_quiet_zone) html += '<span class="pill quiet">Quiet zone</span>';
+    if (loc.has_quiet_zone && !(loc.space_types || []).includes("quiet")) html += '<span class="pill quiet">Quiet zone</span>';
     if (loc.has_neurodivergent_safe) html += '<span class="pill nd">ND-safe</span>';
     if (loc.id_access_needed) html += '<span class="pill id">ID needed</span>';
     (loc.space_types || []).forEach((t) => {
@@ -109,6 +110,9 @@
       '<p class="place-desc">' +
       escapeHtml(loc.description || "No description provided.") +
       "</p>" +
+      (loc.wayfinding
+        ? '<p class="place-wayfinding"><strong>Wayfinding:</strong> ' + escapeHtml(loc.wayfinding) + "</p>"
+        : "") +
       '<div class="place-pills">' + badgesHtml(loc) + "</div>" +
       '<a class="more-info" href="/place/' + loc.slug + '/">Full details &rarr;</a>' +
       "</div>" +

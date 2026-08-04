@@ -309,7 +309,7 @@
         icon: makeIcon(loc, activeSpaceType),
         keyboard: true,
         title: loc.name,
-        alt: loc.name + (loc.has_quiet_zone ? " (quiet zone)" : ""),
+        alt: loc.name + (loc.has_quiet_zone && !(loc.space_types || []).includes("quiet") ? " (quiet zone)" : ""),
       });
       marker.on("click", () => selectLocation(loc.id, true));
       marker.addTo(map);
@@ -331,7 +331,7 @@
       .map((loc) => {
         const colour = loc.avg_sensory == null ? "#9e9e9e" : scaleColour(loc.avg_sensory, loc.has_quiet_zone);
         const badges =
-          (loc.has_quiet_zone ? '<span class="chip">Quiet zone</span>' : "") +
+          (loc.has_quiet_zone && !(loc.space_types || []).includes("quiet") ? '<span class="chip">Quiet zone</span>' : "") +
           (loc.has_neurodivergent_safe ? '<span class="chip nd">ND-safe</span>' : "");
         const spaceBadges = (loc.space_types || [])
           .map((t) => {
@@ -553,8 +553,21 @@
       .map((s) => {
         const m = SPACE_TYPE_META[s.space_type] || FALLBACK_SPACE;
         const flags =
-          (s.is_quiet_zone ? '<span class="chip">Quiet zone</span>' : "") +
+          (s.is_quiet_zone && s.space_type !== "quiet" ? '<span class="chip">Quiet zone</span>' : "") +
           (s.is_safe_space_neurodivergent_students ? '<span class="chip nd">ND-safe</span>' : "");
+        const bars = (s.sensory_profiles || [])
+          .map(
+            (p) =>
+              '<span class="space-bar"><small>' +
+              escapeHtml(p.attribute) +
+              '</small><b><i style="width:' +
+              (p.rating / 5) * 100 +
+              "%;background:" +
+              scaleColour(p.rating, false) +
+              '"></i></b></span>'
+          )
+          .join("");
+
         const facs = (s.facilities || [])
           .map(
             (f) =>
@@ -566,18 +579,6 @@
               (f.status ? "\u2713 " : "\u2014 ") +
               escapeHtml(f.name) +
               "</span>"
-          )
-          .join("");
-        const bars = (s.sensory_profiles || [])
-          .map(
-            (p) =>
-              '<span class="space-bar"><small>' +
-              escapeHtml(p.attribute) +
-              '</small><b><i style="width:' +
-              (p.rating / 5) * 100 +
-              "%;background:" +
-              scaleColour(p.rating, false) +
-              '"></i></b></span>'
           )
           .join("");
         return (
@@ -601,11 +602,8 @@
             : "") +
           (s.id ? '<p class="detail-more"><a href="/space/' + s.id + '/">Space details &rarr;</a></p>' : "") +
           (s.description ? "<p>" + escapeHtml(s.description) + "</p>" : "") +
-          (s.sensory_experience
-            ? '<p class="muted-note"><strong>Sensory:</strong> ' + escapeHtml(s.sensory_experience) + "</p>"
-            : "") +
           (s.wayfinding
-            ? '<p class="muted-note"><strong>Finding it:</strong> ' + escapeHtml(s.wayfinding) + "</p>"
+            ? '<p class="muted-note"><strong>Wayfinding:</strong> ' + escapeHtml(s.wayfinding) + "</p>"
             : "") +
           (bars ? '<div class="space-bars">' + bars + "</div>" : "") +
           (facs ? '<div class="facilities">' + facs + "</div>" : "") +
