@@ -226,7 +226,7 @@ class Command(BaseCommand):
 
         for row in tqdm(rows, desc="Locations"):
 
-            thumbnail = row.get("thumbnails_image", "").replace("\\", "/")
+            thumbnail = row.get("thumbnails_image", "").replace("\\", "/").strip().strip("/")
 
             self.safe_execute(
                 row.get("location_id"),
@@ -273,6 +273,8 @@ class Command(BaseCommand):
                 row.get("thumbnail_image", "")
                 .replace("\\", "/")
                 .replace("thumnail_images", "thumbnail_images")
+                .strip()
+                .strip("/")
             )
 
             self.safe_execute(
