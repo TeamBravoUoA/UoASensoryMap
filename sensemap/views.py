@@ -10,14 +10,12 @@ from .models import (
     SensoryAttribute,
     Location,
     Space,
-    FeedbackReport,
 )
 from .serializers import (
     FacilitySerializer,
     LocationListSerializer,
     LocationDetailSerializer,
     SpaceSerializer,
-    FeedbackReportSerializer,
     FeedbackSensoryRatingBatchSerializer,
 )
 
@@ -65,7 +63,6 @@ class LocationViewSet(viewsets.ReadOnlyModelViewSet):
                 "location_sensory_profiles__sensory_attribute",
                 "location_facilities__facility",
                 "gallery_images",
-                "feedback_reports",
                 "sensory_feedback__sensory_attribute",
                 "spaces__space_facilities__facility",
                 "spaces__space_sensory_profiles__sensory_attribute",
@@ -214,16 +211,6 @@ class SpaceViewSet(viewsets.ReadOnlyModelViewSet):
 class FacilityViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = Facility.objects.all()
     serializer_class = FacilitySerializer
-
-
-class FeedbackReportViewSet(mixins.CreateModelMixin, viewsets.GenericViewSet):
-    """Public can submit feedback (always created as 'pending')."""
-
-    queryset = FeedbackReport.objects.all()
-    serializer_class = FeedbackReportSerializer
-
-    def perform_create(self, serializer):
-        serializer.save(status=FeedbackReport.Status.PENDING)
 
 
 @api_view(["GET"])
