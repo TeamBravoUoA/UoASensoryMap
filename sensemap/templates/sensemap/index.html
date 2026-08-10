@@ -9,7 +9,7 @@
 
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
         integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
-  <link rel="stylesheet" href="{% static 'sensemap/css/styles.css' %}?v=11" />
+  <link rel="stylesheet" href="{% static 'sensemap/css/styles.css' %}?v=15" />
   <link rel="icon" type="image/png" href="{% static 'sensemap/icons/logo.png' %}">
 </head>
 <body>
@@ -232,8 +232,25 @@
   </div>
   
 
+    <footer class="site-footer" aria-label="University legal and policy links">
+      <div class="site-footer-main">
+        <nav class="site-footer-links" aria-label="Legal links">
+          <a href="https://www.abdn.ac.uk/about/our-website/terms-and-conditions/" target="_blank" rel="noopener">Terms and Conditions of Use</a>
+          <a href="https://www.abdn.ac.uk/privacy/" target="_blank" rel="noopener">Your Privacy</a>
+          <a href="https://www.abdn.ac.uk/accessibility/" target="_blank" rel="noopener">Accessibility</a>
+          <a href="https://www.abdn.ac.uk/about/our-website/cookies/" target="_blank" rel="noopener">Cookies</a>
+          <a href="https://www.abdn.ac.uk/about/our-website/slavery--human-trafficking-statement/" target="_blank" rel="noopener">Slavery &amp; Human Trafficking Statement</a>
+          <a href="https://www.abdn.ac.uk/staffnet/governance/legal-and-compliance/foi-scotland/" target="_blank" rel="noopener">Freedom of Information</a>
+        </nav>
+        <div class="site-footer-legal">
+          <p>&copy; {% now "Y" %} University of Aberdeen</p>
+          <p>The University of Aberdeen is a charity registered in Scotland, No. SC013683</p>
+        </div>
+      </div>
+    </footer>
+
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
           integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
-  <script src="{% static 'sensemap/js/app.js' %}?v=18"></script>
+  <script src="{% static 'sensemap/js/app.js' %}?v=19"></script>
 </body>
 </html>

@@ -172,10 +172,10 @@ class Command(BaseCommand):
             self.seed_locations()
             self.seed_spaces()
             self.seed_location_facilities()
-            self.seed_space_facilities()         
-            self.seed_location_sensory_profiles()
+            self.seed_space_facilities()
             self.seed_gallery()
             self.seed_space_sensory_profiles()
+            self.seed_location_sensory_profiles()
             self.update_space_safety()
 
         logger.info("ETL COMPLETED")
@@ -226,7 +226,7 @@ class Command(BaseCommand):
 
         for row in tqdm(rows, desc="Locations"):
 
-            thumbnail = row.get("thumbnails_image", "").replace("\\", "/")
+            thumbnail = row.get("thumbnails_image", "").replace("\\", "/").strip().strip("/")
 
             self.safe_execute(
                 row.get("location_id"),
@@ -273,6 +273,8 @@ class Command(BaseCommand):
                 row.get("thumbnail_image", "")
                 .replace("\\", "/")
                 .replace("thumnail_images", "thumbnail_images")
+                .strip()
+                .strip("/")
             )
 
             self.safe_execute(

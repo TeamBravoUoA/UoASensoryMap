@@ -3,7 +3,7 @@
 
 {% block page_title %}Space details &middot; UoA Sensory Map{% endblock %}
 {% block page_meta_content %}Detailed sensory information for a space at the University of Aberdeen.{% endblock %}
-{% block styles_version %}11{% endblock %}
+{% block styles_version %}15{% endblock %}
 {% block skip_target_id %}detail-main{% endblock %}
 {% block skip_text %}Skip to details{% endblock %}
 {% block header_nav %}
@@ -45,20 +45,16 @@
           <div class="facilities" id="dp-facilities"></div>
         </section>
 
-        <section id="dp-sensory-experience-section">
-          <h3>Sensory experience</h3>
-          <p id="dp-sensory-experience"></p>
-        </section>
-
-        <section id="dp-wayfinding-section">
-          <h3>Finding it</h3>
-          <p id="dp-wayfinding"></p>
-        </section>
-
         <section id="dp-sensory-section">
           <h3>Sensory profile</h3>
           <div class="sensory-grid" id="dp-sensory"></div>
         </section>
+
+        <section id="dp-wayfinding-section">
+          <h3>Wayfinding</h3>
+          <p id="dp-wayfinding"></p>
+        </section>
+
       </article>
     </main>
 {% endblock %}
@@ -68,5 +64,5 @@
 {% endblock %}
 
 {% block page_scripts %}
-  <script src="{% static 'sensemap/js/space_detail.js' %}?v=3"></script>
+  <script src="{% static 'sensemap/js/space_detail.js' %}?v=4"></script>
 {% endblock %}

@@ -123,8 +123,6 @@
 
       renderFacilities(el("dp-facilities"), s.facilities || []);
       renderSensory(s.sensory_profiles || []);
-
-      setSection("dp-sensory-experience", s.sensory_experience);
       setSection("dp-wayfinding", s.wayfinding);
 
       if (loc.slug) {

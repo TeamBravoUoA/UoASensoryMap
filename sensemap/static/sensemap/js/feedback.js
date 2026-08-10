@@ -119,21 +119,41 @@
     });
   }
 
-  async function onFormSubmit(e) {
-    e.preventDefault();
-    const form = el("feedback-form");
-    const status = el("feedback-message");
-    if (!form) return;
+  function openConfirmModal() {
+    const modal = el("confirm-modal");
+    if (!modal) return;
+    modal.classList.add("open");
+    const title = el("confirm-title");
+    if (title) title.focus();
+  }
 
+  function closeConfirmModal() {
+    const modal = el("confirm-modal");
+    if (modal) modal.classList.remove("open");
+  }
+
+  function showError(message) {
+    const status = el("feedback-message");
+    if (status) {
+      status.textContent = message;
+      status.className = "feedback-message error";
+      status.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+  }
+
+  function validateForm(form) {
     const fd = new FormData(form);
+
+    const locationField = el("search-location");
     const targetType = fd.get("target_type") || "";
     const targetId = fd.get("target_id") || "";
     if (!targetType || !targetId) {
-      if (status) {
-        status.textContent = "Please select a location or space.";
-        status.className = "feedback-message error";
+      if (locationField && !locationField.value.trim()) {
+        showError("Please choose a location before submitting. Open a place on the map and use its Leave feedback button.");
+      } else {
+        showError("We couldn't match that location. Please open a place on the map and use its Leave feedback button.");
       }
-      return;
+      return null;
     }
 
     const ratings = {};
@@ -143,20 +163,59 @@
     });
 
     if (Object.keys(ratings).length === 0) {
-      if (status) {
-        status.textContent = "Please rate at least one sensory attribute.";
-        status.className = "feedback-message error";
-      }
-      return;
+      showError("Please rate at least one sensory attribute before submitting.");
+      return null;
     }
 
+    const isAnonymous = (fd.get("feedback_anonymous") || "anonymous") === "anonymous";
+    const name = (fd.get("feedback_name") || "").trim();
+    const email = (fd.get("feedback_text") || "").trim();
+    if (!isAnonymous) {
+      if (!name || !email) {
+        showError("Please enter your name and email, or choose to submit anonymously.");
+        return null;
+      }
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        showError("Please enter a valid email address.");
+        return null;
+      }
+    }
+
+    return { targetType, targetId, ratings, isAnonymous, name, email };
+  }
+
+  function onFormSubmit(e) {
+    e.preventDefault();
+    const form = el("feedback-form");
+    const status = el("feedback-message");
+    if (!form) return;
+
+    const validated = validateForm(form);
+    if (!validated) return;
+
+    if (status) {
+      status.textContent = "";
+      status.className = "feedback-message";
+    }
+    openConfirmModal();
+  }
+
+  async function submitFeedback() {
+    closeConfirmModal();
+    const form = el("feedback-form");
+    const status = el("feedback-message");
+    if (!form) return;
+
+    const validated = validateForm(form);
+    if (!validated) return;
+
     const payload = {
-      is_anonymous: (fd.get("feedback_anonymous") || "anonymous") === "anonymous",
-      reporter_name: fd.get("feedback_name") || "",
-      reporter_email: fd.get("feedback_text") || "",
-      ratings: ratings,
+      is_anonymous: validated.isAnonymous,
+      reporter_name: validated.name,
+      reporter_email: validated.email,
+      ratings: validated.ratings,
     };
-    payload[targetType] = parseInt(targetId, 10);
+    payload[validated.targetType] = parseInt(validated.targetId, 10);
 
     try {
       const res = await fetch("/api/sensory-feedback/", {
@@ -174,7 +233,7 @@
       }
       form.reset();
       resetRatings();
-      loadUpdatedProfile(targetType, parseInt(targetId, 10));
+      loadUpdatedProfile(validated.targetType, parseInt(validated.targetId, 10));
     } catch (err) {
       if (status) {
         status.textContent = "Could not submit feedback: " + err.message;
@@ -275,6 +334,22 @@
 
     const form = el("feedback-form");
     if (form) form.addEventListener("submit", onFormSubmit);
+
+    const confirmSubmit = el("confirm-submit");
+    if (confirmSubmit) confirmSubmit.addEventListener("click", submitFeedback);
+
+    const confirmCancel = el("confirm-cancel");
+    if (confirmCancel) confirmCancel.addEventListener("click", closeConfirmModal);
+
+    const modal = el("confirm-modal");
+    if (modal) {
+      modal.addEventListener("click", (e) => {
+        if (e.target === modal) closeConfirmModal();
+      });
+    }
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") closeConfirmModal();
+    });
 
     el("feedback-loader").hidden = true;
     el("feedback-card").hidden = false;
