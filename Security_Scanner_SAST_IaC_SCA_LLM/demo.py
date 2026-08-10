@@ -1,7 +1,12 @@
+# Note: despite the name, this file also acts as run_scan.py for
+# GitHub Actions — it's the actual entry point the CI workflow runs.
+
 import ast
 from pathlib import Path
 from scanner.sast_scanner import check_security_misconfig
 from ai.threat_model import enrich_findings
+from format_report import format_report_markdown
+
 
 PROJECT_ROOT = Path("..")  # one level up from Security_Scanner_SAST_IaC_SCA_LLM = the repo root
 # Set this to True while developing/debugging, False for a clean demo run
@@ -61,24 +66,29 @@ else:
     print ("No security issues found across the entire scanned codebase")
 
 #Report with LLM model in based on scanner findings output
+#AI enrich findings reusable for both console output and markdown report
+
 if all_findings:
-    print("\n--- AI-enriched explanations ---\n")
-    enriched = enrich_findings(all_findings)
+    enriched = enrich_findings (all_findings)
+else:
+    enriched = []
+
+if enriched:
+    print ("\n ---AI-enriched explanations ---\n")
     for item in enriched:
-        print(f"[{item['severity']}] {item['rule_id']} — {item['file_path']}:{item['line']}")
+        print (f"[{item['severity']}] {item['rule_id']} - {item['file_path']}:{item['line']}")
         if item["ai_explanation"]:
-            print(f"(enriched by {item['ai_model']})")
-            print(item["ai_explanation"])
+            print (f"(enriched by {item['ai_model']})")
+            print (item["ai_explanation"])
         else:
-            print(f"({item['ai_note']})")
-            print(item["message"])
-        print()
+            print (f"({item['ai_note']})")
+            print (item["message"])
+        print ()
+    
+report = format_report_markdown(enriched, files_scanned)
+print("\n\n=== MARKDOWN PREVIEW ===\n")
+print(report)
 
+with open ("scan_report.md", "w", encoding = "utf-8") as f:
+    f.write (report)
 
-from format_report import format_report_markdown
-
-if all_findings:
-    enriched = enrich_findings(all_findings)
-    report = format_report_markdown(enriched, files_scanned)
-    print("\n\n=== MARKDOWN PREVIEW ===\n")
-    print(report)

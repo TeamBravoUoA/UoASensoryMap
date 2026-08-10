@@ -22,6 +22,9 @@ def format_report_markdown (enriched_findings, files_scanned):
     lines.append (f"Scanned **{files_scanned}** files.")
 
 
+#Even when there are zero findings, 'if not' branch will show a 'no issues' message
+#so the GitHub Actions step that reads this file doesnt fail with a missing-file error on a clean scan
+
     if not enriched_findings:
         lines.append("✅ No security issues found in the repository")
         #
