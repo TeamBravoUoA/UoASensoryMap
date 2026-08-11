@@ -60,9 +60,10 @@ jobs:
            const body = `## Full Repository Security Baseline\nLast run: ${new Date().toISOString()}\n\n${report}`;
            const existing = ${{ steps.find_issue.outputs.result }};
            if (existing) {
-             await github.rest.issues.update ({
+             const commentBody = `**Run: ${new Date().toISOString()}**\n\n${report}`;
+             await github.rest.issues.createComment({
                owner: context.repo.owner, repo: context.repo.repo, 
-               issue_number: existing, body
+               issue_number: existing, body: commentBody
               });
            } else {
             await github.rest.issues.create ({
