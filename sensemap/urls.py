@@ -13,14 +13,13 @@ Examples:
     GET    /api/locations/<id>/     Retrieve a location
     GET    /api/spaces/             List spaces
     GET    /api/facilities/         List facilities
-    POST   /api/feedback/           Submit feedback
+    
 """
 router = DefaultRouter()
 router.register(r"locations", views.LocationViewSet, basename="location")
 router.register(r"spaces", views.SpaceViewSet, basename="space")
 router.register(r"facilities", views.FacilityViewSet, basename="facility")
-router.register(r"reports", views.FeedbackReportViewSet, basename="report")
-router.register(r"feedback", views.FeedbackReportViewSet, basename="feedback")
+
 
 urlpatterns = [
     # Template views

@@ -9,14 +9,18 @@ from .models import (
     LocationGalleryImage,
     LocationSensoryProfile,
     SpaceSensoryProfile,
-    FeedbackReport,
     FeedbackSensoryRating
 )
 
 
 class ShowAllFieldsAdmin(admin.ModelAdmin):
     def get_list_display(self, request):
-        return [field.name for field in self.model._meta.fields]
+        excluded = ("ImageField", "FileField", "TextField")
+        return [
+            field.name
+            for field in self.model._meta.fields
+            if field.get_internal_type() not in excluded
+        ]
 
 @admin.register(Facility)
 class FacilityAdmin(ShowAllFieldsAdmin):
@@ -63,12 +67,7 @@ class LocationSensoryProfileAdmin(ShowAllFieldsAdmin):
 @admin.register(SpaceSensoryProfile)
 class SpaceSensoryProfileAdmin(ShowAllFieldsAdmin):
     list_filter = ("sensory_attribute",)
-
-
-@admin.register(FeedbackReport)
-class FeedbackReportAdmin(ShowAllFieldsAdmin):
-    list_filter = ("status", "is_anonymous")
-
+    
 @admin.register(FeedbackSensoryRating)
 class FeedbackSensoryRatingAdmin(ShowAllFieldsAdmin):
     pass
