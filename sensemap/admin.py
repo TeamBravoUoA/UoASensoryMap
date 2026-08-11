@@ -15,7 +15,12 @@ from .models import (
 
 class ShowAllFieldsAdmin(admin.ModelAdmin):
     def get_list_display(self, request):
-        return [field.name for field in self.model._meta.fields]
+        excluded = ("ImageField", "FileField", "TextField")
+        return [
+            field.name
+            for field in self.model._meta.fields
+            if field.get_internal_type() not in excluded
+        ]
 
 @admin.register(Facility)
 class FacilityAdmin(ShowAllFieldsAdmin):
