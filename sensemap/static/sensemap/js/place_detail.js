@@ -171,13 +171,19 @@
 
     wrap.innerHTML = images
       .map(
-        (img) => `
+        (img) => {
+          const dim =
+            img.width && img.height
+              ? ` width="${img.width}" height="${img.height}"`
+              : "";
+          return `
       <a href="${escapeHtml(img.image)}" target="_blank" rel="noopener">
         <img
           src="${escapeHtml(img.image)}"
-          alt="${escapeHtml(img.caption || "Gallery image")}"
+          alt="${escapeHtml(img.caption || "Gallery image")}"${dim}
           loading="lazy">
-      </a>`
+      </a>`;
+        }
       )
       .join("");
   }

@@ -97,9 +97,25 @@ class SpaceSensoryProfileSerializer(serializers.ModelSerializer):
 
 
 class GalleryImageSerializer(serializers.ModelSerializer):
+    width = serializers.SerializerMethodField()
+    height = serializers.SerializerMethodField()
+
     class Meta:
         model = LocationGalleryImage
-        fields = ["id", "image", "caption"]
+        fields = ["id", "image", "caption", "width", "height"]
+
+    def _dimensions(self, obj):
+        try:
+            from django.core.files.images import get_image_dimensions
+            return get_image_dimensions(obj.image)
+        except Exception:
+            return (None, None)
+
+    def get_width(self, obj):
+        return self._dimensions(obj)[0]
+
+    def get_height(self, obj):
+        return self._dimensions(obj)[1]
 
 
 
