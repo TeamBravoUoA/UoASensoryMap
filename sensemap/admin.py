@@ -62,6 +62,7 @@ class LocationSensoryProfileAdmin(ShowAllFieldsAdmin):
 @admin.register(SpaceSensoryProfile)
 class SpaceSensoryProfileAdmin(ShowAllFieldsAdmin):
     list_filter = ("sensory_attribute",)
+    
 @admin.register(FeedbackSensoryRating)
 class FeedbackSensoryRatingAdmin(ShowAllFieldsAdmin):
     pass
