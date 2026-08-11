@@ -1,5 +1,4 @@
 from django.db import models
-from django.db.models import Q, CheckConstraint
 from django.core.exceptions import ValidationError
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.utils.text import slugify
@@ -406,72 +405,6 @@ class SpaceSensoryProfile(TimeStampedModel):
     def __str__(self):
         return f"{self.space.name} - {self.sensory_attribute.name}"
 
-
-class FeedbackReport(TimeStampedModel):
-    """
-    User feedback tied to either a Location OR a Space.
-    """
-
-    class Status(models.TextChoices):
-        PENDING = "pending", "Pending"
-        ACCEPTED = "accepted", "Accepted"
-        REJECTED = "rejected", "Rejected"
-
-
-    location = models.ForeignKey(
-        Location,
-        on_delete=models.CASCADE,
-        null=True,
-        blank=True,
-        related_name="feedback_reports"
-    )
-
-    space = models.ForeignKey(
-        Space,
-        on_delete=models.CASCADE,
-        null=True,
-        blank=True,
-        related_name="feedback_reports"
-    )
-
-    comment = models.TextField()
-
-    is_anonymous = models.BooleanField(default=True)
-
-    reporter_name = models.CharField(max_length=255, blank=True)
-    reporter_email = models.EmailField(blank=True)
-
-    status = models.CharField(
-        max_length=20,
-        choices=Status.choices,
-        default=Status.PENDING,
-        db_index=True,
-    )
-
-    class Meta:
-        ordering = ["-created_at"]
-        constraints = [
-            CheckConstraint(
-                condition=(
-                    Q(location__isnull=False, space__isnull=True) |
-                    Q(location__isnull=True, space__isnull=False)
-                ),
-                name="feedback_exclusive_target"
-            )
-        ]
-
-    def clean(self):
-        # Require identity only for non-anonymous feedback
-        if not self.is_anonymous:
-            if not self.reporter_name or not self.reporter_email:
-                raise ValidationError(
-                    "Name and email are required for non-anonymous feedback."
-                )
-
-    def __str__(self):
-        if self.space:
-            return f"Feedback - {self.space.name}"
-        return f"Feedback - {self.location.name}"
 
 
 class FeedbackSensoryRating(TimeStampedModel):
