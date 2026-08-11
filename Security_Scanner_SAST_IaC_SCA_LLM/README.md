@@ -4,7 +4,6 @@ A custom security scanner for the UoA Sensory Map application, run as part of CI
 analyse the project's own codebase for security issues.
 
 ## Scanning Technique to use
-## Scanning Technique to use
 - The scanner implements three methodologies: SAST (static analysis of the application's own source code, via AST parsing), SCA (software composition analysis of third-party dependencies against known Common Vulnerabilities and Exposures / CVE), and IaC (infrastructure-as-code and CI/CD configuration checks, delegated to an external tool rather than custom AST parsing).
 - Dynamic methods (DAST, IAST) are out of scope, as they require a running,instrumented application.
 
