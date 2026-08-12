@@ -354,7 +354,8 @@ class FeedbackSensoryRatingBatchSerializer(serializers.Serializer):
     reporter_name = serializers.CharField(allow_blank=True, required=False)
     reporter_email = serializers.EmailField(allow_blank=True, required=False)
     ratings = serializers.DictField(
-        child=serializers.IntegerField(min_value=1, max_value=5)
+        child=serializers.IntegerField(min_value=1, max_value=5),
+        allow_empty=False,
     )
 
     def validate(self, data):
