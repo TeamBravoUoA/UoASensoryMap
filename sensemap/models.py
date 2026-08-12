@@ -370,7 +370,9 @@ class LocationSensoryProfile(TimeStampedModel):
         validators=[
             MinValueValidator(1),
             MaxValueValidator(5)
-        ]
+        ],
+        null=True,
+        blank=True,
     )
 
     notes = models.TextField(blank=True)

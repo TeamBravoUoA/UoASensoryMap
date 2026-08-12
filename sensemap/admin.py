@@ -38,10 +38,37 @@ class LocationAdmin(ShowAllFieldsAdmin):
     list_filter = ("category", "campus")
 
 
+class SpaceFacilityInline(admin.TabularInline):
+    model = SpaceFacility
+    extra = 1
+
+
 @admin.register(Space)
 class SpaceAdmin(ShowAllFieldsAdmin):
     search_fields = ("name",)
     list_filter = ("space_type", "is_quiet_zone", "floor")
+    list_display = ("name", "location", "space_type", "floor", "latitude", "longitude", "is_quiet_zone")
+    inlines = [SpaceFacilityInline]
+    
+    fieldsets = (
+        ("Basic Info", {
+            "fields": ("location", "name", "space_type", "description")
+        }),
+        ("Location & Navigation", {
+            "fields": ("latitude", "longitude", "floor", "wayfinding")
+        }),
+        ("Hours", {
+            "fields": (
+                ("weekday_open_time", "weekday_close_time"),
+                ("saturday_open_time", "saturday_close_time"),
+                ("sunday_holiday_open_time", "sunday_holiday_close_time"),
+                "opening_hrs_notes"
+            )
+        }),
+        ("Sensory & Accessibility", {
+            "fields": ("sensory_experience", "is_quiet_zone", "is_safe_space_neurodivergent_students", "thumbnail_image")
+        }),
+    )
 
 
 @admin.register(LocationFacility)

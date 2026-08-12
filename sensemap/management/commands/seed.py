@@ -286,6 +286,9 @@ class Command(BaseCommand):
                     "name": row["name"].strip(),
                     "space_type": row["space_type"],
                     "description": row.get("description", ""),
+                    "latitude": parse_float(row.get("latitude")),
+                    "longitude": parse_float(row.get("longitude")),
+                    "floor": row.get("floor", "").strip(),
                     "thumbnail_image": thumbnail,
                     "weekday_open_time": parse_time(row.get("week_days_opentime")),
                     "weekday_close_time": parse_time(row.get("weekdays_close_time")),
@@ -294,9 +297,9 @@ class Command(BaseCommand):
                     "sunday_holiday_open_time": parse_time(row.get("sunday_holidays_open_time")),
                     "sunday_holiday_close_time": parse_time(row.get("Sunday_holidays_close_time")),
                     "opening_hrs_notes": row.get("opening_hours_note", ""),
-                    "sensory_experience": row.get("sensory_experience", ""),
                     "wayfinding": row.get("wayfinding", ""),
                     "is_quiet_zone": parse_bool(row.get("is_quiet_zone")),
+                    "is_safe_space_neurodivergent_students": parse_bool(row.get("is_safety_space_neurodivergent_students")),
                 },
             )
     
@@ -381,36 +384,37 @@ class Command(BaseCommand):
             )
 
     def seed_location_sensory_profiles(self):
-        """Compute location-level sensory ratings from space data."""
+        """Seed sensory ratings for locations from CSV."""
+        rows = load_csv("LocationSensoryProfile.csv")
 
-        from django.db.models import Avg
-
-        locations = Location.objects.all()
-
-        for location in tqdm(locations, desc="Location Sensory Profiles"):
-
-            aggregated = (
-                SpaceSensoryProfile.objects
-                .filter(space__location=location)
-                .values("sensory_attribute")
-                .annotate(avg_rating=Avg("rating"))
-            )
-
-            for row in aggregated:
-
-                attr_id = row["sensory_attribute"]
-                avg_rating = row["avg_rating"]
-
-                self.safe_execute(
-                    f"{location.id}-{attr_id}",
-                    LocationSensoryProfile.objects.update_or_create,
-                    location=location,
-                    sensory_attribute_id=attr_id,
-                    defaults={
-                        "rating": avg_rating,   # ✔ computed value
-                        "notes": "Auto-calculated from spaces"
-                    },
+        for row in tqdm(rows, desc="Location Sensory Profiles"):
+            try:
+                location = Location.objects.get(
+                    external_id=parse_int(row["location_id"])
                 )
+                attr = SensoryAttribute.objects.get(
+                    external_id=parse_int(row["sensory_attribute_id"])
+                )
+            except Exception:
+                if self.skip_errors:
+                    continue
+                raise
+
+            # Skip rows with missing ratings
+            rating = parse_float(row["location_rating"])
+            if rating is None:
+                continue
+
+            self.safe_execute(
+                f"{row['location_id']}-{row['sensory_attribute_id']}",
+                LocationSensoryProfile.objects.update_or_create,
+                location=location,
+                sensory_attribute=attr,
+                defaults={
+                    "rating": rating,
+                    "notes": row.get("notes", ""),
+                },
+            )
 
 
     def seed_space_sensory_profiles(self):
