@@ -41,7 +41,7 @@ class LocationAdmin(ShowAllFieldsAdmin):
 @admin.register(Space)
 class SpaceAdmin(ShowAllFieldsAdmin):
     search_fields = ("name",)
-    list_filter = ("space_type", "is_quiet_zone")
+    list_filter = ("space_type", "is_quiet_zone", "floor")
 
 
 @admin.register(LocationFacility)

@@ -181,7 +181,9 @@ class Space(ExternalIDModel, TimeStampedModel):
         STUDY = "study", "Study Space"
         QUIET = "quiet", "Quiet Space"
         SOCIAL = "social", "Social Space"
-        OTHER = "other", "Other"
+        FOOD_DRINK = "food_drink", "Food & Drink"
+        SPORT = "sport", "Sport / Fitness"
+        OUTDOOR = "outdoor", "Outdoor"
 
 
     location = models.ForeignKey(
@@ -217,6 +219,25 @@ class Space(ExternalIDModel, TimeStampedModel):
 
     wayfinding = models.TextField(blank=True)
     sensory_experience = models.TextField(blank=True)
+
+    latitude = models.DecimalField(
+        max_digits=9,
+        decimal_places=6,
+        null=True,
+        blank=True,
+    )
+
+    longitude = models.DecimalField(
+        max_digits=9,
+        decimal_places=6,
+        null=True,
+        blank=True,
+    )
+
+    floor = models.CharField(
+        max_length=50,
+        blank=True,
+    )
 
     is_quiet_zone = models.BooleanField(default=False)
     is_safe_space_neurodivergent_students = models.BooleanField(default=False)
