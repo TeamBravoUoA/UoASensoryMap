@@ -209,6 +209,11 @@ class Command(BaseCommand):
         """Seed sensory attributes used for evaluation."""
         rows = load_csv("SensoryAttributes.csv")
 
+        # Wipe and rebuild: attribute IDs/names can be remapped in the CSV,
+        # and the name field has a UNIQUE constraint, so updates alone can
+        # fail when names move between external_ids.
+        SensoryAttribute.objects.all().delete()
+
         for row in tqdm(rows, desc="Sensory Attributes"):
             self.safe_execute(
                 row.get("sensory_attribute_id"),
