@@ -54,6 +54,10 @@
   ];
   const FALLBACK_CATEGORY = { label: "Place", iconUrl: "facility.svg", color: "#607d8b", desc: "" };
 
+  // Location marker on the map: all locations are shown with a building icon.
+  // The badge background uses the location's category colour, but the SVG icon is always a building.
+  const BUILDING_META = { label: "Building", iconUrl: "building.svg" };
+
   // Space type metadata (matches Space.SPACE_TYPE_CHOICES).
   const SPACE_TYPE_META = {
     study: { label: "Study Space", iconUrl: "study.svg", color: "#1565c0", desc: "Focused work, desks and reading areas." },
@@ -307,21 +311,22 @@
   }
 
   function makeIcon(loc, activeSpaceType) {
-    const meta = markerMeta(loc, activeSpaceType);
-    // Border colour conveys average sensory intensity; fill + SVG icon conveys category.
+    const catMeta = markerMeta(loc, activeSpaceType);
+    // Border colour conveys average sensory intensity; fill colour comes from the
+    // category; the SVG icon is always a building for locations.
     const border = loc.avg_sensory == null ? "#9e9e9e" : scaleColour(loc.avg_sensory, false);
     const ring = loc.has_quiet_zone ? "box-shadow:0 0 0 4px rgba(94,53,177,0.35);" : "";
     return L.divIcon({
       className: "sensory-pin",
       html:
         '<span class="pin-badge" style="background:' +
-        meta.color +
+        catMeta.color +
         ";border-color:" +
         border +
         ";" +
         ring +
         '">' +
-        iconImg(meta, loc.name) +
+        iconImg(BUILDING_META, loc.name) +
         "</span>",
       iconSize: [34, 34],
       iconAnchor: [17, 17],
