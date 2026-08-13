@@ -806,6 +806,22 @@
     }
     renderList(filtered);
     renderMarkers(filtered, spaceType);
+
+    // Also filter and re-render space markers so the map shows spaces, not just locations.
+    const filteredSpaces = (allSpaces || []).filter((s) => {
+      if (spaceType && s.space_type !== spaceType) return false;
+      if (campus && s.location?.campus !== campus) return false;
+      if (category && s.location?.category !== category) return false;
+      if (quietOnly && !s.is_quiet_zone) return false;
+      if (ndOnly && !s.is_safe_space_neurodivergent_students) return false;
+      if (search) {
+        const hay = (s.name + " " + (s.description || "")).toLowerCase();
+        if (!hay.includes(search)) return false;
+      }
+      return true;
+    });
+    renderSpaceMarkers(filteredSpaces);
+
     setActiveChip(spaceType);
   }
 
