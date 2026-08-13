@@ -1966,8 +1966,7 @@ textarea {
   }
 }
 
-/* Mobile: map filter chips become a horizontally scrollable breadcrumb bar,
-   and the map controls stay compact without overlapping the map. */
+/* Mobile: replace the chip bar with a professional native dropdown for the space-type filter. */
 @media (max-width: 640px) {
   .map-controls {
     left: 0.75rem;
@@ -1981,41 +1980,41 @@ textarea {
     font-size: 0.8rem;
     flex: none;
   }
-  .filter-chips {
-    flex: 1;
-    flex-wrap: nowrap;
-    overflow-x: auto;
-    margin-left: 0;
-    padding: 0.2rem 0;
-    gap: 0;
-    -webkit-overflow-scrolling: touch;
-    scrollbar-width: none;
+  .filter-chips { display: none; }
+  .mobile-filter {
+    display: inline-flex;
     align-items: center;
+    gap: 0.4rem;
+    flex: 1;
+    min-width: 0;
   }
-  .filter-chips::-webkit-scrollbar { display: none; }
-  .chip-filter {
-    flex: none;
-    background: transparent;
-    border: none;
-    box-shadow: none;
-    padding: 0.2rem 0.5rem;
-    font-size: 0.85rem;
-    color: var(--muted);
-    border-radius: 0;
+  .mobile-filter .mobile-filter-label {
+    display: none;
   }
-  .chip-filter.active {
+  .mobile-space-type {
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+    width: 100%;
+    padding: 0.55rem 2.2rem 0.55rem 0.85rem;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    background: #fff;
     color: var(--navy);
-    font-weight: 700;
-    background: transparent;
-    border: none;
+    font: inherit;
+    font-size: 0.85rem;
+    font-weight: 600;
+    box-shadow: var(--shadow);
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8'%3E%3Cpath fill='%23003466' d='M6 7.4l-6-6.6h12z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.75rem center;
+    background-size: 0.75rem;
   }
-  .chip-filter .chip-ic { display: none; }
-  .chip-filter:not(:last-child)::after {
-    content: ">";
-    margin-left: 0.6rem;
-    color: var(--border);
-    font-weight: 400;
-  }
+}
+
+/* Desktop: keep the chip bar, hide the mobile select. */
+@media (min-width: 641px) {
+  .mobile-filter { display: none; }
 }
 
 @media (max-width: 560px) {

@@ -498,9 +498,13 @@
       .forEach((btn) => {
         btn.addEventListener("click", () => {
           el("filter-space-type").value = btn.dataset.st;
+          const mobile = el("filter-space-type-mobile");
+          if (mobile) mobile.value = btn.dataset.st;
           applyFilters();
         });
       });
+    const mobileSelect = el("filter-space-type-mobile");
+    if (mobileSelect) mobileSelect.value = el("filter-space-type").value;
     setActiveChip(el("filter-space-type").value);
   }
 
@@ -897,11 +901,17 @@
 
   // --- Wire up --------------------------------------------------------------
   function setupControls() {
-    ["search", "filter-campus", "filter-category", "filter-space-type", "filter-quiet", "filter-nd"].forEach((id) => {
+    ["search", "filter-campus", "filter-category", "filter-space-type", "filter-space-type-mobile", "filter-quiet", "filter-nd"].forEach((id) => {
       const node = el(id);
       if (!node) return;
       const evt = node.type === "checkbox" || node.tagName === "SELECT" ? "change" : "input";
-      node.addEventListener(evt, applyFilters);
+      node.addEventListener(evt, (e) => {
+        if (e.target && e.target.id === "filter-space-type-mobile") {
+          const desktop = el("filter-space-type");
+          if (desktop) desktop.value = e.target.value;
+        }
+        applyFilters();
+      });
     });
     const detailClose = el("detail-close");
     if (detailClose) detailClose.addEventListener("click", closeDetail);
@@ -1144,6 +1154,7 @@
       if (!byKey[o.key]) byKey[o.key] = o;
     });
     fill("filter-space-type", Object.values(byKey), "Any space type");
+    fill("filter-space-type-mobile", Object.values(byKey), "All places");
   }
 
   async function loadData() {
