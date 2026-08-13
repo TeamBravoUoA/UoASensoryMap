@@ -158,6 +158,9 @@ class SpaceSerializer(serializers.ModelSerializer):
             "space_type_display",
             "description",
             "thumbnail_image",
+            "latitude",
+            "longitude",
+            "floor",
             "weekday_open_time",
             "weekday_close_time",
             "saturday_open_time",
@@ -208,6 +211,9 @@ class QuietZoneSerializer(SpaceSerializer):
             "space_type",
             "space_type_display",
             "description",
+            "latitude",
+            "longitude",
+            "floor",
             "is_quiet_zone",
             "is_safe_space_neurodivergent_students",
             "facilities",
@@ -370,7 +376,8 @@ class FeedbackSensoryRatingBatchSerializer(serializers.Serializer):
     reporter_name = serializers.CharField(allow_blank=True, required=False)
     reporter_email = serializers.EmailField(allow_blank=True, required=False)
     ratings = serializers.DictField(
-        child=serializers.IntegerField(min_value=1, max_value=5)
+        child=serializers.IntegerField(min_value=1, max_value=5),
+        allow_empty=False,
     )
 
     def validate(self, data):

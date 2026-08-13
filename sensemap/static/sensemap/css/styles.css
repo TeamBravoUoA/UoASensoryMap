@@ -429,6 +429,30 @@ textarea {
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
 }
 
+/* Space markers (smaller than location markers) */
+.space-pin .pin-badge {
+  width: 28px; height: 28px;
+  border-width: 2px;
+  font-size: 14px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+}
+
+/* Space tooltip styling */
+.leaflet-tooltip.space-tooltip {
+  background: #1b1b1b;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  padding: 0.35rem 0.6rem;
+  font-size: 0.8rem;
+  font-weight: 500;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+  white-space: nowrap;
+}
+.leaflet-tooltip.space-tooltip:before {
+  border-top-color: #1b1b1b;
+}
+
 .legend-item {
   display: flex;
   align-items: center;
