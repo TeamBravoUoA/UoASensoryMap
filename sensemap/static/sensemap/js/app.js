@@ -59,7 +59,7 @@
     study: { label: "Study Space", iconUrl: "study.svg", color: "#1565c0", desc: "Focused work, desks and reading areas." },
     quiet: { label: "Quiet Space", iconUrl: "quiet.svg", color: "#5e35b1", desc: "Low-stimulation areas to rest and decompress." },
     social: { label: "Social Space", iconUrl: "social.svg", color: "#f9a825", desc: "Lounges and meeting spots, often lively." },
-    food_drink: { label: "Food & Drink", iconUrl: "food_drink.svg", color: "#ef6c00", desc: "Cafes, food courts and places to eat." },
+    food_drink: { label: "Cafeteria", iconUrl: "food_drink.svg", color: "#ef6c00", desc: "Cafes, food courts and places to eat." },
     // facility: { label: "Facility", iconUrl: "facility.svg", color: "#00838f", desc: "General support and service facilities." },
     // sensory: { label: "Sensory Room", iconUrl: "sensory.svg", color: "#d81b60", desc: "Calming rooms designed for sensory regulation." },
     sport: { label: "Sport / Fitness", iconUrl: "sports.svg", color: "#7b1fa2", desc: "Gyms, sports halls and recreational facilities." },
@@ -243,13 +243,40 @@
     // Base layer: light, label-free tiles everywhere. This is what shows through
     // for anywhere off-campus, so the city around Old Aberdeen recedes into the
     // background instead of competing with the campus markers.
-    L.tileLayer("https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}.png", {
+    const cartoBase = L.tileLayer("https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}.png", {
       maxZoom: 19,
       subdomains: "abcd",
       attribution:
         '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, ' +
         '&copy; <a href="https://carto.com/attributions">CARTO</a>',
     }).addTo(map);
+
+    // CARTO can intermittently fail (rate limits / network), leaving gray
+    // tiles. Retry each failed tile once; if failures keep happening, swap
+    // the base layer to OpenStreetMap so the map never stays gray.
+    let cartoErrorCount = 0;
+    let baseFallbackDone = false;
+    cartoBase.on("tileerror", (e) => {
+      const tile = e.tile;
+      // Retry the tile once with a cache-busting query param.
+      if (tile && !tile.dataset.retried) {
+        tile.dataset.retried = "1";
+        setTimeout(() => {
+          tile.src = e.tile.src.split("#")[0] + "#retry";
+        }, 500);
+        return;
+      }
+      cartoErrorCount++;
+      if (cartoErrorCount >= 5 && !baseFallbackDone) {
+        baseFallbackDone = true;
+        map.removeLayer(cartoBase);
+        L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+          maxZoom: 19,
+          attribution:
+            '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+        }).addTo(map);
+      }
+    });
 
     // Three stacked overlays create a soft transition from campus to surroundings.
     CAMPUS_FADE_STEPS.forEach((step) => {
@@ -1083,7 +1110,7 @@
       { key: "study", label: "Study Space" },
       { key: "quiet", label: "Quiet Space" },
       { key: "social", label: "Social Space" },
-      { key: "food_drink", label: "Food & Drink" },
+      { key: "food_drink", label: "Cafeteria" },
       { key: "sport", label: "Sport / Fitness" },
       { key: "outdoor", label: "Outdoor" },
     ];

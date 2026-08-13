@@ -181,7 +181,7 @@ class Space(ExternalIDModel, TimeStampedModel):
         STUDY = "study", "Study Space"
         QUIET = "quiet", "Quiet Space"
         SOCIAL = "social", "Social Space"
-        FOOD_DRINK = "food_drink", "Food & Drink"
+        FOOD_DRINK = "food_drink", "Cafeteria"
         SPORT = "sport", "Sport / Fitness"
         OUTDOOR = "outdoor", "Outdoor"
 
