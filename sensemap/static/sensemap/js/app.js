@@ -71,6 +71,7 @@
 
   // --- State ----------------------------------------------------------------
   let allLocations = [];
+  let allSpaces = [];
   let markers = {}; // id -> L.marker
   let map;
   let campusTilePanes = {};
@@ -314,6 +315,44 @@
       marker.on("click", () => selectLocation(loc.id, true));
       marker.addTo(map);
       markers[loc.id] = marker;
+    });
+  }
+
+  function renderSpaceMarkers(spaces) {
+    if (!spaces || !spaces.length) return;
+    spaces.forEach((space) => {
+      if (!space.latitude || !space.longitude) return;
+      const meta = SPACE_TYPE_META[space.space_type] || FALLBACK_SPACE;
+      const icon = L.divIcon({
+        className: "sensory-pin space-pin",
+        html:
+          '<span class="pin-badge" style="background:' +
+          meta.color +
+          '">' +
+          iconImg(meta, space.name) +
+          "</span>",
+        iconSize: [28, 28],
+        iconAnchor: [14, 14],
+        popupAnchor: [0, -14],
+      });
+      const marker = L.marker([space.latitude, space.longitude], {
+        icon: icon,
+        keyboard: true,
+        title: space.name + " - " + (space.location?.name || ""),
+        alt: space.name,
+      });
+      marker.bindTooltip(space.name + " - " + (space.location?.name || ""), {
+        direction: "top",
+        offset: [0, -10],
+        className: "space-tooltip",
+      });
+      marker.on("click", () => {
+        if (space.location?.id) {
+          selectLocation(space.location.id, true);
+        }
+      });
+      marker.addTo(map);
+      markers["space-" + space.id] = marker;
     });
   }
 
@@ -1061,13 +1100,15 @@
 
   async function loadData() {
     try {
-      const [metaRes, locRes] = await Promise.all([
+      const [metaRes, locRes, spaceRes] = await Promise.all([
         fetch("/api/meta/"),
         fetch("/api/locations/"),
+        fetch("/api/spaces/"),
       ]);
       if (!locRes.ok) throw new Error("Request failed: " + locRes.status);
       metaData = metaRes.ok ? await metaRes.json() : null;
       allLocations = await locRes.json();
+      allSpaces = spaceRes.ok ? await spaceRes.json() : [];
 
       buildFilters();
       renderLegend();
@@ -1081,6 +1122,7 @@
       }
       renderList(allLocations);
       renderMarkers(allLocations, el("filter-space-type").value);
+      renderSpaceMarkers(allSpaces);
       updateCampusFadePolygons(allLocations);
       const bounds = L.latLngBounds(allLocations.map((l) => [l.latitude, l.longitude]));
       if (bounds.isValid()) map.fitBounds(bounds.pad(0.2));
