@@ -54,9 +54,9 @@
   ];
   const FALLBACK_CATEGORY = { label: "Place", iconUrl: "facility.svg", color: "#607d8b", desc: "" };
 
-  // Location marker on the map: all locations are shown with a building icon.
-  // The badge background uses the location's category colour, but the SVG icon is always a building.
-  const BUILDING_META = { label: "Building", iconUrl: "building.svg" };
+  // Location marker on the map: all locations are shown with a facility/building icon.
+  // The badge background uses the location's category colour, but the SVG icon is always a facility.
+  const BUILDING_META = { label: "Building", iconUrl: "facility.svg" };
 
   // Space type metadata (matches Space.SPACE_TYPE_CHOICES).
   const SPACE_TYPE_META = {
