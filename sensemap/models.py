@@ -92,7 +92,7 @@ class Location(ExternalIDModel, TimeStampedModel):
         SUPPORT_BUILDING = "support_building", "Support Building"
         NURSERY = "nursery", "Nursery"
         SHOP = "shop", "Shop"
-        CAFE = "cafe", "Cafe"
+        CAFE = "cafe", "Cafeteria"
 
 
     name = models.CharField(max_length=255, unique=True, db_index=True)
