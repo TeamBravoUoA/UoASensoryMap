@@ -10,8 +10,14 @@ import ast
 #Variables where harcdoed fallback inside os.getenv ()/ os.environ.get() is considred unsafe, since each ends up feeding a security-sensitive setting. 
 #Ad new variable names here if a similar risk is found elsewhere. 
 ENV_FALLBACK_WATCHLIST = {
-    "SECRET_KEY": "SEC-MISCONFIG-SECRET-KEY-FALLBACK",
-    "_ALLOWED_HOSTS": "SEC-MISCONFIG-ALLOWED-HOSTS-FALLBACK",
+    "SECRET_KEY": {
+        "rule_id": "SEC-MISCONFIG-SECRET-KEY-FALLBACK",
+        "attack_technique": "Session/Cookie Forgery",
+    },
+    "_ALLOWED_HOSTS": {
+        "rule_id": "SEC-MISCONFIG-ALLOWED-HOSTS-FALLBACK",
+        "attack_technique": "Host Header Injection",
+    },
 }
 
 #Parameter tree as type ast.AST
@@ -19,10 +25,14 @@ ENV_FALLBACK_WATCHLIST = {
 def check_security_misconfig(tree: ast.AST, filepath: str) -> list [Finding]: #-> this function will return a list of finding objects
     findings = [] #Empty list which the function will fill up as it walks the three and returns at the end. 
 
+    # ---RULE 4 SET UP:collects every variable name assigned anywhere in the file - needed
+    #for rule 4, which can only be checked after seeing the whole file
+    assigned_names = set()
 
-#ast.walk(tree) visit every single node in the whole three. Every function, imports, if-statements, etc.
-#The "node" variable becomes each of thise per iteration is a loop for every node in the code.
-    for node in ast.walk (tree):
+
+    #ast.walk(tree) visit every single node in the whole three. Every function, imports, if-statements, etc.
+    #The "node" variable becomes each of thise per iteration is a loop for every node in the code.
+    for node in ast.walk(tree):
         #isistance = "Guard clause": isinstance(thing, SomeType) asks a yes/no question: "is thing of type SomeType?
         #It will return true or false
         #Skip anything that isnt an Assign node (x=y), so the rest of this loop can safely assume "node" is an assignment without extra nesting
@@ -35,6 +45,9 @@ def check_security_misconfig(tree: ast.AST, filepath: str) -> list [Finding]: #-
             if not isinstance(target, ast.Name):
                 continue
 
+            # Record every assigned name for Rule 4 presente
+            assigned_names.add(target.id)
+
             #--- Environment-variable hardcoded fallback check (Applicable to rule 1 & 2)---
             #Attack type covered: a variable is correctly loaded from an environment variable but hardcoded, unsafe literal is provided as the fallback value -
             #meaning  the "safe" pattern silently degrades if that env var is ever missing. Applies to any variable in ENV_FALLBACK_WATCHLIST
@@ -46,9 +59,11 @@ def check_security_misconfig(tree: ast.AST, filepath: str) -> list [Finding]: #-
                             
                             #Only flag if the fallback is a real (non-empty) string literal. 
                             if isinstance (fallback_arg, ast.Constant) and isinstance (fallback_arg.value, str) and fallback_arg.value:
+                                watchlist_entry = ENV_FALLBACK_WATCHLIST[target.id]
                                 findings.append (Finding(
-                                     rule_id= ENV_FALLBACK_WATCHLIST [target.id],
+                                     rule_id= watchlist_entry["rule_id"],
                                      severity="Critical",
+                                     attack_technique=watchlist_entry["attack_technique"],
                                      file_path=filepath,
                                      line=node.lineno,
                                      message=f"{target.id} is loaded from an environment variable, but a hardcoded fallback value is provided. If the environment variable is ever unset, the app will sillently run with this fallback value, which is visible in source control.", 
@@ -70,6 +85,7 @@ def check_security_misconfig(tree: ast.AST, filepath: str) -> list [Finding]: #-
                         #Details from class (according also to rules matrix documentation on excel)
                         rule_id="SEC-MISCONFIG-DEBUG",
                         severity ="Critical",
+                        attack_technique="Stack Trace Exposure",
                         file_path=filepath, 
                         line=node.lineno,
                         message="DEBUG is set to True. In production this exposes detailed error tracebacks — including internal file paths and code structure — to any visitor.",
@@ -97,6 +113,7 @@ def check_security_misconfig(tree: ast.AST, filepath: str) -> list [Finding]: #-
                     findings.append(Finding(
                          rule_id="SEC-MISCONFIG-SECRET-KEY",
                          severity="Critical",
+                         attack_technique="Session/Cookie Forgery",
                          file_path=filepath,
                          line=node.lineno,
                          message="SECRET_KEY is a hardcoded string literal instead of being loaded from the environment.",
@@ -116,6 +133,7 @@ def check_security_misconfig(tree: ast.AST, filepath: str) -> list [Finding]: #-
                         findings.append(Finding(
                             rule_id="SEC-MISCONFIG-ALLOWED-HOSTS-EMPTY",
                             severity="Critical",
+                            attack_technique="Host Header Injection",
                             file_path=filepath,
                             line=node.lineno,
                             message="ALLOWED_HOSTS is empty.",
@@ -133,6 +151,7 @@ def check_security_misconfig(tree: ast.AST, filepath: str) -> list [Finding]: #-
                                 findings.append(Finding(
                                     rule_id="SEC-MISCONFIG-ALLOWED-HOSTS-WILDCARD",
                                     severity="Critical",
+                                    attack_technique="Host Header Injection",
                                     file_path=filepath,
                                     line=node.lineno,
                                     message="ALLOWED_HOSTS contains '*', allowing any host.",
@@ -144,6 +163,7 @@ def check_security_misconfig(tree: ast.AST, filepath: str) -> list [Finding]: #-
                     findings.append(Finding(
                          rule_id="SEC-MISCONFIG-ALLOWED-HOSTS-DYNAMIC",
                          severity="Medium",
+                         attack_technique="Host Header Injection",
                          file_path=filepath,
                          line=node.lineno,
                          message=(
@@ -160,7 +180,41 @@ def check_security_misconfig(tree: ast.AST, filepath: str) -> list [Finding]: #-
         ))
     
                                      
+# ---RULE 4: Security misconfiguration - missing SSL/HSTS ---
+    #Only applies to settings.py 
+    # Presence check only (Django doesn't enable these by default, and the 
+    # value could come from an env var we can't verify statically (needs manual review)
+    #Attack type covered: Man in the middle attack (MITM) through SSL-Stripping, attack that
+    #forces a target's browser to downgrade from HTTPS (encrypted) to HTTP (unencrypted)
+    #traffic and session cookies (e.g. CMS admin login) can be intercepted
 
-# ---RULE 4--
-#Attack type: Security misconfiguration - missing SSL/HSTS 
+    #Django does not enable this HTTPS enforcement by default - both settings must be explicitly added.
+    #this is a PRESENCE check, not a value check:
+    #we're only asking "were these names ever assigned at all?", not what
+    #they equal, since the actual value could come from an env var or a
+    #conditional that can't be verified statically
+    if filepath.endswith("settings.py"):
+        missing_ssl_keys = []
+        if "SECURE_SSL_REDIRECT" not in assigned_names:
+            missing_ssl_keys.append("SECURE_SSL_REDIRECT")
+        if "SECURE_HSTS_SECONDS" not in assigned_names:
+            missing_ssl_keys.append("SECURE_HSTS_SECONDS")
+
+        if missing_ssl_keys:
+            findings.append(Finding(
+                rule_id="SEC-MISCONFIG-SSL-HSTS-MISSING",
+                severity="Critical",
+                attack_technique="SSL Stripping (Man-in-the-Middle)",
+                file_path=filepath,
+                #I put 1 here on purpose. It's not a real line number — this rule is about something missing, and missing things don't have a line
+                line=1,
+                message=(
+                    f"Missing HTTPS enforcement settings(s): {', '.join(missing_ssl_keys)}. "
+                    "Without these, traffic and session cookies (e.g. CMS admin login) can be "
+                    "intercepted via SSL stripping / man-in-the-middle attacks. Add "
+                    "SECURE_SSL_REDIRECT = True and SECURE_HSTS_SECONDS = 31536000."
+                ),
+                standard_ref="OWASP Top 10:2025 A02 – Security Misconfiguration",
+            ))
+
     return findings

@@ -37,6 +37,7 @@ def format_report_markdown (enriched_findings, files_scanned):
         #Appending Rule ouptut format 
         lines.append(f"### [{item['severity']}] `{item['rule_id']}`")
         lines.append(f"**File:** `{item['file_path']}:{item['line']}`")
+        lines.append(f"**Attack Technique:** {item['attack_technique']}")
         lines.append(f"**Standard:** {item['standard_ref']}")
         lines.append("")
         lines.append(f"> {item['message']}")
