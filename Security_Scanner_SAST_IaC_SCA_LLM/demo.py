@@ -4,6 +4,9 @@
 import ast
 from pathlib import Path
 from scanner.sast_scanner import check_security_misconfig
+from scanner.sast_scanner import check_hardcoded_secrets
+from scanner.sast_scanner import check_unsafe_eval_exec
+from scanner.sast_scanner import check_insecure_deserialization
 from ai.threat_model import enrich_findings
 from format_report import format_report_markdown
 
@@ -42,8 +45,19 @@ for py_file in PROJECT_ROOT.rglob("*.py"):
     except SyntaxError:
         continue #skip any file that fails to parse
 
+    #Rules checking the same AST node type CAN be bundled into one function
+    #to avoid walking the tree twice — but this is a choice, not a strict
+    #rule (check_unsafe_eval_exec and check_insecure_deserialization both
+    #walk Call nodes too, but were kept separate since they're unrelated).
     files_scanned += 1
+    #Containing Rules:env-fallback watchlist, DEBUG, SECRET_KEY, ALLOWED_HOSTS (×3 variants: empty/wildcard/dynamic), and SSL/HSTS
     findings = check_security_misconfig(tree, str(py_file))
+    #Containing rules: SEC-MISCONFIG-HARDCODED-SECRET
+    findings += check_hardcoded_secrets(tree, str(py_file))
+    #Containing rules:DANGEROUS CALLS - eval() / exec ()
+    findings += check_unsafe_eval_exec(tree, str(py_file))
+    #Containing rules : DANGEROUS_DESERIALIZE_CALLS pickle.loads
+    findings += check_insecure_deserialization(tree, str(py_file))
 
     if VERBOSE:
         status = f"{len(findings)} issue (s)" if findings else "clean"

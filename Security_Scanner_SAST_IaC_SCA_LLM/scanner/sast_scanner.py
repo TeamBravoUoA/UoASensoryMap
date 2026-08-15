@@ -12,11 +12,11 @@ import ast
 ENV_FALLBACK_WATCHLIST = {
     "SECRET_KEY": {
         "rule_id": "SEC-MISCONFIG-SECRET-KEY-FALLBACK",
-        "attack_technique": "Session/Cookie Forgery",
+        "attack_type_exposure" : "Session/Cookie Forgery",
     },
     "_ALLOWED_HOSTS": {
         "rule_id": "SEC-MISCONFIG-ALLOWED-HOSTS-FALLBACK",
-        "attack_technique": "Host Header Injection",
+        "attack_type_exposure": "Host Header Injection",
     },
 }
 
@@ -63,12 +63,17 @@ def check_security_misconfig(tree: ast.AST, filepath: str) -> list [Finding]: #-
                                 findings.append (Finding(
                                      rule_id= watchlist_entry["rule_id"],
                                      severity="Critical",
-                                     attack_technique=watchlist_entry["attack_technique"],
+                                     attack_type_exposure=watchlist_entry["attack_type_exposure"],
                                      file_path=filepath,
                                      line=node.lineno,
                                      message=f"{target.id} is loaded from an environment variable, but a hardcoded fallback value is provided. If the environment variable is ever unset, the app will sillently run with this fallback value, which is visible in source control.", 
                                      standard_ref="OWASP Top 10:2025 A02 – Security Misconfiguration",
                                      ))
+
+                                 
+            #---------TIER 1 START : Presence check (e.g. SECURE_SSL_REDIRECT, DEBUG, etc)----
+            #judged from assignments alone — either one assignment's own value (flat literal), or whether a name was assigned anywhere at all (presence). 
+            # No function calls, no argument inspection, no structural walking.
 
             # ---RULE 1 Attack type Security misconfiguration — DEBUG ----
             # Attack type covered: information disclosure via debug error pages —leaking stack traces and internal app structure to any visitor.
@@ -85,7 +90,7 @@ def check_security_misconfig(tree: ast.AST, filepath: str) -> list [Finding]: #-
                         #Details from class (according also to rules matrix documentation on excel)
                         rule_id="SEC-MISCONFIG-DEBUG",
                         severity ="Critical",
-                        attack_technique="Stack Trace Exposure",
+                        attack_type_exposure="Stack Trace Exposure",
                         file_path=filepath, 
                         line=node.lineno,
                         message="DEBUG is set to True. In production this exposes detailed error tracebacks — including internal file paths and code structure — to any visitor.",
@@ -113,7 +118,7 @@ def check_security_misconfig(tree: ast.AST, filepath: str) -> list [Finding]: #-
                     findings.append(Finding(
                          rule_id="SEC-MISCONFIG-SECRET-KEY",
                          severity="Critical",
-                         attack_technique="Session/Cookie Forgery",
+                         attack_type_exposure="Session/Cookie Forgery",
                          file_path=filepath,
                          line=node.lineno,
                          message="SECRET_KEY is a hardcoded string literal instead of being loaded from the environment.",
@@ -133,7 +138,7 @@ def check_security_misconfig(tree: ast.AST, filepath: str) -> list [Finding]: #-
                         findings.append(Finding(
                             rule_id="SEC-MISCONFIG-ALLOWED-HOSTS-EMPTY",
                             severity="Critical",
-                            attack_technique="Host Header Injection",
+                            attack_type_exposure="Host Header Injection",
                             file_path=filepath,
                             line=node.lineno,
                             message="ALLOWED_HOSTS is empty.",
@@ -151,7 +156,7 @@ def check_security_misconfig(tree: ast.AST, filepath: str) -> list [Finding]: #-
                                 findings.append(Finding(
                                     rule_id="SEC-MISCONFIG-ALLOWED-HOSTS-WILDCARD",
                                     severity="Critical",
-                                    attack_technique="Host Header Injection",
+                                    attack_type_exposure="Host Header Injection",
                                     file_path=filepath,
                                     line=node.lineno,
                                     message="ALLOWED_HOSTS contains '*', allowing any host.",
@@ -163,7 +168,7 @@ def check_security_misconfig(tree: ast.AST, filepath: str) -> list [Finding]: #-
                     findings.append(Finding(
                          rule_id="SEC-MISCONFIG-ALLOWED-HOSTS-DYNAMIC",
                          severity="Medium",
-                         attack_technique="Host Header Injection",
+                         attack_type_exposure="Host Header Injection",
                          file_path=filepath,
                          line=node.lineno,
                          message=(
@@ -204,7 +209,7 @@ def check_security_misconfig(tree: ast.AST, filepath: str) -> list [Finding]: #-
             findings.append(Finding(
                 rule_id="SEC-MISCONFIG-SSL-HSTS-MISSING",
                 severity="Critical",
-                attack_technique="SSL Stripping (Man-in-the-Middle)",
+                attack_type_exposure="SSL Stripping (Man-in-the-Middle)",
                 file_path=filepath,
                 #I put 1 here on purpose. It's not a real line number — this rule is about something missing, and missing things don't have a line
                 line=1,
@@ -216,5 +221,123 @@ def check_security_misconfig(tree: ast.AST, filepath: str) -> list [Finding]: #-
                 ),
                 standard_ref="OWASP Top 10:2025 A02 – Security Misconfiguration",
             ))
+    return findings 
+
+#---RULE 5 SEC-MISCONFIG-HARDCODED-SECRET---
+#Variable names that typically hold secrets. If any of these is assigned
+#a hardcoded string instead of being kept secret.
+SECRET_NAME_PATTERNS = ("SECRET", "PASSWORD", "API_KEY", "TOKEN", "PRIVATE_KEY")
+
+def check_hardcoded_secrets(tree, filepath):
+    findings = []
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Assign):
+            continue
+        for target in node.targets:
+            if not isinstance(target, ast.Name):
+                continue
+            #Check if the variable name looks secret-like(SECRET_KEY, API_KEY, DB_PASSWORD, etc.)
+            name_upper = target.id.upper()
+            if not any(pattern in name_upper for pattern in SECRET_NAME_PATTERNS):
+                continue
+            #Only flag if the VALUE is a hardcoded string literal — if it's
+            #.env that's the safe pattern already covered by ENV_FALLBACK_WATCHLIST.
+            if isinstance(node.value, ast.Constant) and isinstance(node.value.value, str) and node.value.value:
+                findings.append(Finding(
+                    rule_id="SEC-MISCONFIG-HARDCODED-SECRET",
+                    severity="High",
+                    attack_type_exposure="Credential Exposure",
+                    file_path=filepath,
+                    line=node.lineno,
+                    message=f"{target.id} is a hardcoded secret-like value in source code. Anyone with repo access can read it. Move it to .env and load it via os.environ.get('{target.id}').",
+                    standard_ref="OWASP Top 10:2025 A02 – Security Misconfiguration",
+                ))
+
+    return findings
+
+                #---TIER 2 START ----
+
+#---RULE 6 DANGEROUS CALLS - eval() / exec () ----
+#looks for dangerous call names eval() / exec ()that the attacker can use as 
+#and pass it as code, if that string ever comes from user input the attacker can run their own code on our server 
+#(Read files, access the database, anything python can do)
+DANGEROUS_CALL_NAMES = ("eval", "exec")
+
+def check_unsafe_eval_exec(tree, filepath):
+    findings = []
+    for node in ast.walk(tree):
+        #Only care about function CALL nodes — e.g. eval(x), not just the word eval
+        if not isinstance(node, ast.Call):
+            continue
+
+        #The function being called must be a plain name (not something.eval())
+        if not isinstance(node.func, ast.Name):
+            continue
+
+        #Is this call to eval or exec specifically?
+        if node.func.id in DANGEROUS_CALL_NAMES:
+            findings.append(Finding(
+                rule_id="SEC-UNSAFE-EVAL-EXEC",
+                severity="Critical",
+                attack_type_exposure="Arbitrary Code Execution",
+                file_path=filepath,
+                line=node.lineno,
+                message=f"Call to {node.func.id}() found. If any part of its input comes from user data, this allows arbitrary code execution. Avoid eval/exec entirely, or use ast.literal_eval() for safe data parsing.",
+                standard_ref="OWASP Top 10:2025 A03 – Injection",
+            ))
+
+    return findings
+
+# ---RULE 7 DANGEROUS_DESERIALIZE_CALLS pickle.loads ---
+
+#Looks for pickle.loads() calls — pickle doesn't just read data, it can
+#reconstruct and RUN arbitrary Python objects from the bytes it's given.
+#If the argument comes from outside the code (request data, cache, file
+#upload) instead of a hardcoded literal, an attacker can craft a payload
+#that executes their own code the moment it's loaded.
+DANGEROUS_DESERIALIZE_CALLS = ("loads", "load")
+
+def check_insecure_deserialization(tree, filepath):
+    findings = []
+    for node in ast.walk(tree):
+        #Only care about function CALL nodes
+        if not isinstance(node, ast.Call):
+            continue
+
+        #We're looking for pickle.loads(...) or pickle.load(...) —
+        #that's an Attribute access (pickle.something), not a plain Name
+        if not isinstance(node.func, ast.Attribute):
+            continue
+
+        #Confirm the object being called on is literally named "pickle"
+        #(pickle.loads), and the method is loads/load specifically
+        if not isinstance(node.func.value, ast.Name):
+            continue
+        if node.func.value.id != "pickle":
+            continue
+        if node.func.attr not in DANGEROUS_DESERIALIZE_CALLS:
+            continue
+
+        #No arguments at all — nothing to check, skip
+        if not node.args:
+            continue
+
+        first_arg = node.args[0]
+
+        #LIGHT TAINT CHECK: is the argument a hardcoded literal (safe,
+        #e.g. pickle.loads(b"...")) or anything else (a variable, a
+        #function call, request.body, etc — unknown origin, flag it)?
+        if isinstance(first_arg, ast.Constant):
+            continue  #True Negative don't create an issue, literal data, not attacker-controlled
+
+        findings.append(Finding(
+            rule_id="SEC-INSECURE-DESERIALIZATION-PICKLE",
+            severity="Medium",
+            attack_type_exposure="Remote Code Execution (Insecure Deserialization)",
+            file_path=filepath,
+            line=node.lineno,
+            message=f"pickle.{node.func.attr}() is called with a non-literal argument. If this data crosses a trust boundary (request body, cache, file upload), a crafted payload can achieve remote code execution. Replace pickle with json for any data from outside the code.",
+            standard_ref="OWASP Top 10:2025 A08 – Software or Data Integrity Failures",
+        ))
 
     return findings
