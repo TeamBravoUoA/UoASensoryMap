@@ -7,6 +7,11 @@ from scanner.sast_scanner import check_security_misconfig
 from scanner.sast_scanner import check_hardcoded_secrets
 from scanner.sast_scanner import check_unsafe_eval_exec
 from scanner.sast_scanner import check_insecure_deserialization
+from scanner.sast_scanner import check_weak_hashing
+from scanner.sast_scanner import check_unsafe_image_upload
+from scanner.sast_scanner import check_redos_unsafe_regex
+from scanner.sast_scanner import check_missing_timeout
+from scanner.sast_scanner import check_silent_fail_open
 from ai.threat_model import enrich_findings
 from format_report import format_report_markdown
 
@@ -20,6 +25,18 @@ CHECKED_ATTACK_TYPES = [
     "SEC-MISCONFIG-SECRET-KEY",
     "SEC-MISCONFIG-ALLOWED-HOSTS-EMPTY",
     "SEC-MISCONFIG-ALLOWED-HOSTS-WILDCARD",
+    "SEC-MISCONFIG-ALLOWED-HOSTS-DYNAMIC",
+    "SEC-MISCONFIG-SSL-HSTS-MISSING",
+    "SEC-MISCONFIG-SECRET-KEY-FALLBACK",
+    "SEC-MISCONFIG-ALLOWED-HOSTS-FALLBACK",
+    "SEC-MISCONFIG-HARDCODED-SECRET",
+    "SEC-UNSAFE-EVAL-EXEC",
+    "SEC-INSECURE-DESERIALIZATION-PICKLE",
+    "SEC-WEAK-HASHING-ALGORITHM",
+    "SEC-UNSAFE-IMAGE-UPLOAD", 
+    "SEC-UNSAFE-REGEX-EXPRESSIONS", 
+    "SEC-RESOURCE-STARVATION", 
+    "SEC-SEC-SILENT-FAIL-OPEN"
 ]
 
 all_findings = []
@@ -58,6 +75,18 @@ for py_file in PROJECT_ROOT.rglob("*.py"):
     findings += check_unsafe_eval_exec(tree, str(py_file))
     #Containing rules : DANGEROUS_DESERIALIZE_CALLS pickle.loads
     findings += check_insecure_deserialization(tree, str(py_file))
+    #Containing rule: SEC-WEAK-HASING-ALROFITHM (hashlib.md5 / hashlib.sha1)
+    findings += check_weak_hashing(tree, str(py_file))
+    #Containing rule: SEC-UNSAFE-IMAGE-UPLOAD (Image.open() on request.FILES with no validation)
+    findings += check_unsafe_image_upload(tree, str(py_file))
+    #Containing rule: SEC-REDOS-UNSAFE-REGEX (nested quantifier regex patterns)
+    findings += check_redos_unsafe_regex(tree, str(py_file))
+    #Containing rule: SEC-MISSING-TIMEOUT (requests.* calls with no timeout=)
+    findings += check_missing_timeout(tree, str(py_file))
+    #Containing rule: SEC-SILENT-FAIL-OPEN (bare/empty except blocks)
+    findings += check_silent_fail_open(tree, str(py_file))
+
+
 
     if VERBOSE:
         status = f"{len(findings)} issue (s)" if findings else "clean"

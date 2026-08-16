@@ -188,7 +188,7 @@ def check_security_misconfig(tree: ast.AST, filepath: str) -> list [Finding]: #-
 # ---RULE 4: Security misconfiguration - missing SSL/HSTS ---
     #Only applies to settings.py 
     # Presence check only (Django doesn't enable these by default, and the 
-    # value could come from an env var we can't verify statically (needs manual review)
+    # value could come from an env var I can't verify statically (needs manual review)
     #Attack type covered: Man in the middle attack (MITM) through SSL-Stripping, attack that
     #forces a target's browser to downgrade from HTTPS (encrypted) to HTTP (unencrypted)
     #traffic and session cookies (e.g. CMS admin login) can be intercepted
@@ -338,6 +338,266 @@ def check_insecure_deserialization(tree, filepath):
             line=node.lineno,
             message=f"pickle.{node.func.attr}() is called with a non-literal argument. If this data crosses a trust boundary (request body, cache, file upload), a crafted payload can achieve remote code execution. Replace pickle with json for any data from outside the code.",
             standard_ref="OWASP Top 10:2025 A08 – Software or Data Integrity Failures",
+        ))
+
+    return findings
+
+#---RULE 8 WEAK HASHING - hashlib.md5() / hashlib.sha1() ----
+#Why these 2 on specific?  these 2 hashes techniques broken & depreceated by OWASP 
+# algorithms still built intoy python standard library,and which are still commonly used
+
+WEAK_HASH_ALGORITHMS = ("md5", "sha1")
+
+def check_weak_hashing(tree, filepath):
+    findings = []
+    for node in ast.walk(tree):
+        #Only care about function CALL nodes
+        if not isinstance(node, ast.Call):
+            continue
+
+        #looking for hashlib.md5(...) or hashlib.sha1(...) —
+        #that's an Attribute access (hashlib.something), not a plain Name
+        if not isinstance(node.func, ast.Attribute):
+            continue
+
+        #Comfirm the object being called on is named "hashlib"
+        if not isinstance(node.func.value, ast.Name):
+            continue
+        if node.func.value.id != "hashlib":
+            continue
+
+        #Is this call to md5 or sha1 specifically?
+        if node.func.attr in WEAK_HASH_ALGORITHMS:
+            findings.append(Finding(
+                rule_id="SEC-WEAK-HASHING-ALGORITHM",
+                severity="Medium",
+                attack_type_exposure="Cryptographic Weakness",
+                file_path=filepath,
+                line=node.lineno,
+                message=f"hashlib.{node.func.attr}() is a broken hashing algorithm — collisions can be crafted deliberately. Use hashlib.sha256() or stronger. For passwords specifically, use Django's built-in make_password() (Argon2/PBKDF2) instead of manual hashing.",
+                standard_ref="OWASP Top 10:2025 A04 – Cryptographic Failures",
+            ))
+
+    return findings
+
+#---RULE 9 UNSAFE IMAGE UPLOAD - Image.open() on request.FILES ---
+
+#Looks for image.open() called directly on request.FILES with no validation first
+
+#A crafted image (image modified by an attacher that can be visualized normally but the internal gygabites structure is modified)
+# when decode it into gygabites of pixel data (decompression bomb) or trigger a known 
+# CVE- (common vulnerability exposure in third libraries used in python) 
+# the attacker con exploit the attack techniques exhausting server memory(CPU) 
+
+def check_unsafe_image_upload(tree, filepath):
+    findings = []
+    for node in ast.walk(tree):
+        #Only care about function CALL nodes
+        if not isinstance(node, ast.Call):
+            continue
+
+        #Looking for Image.open(...) — that's an Attribute access
+        if not isinstance(node.func, ast.Attribute):
+            continue
+        if node.func.attr != "open":
+            continue
+        if not isinstance(node.func.value, ast.Name):
+            continue
+        if node.func.value.id != "Image":
+            continue
+
+        #No arguments — nothing to check
+        if not node.args:
+            continue
+
+        first_arg = node.args[0]
+
+        #Convert the argument to source-like text so I can check if it
+        #mentions "request.FILES" — a simple text check, not full taint
+        #tracing, but enough to catch the direct/unvalidated case.
+        arg_text = ast.dump(first_arg)
+        if "FILES" not in arg_text:
+            continue  #not an upload — not what this rule cares about
+
+        findings.append(Finding(
+            rule_id="SEC-UNSAFE-IMAGE-UPLOAD",
+            severity="Medium",
+            attack_type_exposure="Denial of Service (Decompression Bomb)",
+            file_path=filepath,
+            line=node.lineno,
+            message="Image.open() is called directly on request.FILES with no visible validation. A crafted image can trigger a decompression bomb or exploit a known Pillow vulnerability. Validate file size, MIME type, and dimensions before processing, and set Image.MAX_IMAGE_PIXELS.",
+            standard_ref="OWASP Top 10:2025 A02 – Security Misconfiguration / A05 – Injection",
+        ))
+
+    return findings
+
+#---TIER 2/3 - call-pattern + string content check (does the regex literal contain a nested quantifier?)---
+
+#---RULE 10 ReDoS - UNSAFE REGEX PATTERNS ----
+
+# REGEX definition = python regular expression is a pattern-matching lenguage
+#SHAPES of text, not exact fixed strings  
+
+#Looks for re.compile()/re.match()/re.search() calls where the pattern
+#contains a NESTED QUANTIFIER shape — e.g. (a+)+ or (a*)*. These cause
+#catastrophic backtracking: a CRAFTED input string (deliberately built
+#by an attacker) can make matching time explode exponentially, freezing
+#a worker and exhausting the whole worker pool (DoS).
+#Pool of workers - server application server available to handle requests
+
+#Note: the danger is in the PATTERN (code I wrote), not the runtime
+#input — this rule only sees the pattern, since that's what's in source.
+
+import re as re_module  #aliased so it doesn't collide with the "re" i'm scanning FOR
+
+REGEX_CALL_NAMES = ("compile", "match", "search", "fullmatch")
+
+#A lightweight, deliberately simple detector for the classic nested-
+#quantifier shape: a group containing a quantifier, itself followed by
+#another quantifier — e.g. (a+)+, (a*)*, (a|aa)+. Not a full analysis,
+#just a pattern match over the regex text itself.
+NESTED_QUANTIFIER_SHAPE = re_module.compile(r"\([^()]*[+*][^()]*\)[+*]")
+
+def check_redos_unsafe_regex(tree, filepath):
+    findings = []
+    for node in ast.walk(tree):
+        #Only care about function CALL nodes
+        if not isinstance(node, ast.Call):
+            continue
+
+        #Looking for re.compile(...) / re.match(...) / re.search(...) /
+        #re.fullmatch(...) — Attribute access, object literally named "re"
+        if not isinstance(node.func, ast.Attribute):
+            continue
+        if not isinstance(node.func.value, ast.Name):
+            continue
+        if node.func.value.id != "re":
+            continue
+        if node.func.attr not in REGEX_CALL_NAMES:
+            continue
+
+        #No arguments — nothing to check
+        if not node.args:
+            continue
+
+        first_arg = node.args[0]
+
+        #Only useful if the pattern is a hardcoded string literal — if
+        #it's a variable, I can't see its actual text at scan time.
+        if not isinstance(first_arg, ast.Constant) or not isinstance(first_arg.value, str):
+            continue
+
+        pattern_text = first_arg.value
+
+        #Does the pattern's own text contain the dangerous nested-
+        #quantifier shape?
+        if NESTED_QUANTIFIER_SHAPE.search(pattern_text):
+            findings.append(Finding(
+                rule_id="SEC-REDOS-UNSAFE-REGEX",
+                severity="Medium",
+                attack_type_exposure="CPU Exhaustion (ReDoS)",
+                file_path=filepath,
+                line=node.lineno,
+                message=f"re.{node.func.attr}() uses a pattern with nested quantifiers, vulnerable to catastrophic backtracking. A crafted input string can freeze this worker for minutes, and repeated requests can exhaust the whole worker pool (denial of service). Avoid nested quantifiers; use bounded quantifiers with a fixed max length.",
+                standard_ref="CWE-1333 – Inefficient Regular Expression Complexity",
+            ))
+
+    return findings
+
+#---RULE 11 RESOURCE STARVATION - MISSING TIMEOUTS / UNCLOSED RESOURCES ----
+
+#Two related checks: (1) outbound HTTP calls with no timeout= can hang
+#forever if the remote server never responds, tying up a worker
+#indefinitely; (2) file handles/DB cursors/sockets opened without a
+#"with" block can leak if an exception happens before .close() runs.
+#Both slowly exhaust a limited resource pool (workers, file handles,
+#DB connections) under repeated/parallel requests — same DoS family
+#as ReDoS, but starving CONNECTIONS/WORKERS instead of CPU.
+
+HTTP_CALL_METHODS = ("get", "post", "put", "delete", "patch", "head")
+
+def check_missing_timeout(tree, filepath):
+    findings = []
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Call):
+            continue
+
+        #Looking for requests.get(...) / requests.post(...) etc —
+        #Attribute access, object literally named "requests"
+        if not isinstance(node.func, ast.Attribute):
+            continue
+        if not isinstance(node.func.value, ast.Name):
+            continue
+        if node.func.value.id != "requests":
+            continue
+        if node.func.attr not in HTTP_CALL_METHODS:
+            continue
+
+        #Check the KEYWORD arguments for timeout= — node.keywords is a
+        #list of ast.keyword nodes, each with a .arg (the name) and
+        #.value (what it's set to). I just need to know if "timeout"
+        #was passed at all — not checking what value it's set to.
+        has_timeout = any(kw.arg == "timeout" for kw in node.keywords)
+
+        if not has_timeout:
+            findings.append(Finding(
+                rule_id="SEC-MISSING-TIMEOUT",
+                severity="High",
+                attack_type_exposure="Worker/Connection Pool Exhaustion",
+                file_path=filepath,
+                line=node.lineno,
+                message=f"requests.{node.func.attr}() is called with no timeout= argument. If the remote server never responds, this call hangs forever, tying up a worker indefinitely. Repeated hangs exhaust the whole worker pool. Always pass an explicit timeout=.",
+                standard_ref="CWE-400 – Uncontrolled Resource Consumption",
+            ))
+
+    return findings
+
+#---RULE 12 SILENT FAIL-OPEN -BARE/ EMTPY EXCEPT ---
+
+#Silent Fail-Open — an error is caught but silently ignored (except: pass), so the code continues as if nothing went wrong.
+# If this happens during a permission check or validation, the request proceeds as if it succeeded — an attacker who triggers the error gets treated as authorized by accident.
+
+#New AST node type: ast.ExceptHandler
+
+def check_silent_fail_open(tree, filepath):
+    findings = []
+    for node in ast.walk(tree):
+        #Looking for an "except ...:" block specifically 
+        if not isinstance(node, ast.ExceptHandler):
+            continue
+
+        #Is this a bare "except:" with no error type at all?
+        is_bare_except = node.type is None
+
+        #Or does it say "except Exception:" — still catches almost
+        #everything, just slightly less extreme than fully bare
+        is_broad_exception = (
+            isinstance(node.type, ast.Name) and node.type.id == "Exception"
+        )
+
+        #If it catches a SPECIFIC error type instead, skip it — that's fine
+        if not (is_bare_except or is_broad_exception):
+            continue
+
+        #Now check what's INSIDE the except block — is it just "pass",
+        #meaning it does nothing at all with the error?
+        body_is_noop = (
+            len(node.body) == 1
+            and isinstance(node.body[0], ast.Pass)
+        )
+
+        #If it does something (logs, re-raises, returns an error), skip it
+        if not body_is_noop:
+            continue
+
+        findings.append(Finding(
+            rule_id="SEC-SILENT-FAIL-OPEN",
+            severity="Medium",
+            attack_type_exposure="Silent Fail-Open",
+            file_path=filepath,
+            line=node.lineno,
+            message="This except block silently swallows the error with no logging or handling. If this wraps a permission check, validation, or moderation step, the request continues as if it succeeded even though it failed. Catch specific exception types, log the error, and fail closed (deny/return an error).",
+            standard_ref="OWASP Top 10:2025 A10 – Mishandling of Exceptional Conditions",
         ))
 
     return findings
