@@ -601,3 +601,73 @@ def check_silent_fail_open(tree, filepath):
         ))
 
     return findings
+
+#---RULE 13 SQL INJECTION via String Concatenation ---
+#SQL Injection via String Concatenation (most common form) — a code-
+#level flaw where a query string is built by GLUING (concatenation) user input directly
+#into SQL text, instead of using a parameterized placeholder.
+
+#Example: login bypass
+#  Intended (NOT parameterized):
+#    SELECT * FROM users WHERE username='USER_INPUT' AND password='PASS';
+#  Attacker enters into username: admin' --
+#  Because the string was built via concatenation in OUR CODE (not the
+#  database), the final string sent becomes:
+#    SELECT * FROM users WHERE username='admin' --' AND password='...';
+#  Everything after -- is a SQL comment, so the password check never
+#  runs — attacker logs in as admin with no valid password.
+#  (Login bypass is just ONE outcome — the same flaw can also read,
+#  modify, or delete data across the whole database.)
+
+#Looks for cursor.execute() calls where the query string is BUILT at
+#runtime via string concatenation (+) or an f-string, instead of being
+#a safe literal with placeholders. If any part of that built string
+#comes from user input, an attacker can inject their own SQL.
+
+#Prevention: parameterized queries (%s placeholders + a separate params
+#list) — this is exactly what this rule checks FOR the absence of.
+
+def check_sql_injection(tree, filepath):
+    findings = []
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Call):
+            continue
+
+        #Looking for cursor.execute(...) — Attribute access ending in
+        #"execute"(METHOD)
+        if not isinstance(node.func, ast.Attribute):
+            continue
+        if node.func.attr != "execute":
+            continue
+
+        if not node.args:
+            continue
+
+        query_arg = node.args[0]
+
+        #DANGER SHAPE 1: an f-string. In the AST, f-strings become a
+        #JoinedStr node — a mix of literal text pieces AND embedded
+        #expressions (the {variable} parts). Any JoinedStr means a
+        #variable got glued directly into the query text.
+        is_fstring = isinstance(query_arg, ast.JoinedStr)
+
+        #DANGER SHAPE 2: string concatenation or % formatting, e.g.
+        #"SELECT * WHERE id=" + tip_id, or "...%s" % tip_id. In the
+        #AST, both + and % both are the same danger shape here.
+        is_binop_built = isinstance(query_arg, ast.BinOp)
+
+        if not (is_fstring or is_binop_built):
+            continue  #plain string literal or %s-placeholder call — safe, skip
+
+        findings.append(Finding(
+            rule_id="SEC-SQL-INJECTION",
+            severity="Critical",
+            attack_type_exposure="SQL Injection",
+            file_path=filepath,
+            line=node.lineno,
+            message="cursor.execute() is called with a query string built via f-string or concatenation instead of a parameterised placeholder. If any part of this string comes from user input, an attacker can inject arbitrary SQL, risking full database exfiltration or authentication bypass. Use %s placeholders with a separate params list instead.",
+            standard_ref="OWASP Top 10:2025 A05 – Injection",
+        ))
+
+    return findings
+

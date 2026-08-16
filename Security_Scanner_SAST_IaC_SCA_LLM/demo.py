@@ -12,6 +12,8 @@ from scanner.sast_scanner import check_unsafe_image_upload
 from scanner.sast_scanner import check_redos_unsafe_regex
 from scanner.sast_scanner import check_missing_timeout
 from scanner.sast_scanner import check_silent_fail_open
+from scanner.sast_scanner import check_sql_injection
+from scanner.sast_scanner import check_ssrf
 from ai.threat_model import enrich_findings
 from format_report import format_report_markdown
 
@@ -36,7 +38,9 @@ CHECKED_ATTACK_TYPES = [
     "SEC-UNSAFE-IMAGE-UPLOAD", 
     "SEC-UNSAFE-REGEX-EXPRESSIONS", 
     "SEC-RESOURCE-STARVATION", 
-    "SEC-SEC-SILENT-FAIL-OPEN"
+    "SEC-SEC-SILENT-FAIL-OPEN", 
+    "SEC-SQL-INJECTION", 
+    "SEC-SSRF-USER-CONTROLLED-URL"
 ]
 
 all_findings = []
@@ -85,6 +89,10 @@ for py_file in PROJECT_ROOT.rglob("*.py"):
     findings += check_missing_timeout(tree, str(py_file))
     #Containing rule: SEC-SILENT-FAIL-OPEN (bare/empty except blocks)
     findings += check_silent_fail_open(tree, str(py_file))
+    #Containing rule SEC-SQL-INJECTION (cursor.execute() with concatenated/f-string query)
+    findings +=check_sql_injection(tree, str(py_file))
+    #Containing rule: SEC-SSRF-USER-CONTROLLED-URL (requests.* with URL from request data)
+    findings += check_ssrf(tree, str(py_file))
 
 
 
