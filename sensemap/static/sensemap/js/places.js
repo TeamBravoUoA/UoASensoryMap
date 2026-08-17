@@ -12,7 +12,7 @@
     study: { label: "Study Space", iconUrl: "study.svg", color: "#1565c0" },
     quiet: { label: "Quiet Space", iconUrl: "quiet.svg", color: "#5e35b1" },
     social: { label: "Social Space", iconUrl: "social.svg", color: "#f9a825" },
-    food_drink: { label: "Food & Drink", iconUrl: "food_drink.svg", color: "#ef6c00" },
+    food_drink: { label: "Cafeteria", iconUrl: "food_drink.svg", color: "#ef6c00" },
     facility: { label: "Facility", iconUrl: "facility.svg", color: "#00838f" },
     sensory: { label: "Sensory Room", iconUrl: "sensory.svg", color: "#d81b60" },
     other: { label: "Other", iconUrl: "other.svg", color: "#2e7d32" },

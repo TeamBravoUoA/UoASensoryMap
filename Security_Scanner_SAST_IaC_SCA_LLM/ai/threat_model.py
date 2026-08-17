@@ -107,6 +107,7 @@ def enrich_finding(finding):
     finding_dict = {
         "rule_id": finding.rule_id,
         "severity": finding.severity,
+        "attack_type_exposure": finding.attack_type_exposure,
         "file_path": finding.file_path,
         "line": finding.line,
         "message": finding.message,

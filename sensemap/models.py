@@ -3,7 +3,6 @@ from django.core.exceptions import ValidationError
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.utils.text import slugify
 
-
 class ExternalIDModel(models.Model):
     """
     Abstract base model for entities imported from external datasets.
@@ -98,7 +97,7 @@ class Location(ExternalIDModel, TimeStampedModel):
         SUPPORT_BUILDING = "support_building", "Support Building"
         NURSERY = "nursery", "Nursery"
         SHOP = "shop", "Shop"
-        CAFE = "cafe", "Cafe"
+        CAFE = "cafe", "Cafeteria"
 
 
     name = models.CharField(max_length=255, unique=True, db_index=True)
@@ -185,6 +184,7 @@ class Space(ExternalIDModel, TimeStampedModel):
         QUIET = "quiet", "Quiet Space"
         SOCIAL = "social", "Social Space"
         CAFETERIA = "cafeteria", "Cafeteria"
+        FOOD_DRINK = "food_drink", "Cafeteria"
         SPORT = "sport", "Sport / Fitness"
         OUTDOOR = "outdoor", "Outdoor"
 
