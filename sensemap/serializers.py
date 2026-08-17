@@ -43,6 +43,18 @@ class FacilitySerializer(serializers.ModelSerializer):
         ]
 
 
+class SensoryAttributeSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = SensoryAttribute
+        fields = [
+            "id",
+            "external_id",
+            "name",
+            "description",
+            "icon",
+        ]
+
+
 class _FacilityLinkSerializer(serializers.ModelSerializer):
     """Base for the through-models (LocationFacility / SpaceFacility)."""
 

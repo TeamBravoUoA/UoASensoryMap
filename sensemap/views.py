@@ -13,6 +13,7 @@ from .models import (
 )
 from .serializers import (
     FacilitySerializer,
+    SensoryAttributeSerializer,
     LocationListSerializer,
     LocationDetailSerializer,
     SpaceSerializer,

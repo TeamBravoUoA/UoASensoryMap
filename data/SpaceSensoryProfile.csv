@@ -1,4 +1,4 @@
-﻿location_id,space_id,sensory_attribute_id,space_ratings,notes
+﻿location_id,space_id,sensory_attribute_id,space_rating,notes
 1,1,1,4,Frequently noisy due to conversations or activities.
 1,1,2,4,Bright lighting with noticeable visual distractions.
 1,1,3,3,Noticeable odors present during certain times.
