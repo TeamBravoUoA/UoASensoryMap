@@ -193,7 +193,7 @@ class Space(ExternalIDModel, TimeStampedModel):
     )
 
     name = models.CharField(max_length=255, db_index=True)
-    
+
     space_type = models.CharField(
         max_length=50,
         choices=SpaceType.choices,
