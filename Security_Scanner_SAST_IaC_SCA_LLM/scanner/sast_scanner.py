@@ -671,3 +671,207 @@ def check_sql_injection(tree, filepath):
 
     return findings
 
+#---RULE 14 SSRF - USER-CONTROLLED URL FETCH ----
+
+#SSRF (Server-Side Request Forgery): the SERVER fetches a URL on the
+#user's behalf. If that URL isn't validated, an attacker can point it
+#at internal-only resources instead of the public internet — localhost,
+#your database's internal port, or cloud metadata endpoints
+#(169.254.169.254, which can leak cloud credentials). The request comes
+#FROM your server, so it can reach things the attacker never could
+#directly.
+
+#Looks for requests.get()/post() (or urlopen) calls where the URL
+#argument traces back to request data (request.data, request.GET,
+#request.POST, request.json) — a light taint trace, not full tracking:
+#we check if "request." text appears in the argument, not where it
+#originally came from further back.
+
+HTTP_FETCH_METHODS = ("get", "post", "put", "delete", "patch")
+
+def check_ssrf(tree, filepath):
+    findings = []
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Call):
+            continue
+
+        #Looking for requests.get(...) / requests.post(...) etc —
+        #same call shape as check_missing_timeout, different concern
+        if not isinstance(node.func, ast.Attribute):
+            continue
+        if not isinstance(node.func.value, ast.Name):
+            continue
+        if node.func.value.id != "requests":
+            continue
+        if node.func.attr not in HTTP_FETCH_METHODS:
+            continue
+
+        if not node.args:
+            continue
+
+        url_arg = node.args[0]
+
+        #LIGHT TAINT CHECK: does the URL argument's own text mention
+        #"request" anywhere in it? Using ast.dump() to get a text
+        #representation of the argument, same technique as the image
+        #upload rule — not full data-flow tracing, just checking if
+        #request data is being used directly as the URL.
+        arg_text = ast.dump(url_arg)
+        if "request" not in arg_text.lower():
+            continue  #URL isn't from request data — not what this rule flags
+
+        findings.append(Finding(
+            rule_id="SEC-SSRF-USER-CONTROLLED-URL",
+            severity="High",
+            attack_type_exposure="Server-Side Request Forgery (SSRF)",
+            file_path=filepath,
+            line=node.lineno,
+            message=f"requests.{node.func.attr}() is called with a URL sourced from request data, with no visible validation. An attacker can point this at internal-only services (localhost, database ports, cloud metadata endpoints) instead of the public internet. Validate the URL against an explicit allow-list of hosts/schemes before fetching.",
+            standard_ref="OWASP Top 10:2025 A01 – Broken Access Control",
+        ))
+
+    return findings
+
+#---RULE 15 CROSS-SITE-REQUEST-FORGERY (CSRF) ---
+#Two related but distinct checks CSRF_EXEPT/ PERMISSIVE CORS matching the project stack
+
+#(django-cors-headers + vanilla JS frontend calling the Django API):
+#
+#1) @csrf_exempt disables Django's built-in CSRF protection on a view.
+#   CSRF: a malicious site tricks a logged-in user's browser into
+#   silently sending a request to OUR site using their real session —
+#   e.g. forging a tip submission or admin action without them knowing.
+#
+#2) CORS_ALLOW_ALL_ORIGINS = True (or a "*" in CORS_ALLOWED_ORIGINS)
+#   lets ANY website read responses from our API via cross-origin
+#   requests — a different problem: not forcing an action, but letting
+#   any site READ our API's data.
+
+def check_csrf_exempt(tree, filepath):
+    """Tier 3: decorator check — is @csrf_exempt applied to a view?"""
+    findings = []
+    for node in ast.walk(tree):
+        #Decorators only exist on function/class definitions
+        if not isinstance(node, (ast.FunctionDef, ast.ClassDef)):
+            continue
+
+        #decorator_list is a list of the @decorator expressions above
+        #this function/class — could be @csrf_exempt, @login_required,
+        #multiple stacked decorators, etc.
+        for decorator in node.decorator_list:
+            #A plain decorator name looks like: @csrf_exempt
+            if isinstance(decorator, ast.Name) and decorator.id == "csrf_exempt":
+                findings.append(Finding(
+                    rule_id="SEC-CSRF-EXEMPT",
+                    severity="High",
+                    attack_type_exposure="Cross-Site Request Forgery (CSRF)",
+                    file_path=filepath,
+                    line=node.lineno,
+                    message=f"@csrf_exempt disables CSRF protection on '{node.name}'. A malicious site could trick a logged-in user's browser into silently submitting a forged request. Remove this decorator unless justified with a code comment explaining why it's safe here.",
+                    standard_ref="OWASP Top 10:2025 A01 – Broken Access Control",
+                ))
+
+    return findings
+
+
+def check_permissive_cors(tree, filepath):
+    """Tier 1: settings check — is CORS wide open?"""
+    findings = []
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Assign):
+            continue
+
+        for target in node.targets:
+            if not isinstance(target, ast.Name):
+                continue
+
+            #Case A: CORS_ALLOW_ALL_ORIGINS = True — flat literal check,
+            #same shape as DEBUG rule
+            if target.id == "CORS_ALLOW_ALL_ORIGINS":
+                if isinstance(node.value, ast.Constant) and node.value.value is True:
+                    findings.append(Finding(
+                        rule_id="SEC-PERMISSIVE-CORS",
+                        severity="High",
+                        attack_type_exposure="Permissive CORS (Any-Origin Access)",
+                        file_path=filepath,
+                        line=node.lineno,
+                        message="CORS_ALLOW_ALL_ORIGINS is set to True. Any website on the internet can make cross-origin requests to this API and read the response. Set an explicit CORS_ALLOWED_ORIGINS list instead.",
+                        standard_ref="OWASP Top 10:2025 A02 – Security Misconfiguration",
+                    ))
+
+            #Case B: CORS_ALLOWED_ORIGINS contains "*" — same wildcard
+            #check shape as ALLOWED_HOSTS-WILDCARD rule
+            if target.id == "CORS_ALLOWED_ORIGINS":
+                if isinstance(node.value, ast.List):
+                    for elt in node.value.elts:
+                        if isinstance(elt, ast.Constant) and elt.value == "*":
+                            findings.append(Finding(
+                                rule_id="SEC-PERMISSIVE-CORS",
+                                severity="High",
+                                attack_type_exposure="Permissive CORS (Any-Origin Access)",
+                                file_path=filepath,
+                                line=node.lineno,
+                                message="CORS_ALLOWED_ORIGINS contains '*', allowing any website to make cross-origin requests to this API. List explicit trusted origins instead, e.g. ['https://sensemap.abdn.ac.uk'].",
+                                standard_ref="OWASP Top 10:2025 A02 – Security Misconfiguration",
+                            ))
+
+    return findings
+
+
+#---RULE 16 SESSION HIJACKING - MISSING COOKIE SECURITY FLAGS---
+
+#---RULE 16 SESSION HIJACKING - MISSING COOKIE SECURITY FLAGS ----
+
+#Presence check, same shape as Rule 4 (SSL/HSTS) — Django doesn't set
+#these cookie protections strictly enough by default, so absence of an
+#explicit setting is itself the risk:
+#
+#SESSION_COOKIE_HTTPONLY = True — stops JavaScript from reading the
+#  session cookie at all. Without it, an XSS bug (even a small one)
+#  can be used to steal the session cookie directly via script.
+#
+#SESSION_COOKIE_SECURE = True — stops the cookie being sent over plain
+#  HTTP. Without it, the cookie can leak the same way SSL-stripping
+#  works (Rule 4) — same MITM risk, different mechanism.
+#
+#CSRF_COOKIE_SECURE = True — same idea, but for the CSRF token cookie
+#  specifically, not the session cookie.
+
+def check_cookie_security_flags(tree, filepath):
+    findings = []
+
+    #Only meaningful in settings.py — same scoping reason as Rule 4
+    if not filepath.endswith("settings.py"):
+        return findings
+
+    #Reuses the same "collect every assigned name" idea as Rule 4
+    assigned_names = set()
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Assign):
+            continue
+        for target in node.targets:
+            if isinstance(target, ast.Name):
+                assigned_names.add(target.id)
+
+    required_cookie_flags = (
+        "SESSION_COOKIE_HTTPONLY",
+        "SESSION_COOKIE_SECURE",
+        "CSRF_COOKIE_SECURE",
+    )
+
+    missing_flags = [
+        flag for flag in required_cookie_flags if flag not in assigned_names
+    ]
+
+    if missing_flags:
+        findings.append(Finding(
+            rule_id="SEC-MISSING-COOKIE-FLAGS",
+            severity="High",
+            attack_type_exposure="Session Hijacking (Cookie Theft)",
+            file_path=filepath,
+            line=1,  #presence check, no single line owns an absence — same as Rule 4
+            message=f"Missing cookie security setting(s): {', '.join(missing_flags)}. Without these, session/CSRF cookies can be read by JavaScript (XSS-driven theft) or sent over plain HTTP (interception). Add SESSION_COOKIE_HTTPONLY = True, SESSION_COOKIE_SECURE = True, and CSRF_COOKIE_SECURE = True.",
+            standard_ref="OWASP Top 10:2025 A04 – Cryptographic Failures",
+        ))
+
+    return findings

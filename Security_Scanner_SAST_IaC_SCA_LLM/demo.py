@@ -14,6 +14,8 @@ from scanner.sast_scanner import check_missing_timeout
 from scanner.sast_scanner import check_silent_fail_open
 from scanner.sast_scanner import check_sql_injection
 from scanner.sast_scanner import check_ssrf
+from scanner.sast_scanner import check_csrf_exempt, check_permissive_cors
+from scanner.sast_scanner import check_cookie_security_flags
 from ai.threat_model import enrich_findings
 from format_report import format_report_markdown
 
@@ -40,7 +42,10 @@ CHECKED_ATTACK_TYPES = [
     "SEC-RESOURCE-STARVATION", 
     "SEC-SEC-SILENT-FAIL-OPEN", 
     "SEC-SQL-INJECTION", 
-    "SEC-SSRF-USER-CONTROLLED-URL"
+    "SEC-SSRF-USER-CONTROLLED-URL", 
+    "SEC-CSRF-EXEMPT", 
+    "SEC-PERMISSIVE-CORS", 
+    "SEC-MISSING-COOKIE-FLAGS"
 ]
 
 all_findings = []
@@ -93,6 +98,12 @@ for py_file in PROJECT_ROOT.rglob("*.py"):
     findings +=check_sql_injection(tree, str(py_file))
     #Containing rule: SEC-SSRF-USER-CONTROLLED-URL (requests.* with URL from request data)
     findings += check_ssrf(tree, str(py_file))
+    #Containing rule: SEC-CSRF-EXEMPT (@csrf_exempt decorator)
+    findings += check_csrf_exempt(tree, str(py_file))
+    #Containing rule: SEC-PERMISSIVE-CORS (CORS_ALLOW_ALL_ORIGINS / wildcard)
+    findings += check_permissive_cors(tree, str(py_file))
+    #Containing rule: SEC-MISSING-COOKIE-FLAGS (HttpOnly/Secure/SameSite absence)
+    findings += check_cookie_security_flags(tree, str(py_file))
 
 
 
