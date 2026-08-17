@@ -820,8 +820,6 @@ def check_permissive_cors(tree, filepath):
 
 #---RULE 16 SESSION HIJACKING - MISSING COOKIE SECURITY FLAGS---
 
-#---RULE 16 SESSION HIJACKING - MISSING COOKIE SECURITY FLAGS ----
-
 #Presence check, same shape as Rule 4 (SSL/HSTS) — Django doesn't set
 #these cookie protections strictly enough by default, so absence of an
 #explicit setting is itself the risk:
@@ -873,5 +871,217 @@ def check_cookie_security_flags(tree, filepath):
             message=f"Missing cookie security setting(s): {', '.join(missing_flags)}. Without these, session/CSRF cookies can be read by JavaScript (XSS-driven theft) or sent over plain HTTP (interception). Add SESSION_COOKIE_HTTPONLY = True, SESSION_COOKIE_SECURE = True, and CSRF_COOKIE_SECURE = True.",
             standard_ref="OWASP Top 10:2025 A04 – Cryptographic Failures",
         ))
+
+    return findings
+
+#---RULE 17 DoS MEMORY EXHAUSTATION - UNBOUNDED QUERYSET SLICE ---
+# NEW AST NODE TYPE - ast.Subscript
+
+#4th DoS mechanism in this scanner (after decompression bombs, ReDoS,
+#worker starvation). Attacker exploits missing size/quantity limits on
+#user input to allocate excessive RAM until the host crashes or OOMs.
+#Focuses on VOLUME of data, not one crafted file (that's the
+#decompression bomb — same family, different mechanism).
+#CWE-400 / CWE-770.
+#
+#if a queryset slice's (Python's slice syntax something [start:stop] / lower bound (where to start) upper bound (where to stop)
+# upper bound comes from user input with no maximum limit, an attacker requests an unbounded number of results in one call
+#(?limit=999999999), forcing it all into memory at once.
+
+def check_unbounded_slice(tree, filepath):
+    findings = []
+    for node in ast.walk(tree):
+        #Looking for [...] syntax — e.g. queryset[:20], queryset[5],
+        #dict['key']. Only the FIRST check narrows it down; slicing vs
+        #plain indexing gets separated next.
+        if not isinstance(node, ast.Subscript):
+            continue
+
+        #Only care about SLICES (has a ":", like [:20]) — not plain
+        #single-item access like queryset[0].
+        if not isinstance(node.slice, ast.Slice):
+            continue
+
+        #The "upper" is the STOP value of the slice — how far it goes.
+        #e.g. in [:20], the upper is 20.
+        upper_bound = node.slice.upper
+
+        #No upper value written at all (e.g. queryset[5:]) — not the
+        #case this rule targets, skip.
+        if upper_bound is None:
+            continue
+
+        #SAFE: upper is a fixed number written directly in the code,
+        #e.g. [:20] — can't be changed by a user, so it's safe.
+        if isinstance(upper_bound, ast.Constant) and isinstance(upper_bound.value, int):
+            continue
+
+        #SAFE: upper is wrapped in min(...), e.g. [:min(requested, 100)]
+        #— even if "requested" comes from user input, min() still
+        #caps the final value at 100 no matter what.
+        if isinstance(upper_bound, ast.Call):
+            if isinstance(upper_bound.func, ast.Name) and upper_bound.func.id == "min":
+                continue
+
+        #Anything else has no visible cap — a bare variable, or a
+        #direct request.GET.get(...) with nothing limiting it. Flag it.
+        findings.append(Finding(
+            rule_id="SEC-UNBOUNDED-SLICE",
+            severity="High",
+            attack_type_exposure="Memory Exhaustion (Unbounded Data)",
+            file_path=filepath,
+            line=node.lineno,
+            message="This slice's upper bound is not a fixed constant or min()-wrapped value. If it comes from user input with no upper limit (cap),an attacker can request an unbounded number of results in one call, exhausting server memory. Wrap the limit in min(requested, MAX_PAGE_SIZE).",
+            standard_ref="CWE-400 – Uncontrolled Resource Consumption",
+        ))
+
+    return findings
+
+#---TIER 4 Tier 4 — structural, whole-class walk ---
+#this asks a question about an ENTIRE class body at once — "was permission_classes set
+#ANYWHERE inside this class?" Can't be answered by looking at any
+#single line; requires walking the whole class body first.
+
+#---RULE 18 BROKEN ACCESS CONTROL - PERMISSIONS_CLASSES ALLOW ANY (Via Vertical Privilegue Escalation & Horizontal Privilege Escalation)---
+# MISSING AUTH DECORATORS - permission_classes ABSENT 
+
+#Tier 4 — structural, whole-class walk. Different from every rule so
+#far: instead of judging one node in isolation, this asks a question
+#about an ENTIRE class body at once — "was permission_classes set
+#ANYWHERE inside this class?" Can't be answered by looking at any
+#single line; requires walking the whole class body first.
+
+#If a DRF view has no permission_classes (or it's explicitly AllowAny),
+#ANYONE — authenticated or not — can call it. On a state-changing view
+#(submit a report, moderate a tip, admin action), an attacker can
+#flood the map with false data or reach admin-only functionality with
+#zero authentication.
+
+#Only checks views.py — this pattern is meaningless anywhere else.
+
+DRF_VIEW_BASE_NAMES = ("APIView", "ViewSet", "GenericAPIView", "ModelViewSet")
+
+def check_missing_auth_decorators(tree, filepath):
+    findings = []
+
+    if not filepath.endswith("views.py"):
+        return findings
+
+    for node in ast.walk(tree):
+        #Only care about class definitions
+        if not isinstance(node, ast.ClassDef):
+            continue
+
+        #Confirm this class actually looks like a DRF view — check its
+        #base classes (what it inherits from). node.bases is a list of
+        #the parent class expressions, e.g. class Foo(APIView)
+        # If it doesn't inherit from a known DRF view type, it's not a view we care about —
+        #skip it, so we don't accidentally flag unrelated classes.
+        base_names = [
+            base.id for base in node.bases if isinstance(base, ast.Name)
+        ]
+        is_drf_view = any(name in DRF_VIEW_BASE_NAMES for name in base_names)
+
+        if not is_drf_view:
+            continue  #not a DRF view class — nothing to check here
+
+        # walk the WHOLE class body looking for permission_classes being assigned anywhere inside it.
+        # "whole-class walk" part —  answered only after seeing every line inside this specific class.
+        has_permission_classes = False
+        is_allow_any = False
+
+        for class_node in ast.walk(node):
+            if not isinstance(class_node, ast.Assign):
+                continue
+            for target in class_node.targets:
+                if isinstance(target, ast.Name) and target.id == "permission_classes":
+                    has_permission_classes = True
+
+                    #Check if it's specifically set to [AllowAny] —
+                    #still unsafe even though the attribute IS present.
+                    if isinstance(class_node.value, ast.List):
+                        for elt in class_node.value.elts:
+                            if isinstance(elt, ast.Name) and elt.id == "AllowAny":
+                                is_allow_any = True
+
+        if not has_permission_classes or is_allow_any:
+            findings.append(Finding(
+                rule_id="SEC-MISSING-AUTH-DECORATOR",
+                severity="Critical",
+                attack_type_exposure="Broken Access Control",
+                file_path=filepath,
+                line=node.lineno,
+                message=f"'{node.name}' has no permission_classes set (or it's AllowAny). Any user, authenticated or not, can call this view. Set permission_classes = [IsAuthenticated] or stricter.",
+                standard_ref="OWASP Top 10:2025 A01 – Broken Access Control",
+            ))
+
+    return findings
+
+#---rule 19 BROKEN ACCESS CONTROL - PERMISSIONS_CLASSES ALLOW ANY (Via INSECURE DIRECT OBJECT REFERENCE (IDOR) )---
+
+#Tier 4 — structural, single-METHOD walk.
+#  Asks: "does this method fetch an object by ID,
+#and if so, does it ALSO call check_object_permissions() somewhere in
+#that same method?" Can't be answered from one line alone — needs to
+#see the whole method body first.
+
+#IDOR (Insecure Direct Object Reference): if a method fetches an
+#object purely by a client-supplied ID with no ownership/permission
+#check, an attacker just changes the ID in the URL to read/edit/delete
+#someone else's data. Access Tips are ID-addressable and student-
+#submitted — exactly the "guess the ID" abuse case.
+
+OBJECT_FETCH_METHOD_NAMES = ("get", "get_object_or_404")
+
+def check_idor_missing_permission(tree, filepath):
+    findings = []
+
+    if not filepath.endswith("views.py"):
+        return findings
+
+    for node in ast.walk(tree):
+        #Only care about function/method definitions
+        if not isinstance(node, ast.FunctionDef):
+            continue
+
+        #Only care about DRF's object-level methods — retrieve/update/
+        #destroy are the standard names for "fetch one object by ID"
+        if node.name not in ("retrieve", "update", "destroy", "partial_update"):
+            continue
+
+        #Walk THIS METHOD'S body only (ast.walk(node), not the whole
+        #tree) — looking for two things inside it:
+        fetches_by_id = False
+        calls_permission_check = False
+
+        for inner_node in ast.walk(node):
+            if isinstance(inner_node, ast.Call):
+                #Detects .get(pk=...) or get_object_or_404(...) — a
+                #fetch-by-ID call
+                if isinstance(inner_node.func, ast.Attribute):
+                    if inner_node.func.attr in OBJECT_FETCH_METHOD_NAMES:
+                        fetches_by_id = True
+                if isinstance(inner_node.func, ast.Name):
+                    if inner_node.func.id in OBJECT_FETCH_METHOD_NAMES:
+                        fetches_by_id = True
+
+                #Detects self.check_object_permissions(...) anywhere
+                #in this method
+                if isinstance(inner_node.func, ast.Attribute):
+                    if inner_node.func.attr == "check_object_permissions":
+                        calls_permission_check = True
+
+        #Only flag if it fetches by ID but NEVER calls the permission
+        #check anywhere in the same method
+        if fetches_by_id and not calls_permission_check:
+            findings.append(Finding(
+                rule_id="SEC-IDOR-MISSING-PERMISSION-CHECK",
+                severity="Critical",
+                attack_type_exposure="Insecure Direct Object Reference (IDOR)",
+                file_path=filepath,
+                line=node.lineno,
+                message=f"'{node.name}' fetches an object by ID with no call to self.check_object_permissions(). An attacker can access another user's object by simply changing the ID. Call self.check_object_permissions(request, obj) after fetching.",
+                standard_ref="OWASP Top 10:2025 A01 – Broken Access Control",
+            ))
 
     return findings

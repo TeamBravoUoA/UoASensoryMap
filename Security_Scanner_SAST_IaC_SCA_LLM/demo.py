@@ -16,6 +16,9 @@ from scanner.sast_scanner import check_sql_injection
 from scanner.sast_scanner import check_ssrf
 from scanner.sast_scanner import check_csrf_exempt, check_permissive_cors
 from scanner.sast_scanner import check_cookie_security_flags
+from scanner.sast_scanner import check_unbounded_slice
+from scanner.sast_scanner import check_missing_auth_decorators
+from scanner.sast_scanner import check_idor_missing_permission
 from ai.threat_model import enrich_findings
 from format_report import format_report_markdown
 
@@ -43,9 +46,12 @@ CHECKED_ATTACK_TYPES = [
     "SEC-SEC-SILENT-FAIL-OPEN", 
     "SEC-SQL-INJECTION", 
     "SEC-SSRF-USER-CONTROLLED-URL", 
-    "SEC-CSRF-EXEMPT", 
-    "SEC-PERMISSIVE-CORS", 
-    "SEC-MISSING-COOKIE-FLAGS"
+    "SEC-CSRF-EXEMPT-DJANGO-SECURITY",
+    "SEC-CSRF-PERMISSIVE-CORS/API-ACCESS-ANYWEBSITE",
+    "SEC-MISSING-COOKIE-FLAGS", 
+    "SEC-UNBOUNDED-SLICE/DoS-MEMORY-EXAHUSTATION",
+    "SEC-MISSING-AUTH-DECORATOR/BROKEN-ACCESS-CONTROL-PERMISSION-CLASSES",
+    "SEC-IDOR-MISSING-PERMISSION-CHECK/BROKEN-ACCESS-CONTROL-IDOR-OBJECT-ACCESS"
 ]
 
 all_findings = []
@@ -104,6 +110,12 @@ for py_file in PROJECT_ROOT.rglob("*.py"):
     findings += check_permissive_cors(tree, str(py_file))
     #Containing rule: SEC-MISSING-COOKIE-FLAGS (HttpOnly/Secure/SameSite absence)
     findings += check_cookie_security_flags(tree, str(py_file))
+    #Containing rule: SEC-UNBOUNDED-SLICE (unbounded queryset slice upper bound/data request boundaries)
+    findings += check_unbounded_slice(tree, str(py_file))
+    #Containing rule: SEC-MISSING-AUTH-DECORATOR (missing/AllowAny permission_classes on DRF views)
+    findings += check_missing_auth_decorators(tree, str(py_file))
+    #Containing rule: SEC-IDOR-MISSING-PERMISSION-CHECK (fetch-by-ID with no ownership check)
+    findings += check_idor_missing_permission(tree, str(py_file))
 
 
 
