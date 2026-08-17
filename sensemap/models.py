@@ -61,6 +61,12 @@ class SensoryAttribute(ExternalIDModel, TimeStampedModel):
     name = models.CharField(max_length=100, unique=True)
     description = models.TextField(blank=True)
 
+    icon = models.ImageField(
+        upload_to="images/sensory_attributes/icons/",
+        blank=True,
+        null=True
+    )
+
     class Meta:
         ordering = ["name"]
 
@@ -113,9 +119,6 @@ class Location(ExternalIDModel, TimeStampedModel):
     )
 
     description = models.TextField(blank=True)
-    sensory_experience = models.TextField(blank=True)
-    wayfinding = models.TextField(blank=True)
-    physical_access = models.TextField(blank=True)
 
     latitude = models.DecimalField(max_digits=9, decimal_places=6)
     longitude = models.DecimalField(max_digits=9, decimal_places=6)
@@ -181,7 +184,7 @@ class Space(ExternalIDModel, TimeStampedModel):
         STUDY = "study", "Study Space"
         QUIET = "quiet", "Quiet Space"
         SOCIAL = "social", "Social Space"
-        FOOD_DRINK = "food_drink", "Food & Drink"
+        CAFETERIA = "cafeteria", "Cafeteria"
         SPORT = "sport", "Sport / Fitness"
         OUTDOOR = "outdoor", "Outdoor"
 
@@ -218,7 +221,6 @@ class Space(ExternalIDModel, TimeStampedModel):
     opening_hrs_notes = models.TextField(blank=True)
 
     wayfinding = models.TextField(blank=True)
-    sensory_experience = models.TextField(blank=True)
 
     latitude = models.DecimalField(
         max_digits=9,
@@ -366,7 +368,9 @@ class LocationSensoryProfile(TimeStampedModel):
         related_name="location_sensory_profiles"
     )
 
-    rating = models.PositiveSmallIntegerField(
+    rating = models.DecimalField(
+        max_digits=2,
+        decimal_places=1,
         validators=[
             MinValueValidator(1),
             MaxValueValidator(5)
@@ -407,12 +411,16 @@ class SpaceSensoryProfile(TimeStampedModel):
         related_name="space_sensory_profiles"
     )
 
-    rating = models.PositiveSmallIntegerField(
-        validators=[
-            MinValueValidator(1),
-            MaxValueValidator(5)
-        ]
-    )
+    rating = models.DecimalField(
+            max_digits=2,
+            decimal_places=1,
+            validators=[
+                MinValueValidator(1),
+                MaxValueValidator(5)
+            ],
+            null=True,
+            blank=True,
+        )
 
     notes = models.TextField(blank=True)
 
