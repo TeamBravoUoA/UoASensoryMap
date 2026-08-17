@@ -7,6 +7,7 @@ from dataclasses import dataclass
 class Finding:
     rule_id: str
     severity: str
+    attack_type_exposure: str
     file_path: str
     line: int
     message: str
