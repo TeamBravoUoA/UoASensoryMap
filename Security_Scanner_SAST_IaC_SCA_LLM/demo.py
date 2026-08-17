@@ -12,6 +12,13 @@ from scanner.sast_scanner import check_unsafe_image_upload
 from scanner.sast_scanner import check_redos_unsafe_regex
 from scanner.sast_scanner import check_missing_timeout
 from scanner.sast_scanner import check_silent_fail_open
+from scanner.sast_scanner import check_sql_injection
+from scanner.sast_scanner import check_ssrf
+from scanner.sast_scanner import check_csrf_exempt, check_permissive_cors
+from scanner.sast_scanner import check_cookie_security_flags
+from scanner.sast_scanner import check_unbounded_slice
+from scanner.sast_scanner import check_missing_auth_decorators
+from scanner.sast_scanner import check_idor_missing_permission
 from ai.threat_model import enrich_findings
 from format_report import format_report_markdown
 
@@ -36,7 +43,15 @@ CHECKED_ATTACK_TYPES = [
     "SEC-UNSAFE-IMAGE-UPLOAD", 
     "SEC-UNSAFE-REGEX-EXPRESSIONS", 
     "SEC-RESOURCE-STARVATION", 
-    "SEC-SEC-SILENT-FAIL-OPEN"
+    "SEC-SEC-SILENT-FAIL-OPEN", 
+    "SEC-SQL-INJECTION", 
+    "SEC-SSRF-USER-CONTROLLED-URL", 
+    "SEC-CSRF-EXEMPT-DJANGO-SECURITY",
+    "SEC-CSRF-PERMISSIVE-CORS/API-ACCESS-ANYWEBSITE",
+    "SEC-MISSING-COOKIE-FLAGS", 
+    "SEC-UNBOUNDED-SLICE/DoS-MEMORY-EXAHUSTATION",
+    "SEC-MISSING-AUTH-DECORATOR/BROKEN-ACCESS-CONTROL-PERMISSION-CLASSES",
+    "SEC-IDOR-MISSING-PERMISSION-CHECK/BROKEN-ACCESS-CONTROL-IDOR-OBJECT-ACCESS"
 ]
 
 all_findings = []
@@ -85,6 +100,22 @@ for py_file in PROJECT_ROOT.rglob("*.py"):
     findings += check_missing_timeout(tree, str(py_file))
     #Containing rule: SEC-SILENT-FAIL-OPEN (bare/empty except blocks)
     findings += check_silent_fail_open(tree, str(py_file))
+    #Containing rule SEC-SQL-INJECTION (cursor.execute() with concatenated/f-string query)
+    findings +=check_sql_injection(tree, str(py_file))
+    #Containing rule: SEC-SSRF-USER-CONTROLLED-URL (requests.* with URL from request data)
+    findings += check_ssrf(tree, str(py_file))
+    #Containing rule: SEC-CSRF-EXEMPT (@csrf_exempt decorator)
+    findings += check_csrf_exempt(tree, str(py_file))
+    #Containing rule: SEC-PERMISSIVE-CORS (CORS_ALLOW_ALL_ORIGINS / wildcard)
+    findings += check_permissive_cors(tree, str(py_file))
+    #Containing rule: SEC-MISSING-COOKIE-FLAGS (HttpOnly/Secure/SameSite absence)
+    findings += check_cookie_security_flags(tree, str(py_file))
+    #Containing rule: SEC-UNBOUNDED-SLICE (unbounded queryset slice upper bound/data request boundaries)
+    findings += check_unbounded_slice(tree, str(py_file))
+    #Containing rule: SEC-MISSING-AUTH-DECORATOR (missing/AllowAny permission_classes on DRF views)
+    findings += check_missing_auth_decorators(tree, str(py_file))
+    #Containing rule: SEC-IDOR-MISSING-PERMISSION-CHECK (fetch-by-ID with no ownership check)
+    findings += check_idor_missing_permission(tree, str(py_file))
 
 
 
