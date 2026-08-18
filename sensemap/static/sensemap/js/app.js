@@ -13,19 +13,28 @@
   // campus aren't clipped. Used to restrict the "real" full-colour tiles to
   // just the campus, so everywhere else falls back to the darkened base layer.
   const CAMPUS_BOUNDS = L.latLngBounds(
-    [57.16095, -2.1079], // SW
-    [57.1693, -2.09505]  // NE
+    [57.1619, -2.1066], // SW
+    [57.1679, -2.0962]  // NE
   );
-  const CAMPUS_POLYGON = [
-    [57.16095, -2.1079],
-    [57.16095, -2.09505],
-    [57.1693, -2.09505],
-    [57.1693, -2.1079],
-  ];
   const CAMPUS_FADE_STEPS = [
-    { pane: "campus-tiles-outer", scale: 1.50, opacity: 0.26, zIndex: 230 },
-    { pane: "campus-tiles-mid", scale: 1.45, opacity: 0.55, zIndex: 240 },
-    { pane: "campus-tiles-core", scale: 1.40, opacity: 1, zIndex: 250 },
+    {
+      pane: "campus-tiles-outer",
+      bounds: [[57.1602, -2.1092], [57.1692, -2.0936]],
+      opacity: 0.26,
+      zIndex: 230,
+    },
+    {
+      pane: "campus-tiles-mid",
+      bounds: [[57.16054, -2.10881], [57.16886, -2.09399]],
+      opacity: 0.55,
+      zIndex: 240,
+    },
+    {
+      pane: "campus-tiles-core",
+      bounds: [[57.16088, -2.10842], [57.16852, -2.09438]],
+      opacity: 1,
+      zIndex: 250,
+    },
   ];
   const SCALE_COLOURS = ["#2e7d32", "#7cb342", "#f9a825", "#ef6c00", "#c62828"];
   const QUIET_COLOUR = "#5e35b1";
@@ -73,8 +82,6 @@
   let allLocations = [];
   let markers = {}; // id -> L.marker
   let map;
-  let campusTilePanes = {};
-  let campusCorePolygon = CAMPUS_POLYGON.slice();
   let campusOutlineLayer;
   // radar chart removed
   let selectedId = null;
@@ -116,90 +123,11 @@
     return query ? "/feedback/?" + query : "/feedback/";
   }
 
-  function polygonCentroid(points) {
-    const sum = points.reduce((acc, point) => {
-      acc.lat += point[0];
-      acc.lng += point[1];
-      return acc;
-    }, { lat: 0, lng: 0 });
-
-    return [sum.lat / points.length, sum.lng / points.length];
-  }
-
-  function scalePolygon(points, factor) {
-    const center = polygonCentroid(points);
-    return points.map((point) => [
-      center[0] + (point[0] - center[0]) * factor,
-      center[1] + (point[1] - center[1]) * factor,
-    ]);
-  }
-
-  function hullCross(origin, a, b) {
-    return (a.longitude - origin.longitude) * (b.latitude - origin.latitude) -
-      (a.latitude - origin.latitude) * (b.longitude - origin.longitude);
-  }
-
-  function convexHull(points) {
-    const deduped = [];
-    const seen = {};
-
-    points.forEach((point) => {
-      const key = point.latitude + "," + point.longitude;
-      if (!seen[key]) {
-        seen[key] = true;
-        deduped.push(point);
-      }
-    });
-
-    if (deduped.length < 3) return CAMPUS_POLYGON.slice();
-
-    deduped.sort((left, right) => {
-      if (left.longitude !== right.longitude) return left.longitude - right.longitude;
-      return left.latitude - right.latitude;
-    });
-
-    const lower = [];
-    deduped.forEach((point) => {
-      while (lower.length >= 2 && hullCross(lower[lower.length - 2], lower[lower.length - 1], point) <= 0) {
-        lower.pop();
-      }
-      lower.push(point);
-    });
-
-    const upper = [];
-    deduped.slice().reverse().forEach((point) => {
-      while (upper.length >= 2 && hullCross(upper[upper.length - 2], upper[upper.length - 1], point) <= 0) {
-        upper.pop();
-      }
-      upper.push(point);
-    });
-
-    return lower
-      .slice(0, -1)
-      .concat(upper.slice(0, -1))
-      .map((point) => [point.latitude, point.longitude]);
-  }
-
-  function buildCampusCorePolygon(locations) {
-    const oldAberdeenPoints = locations
-      .filter((loc) => loc.campus === "old_aberdeen")
-      .map((loc) => ({
-        latitude: Number(loc.latitude),
-        longitude: Number(loc.longitude),
-      }))
-      .filter((loc) => Number.isFinite(loc.latitude) && Number.isFinite(loc.longitude));
-
-    if (oldAberdeenPoints.length < 3) return CAMPUS_POLYGON.slice();
-
-    const hull = convexHull(oldAberdeenPoints);
-    return hull.length >= 3 ? hull : CAMPUS_POLYGON.slice();
-  }
-
   function drawCampusOutline() {
     if (!map) return;
     if (campusOutlineLayer) map.removeLayer(campusOutlineLayer);
 
-    campusOutlineLayer = L.polygon(campusCorePolygon, {
+    campusOutlineLayer = L.rectangle(CAMPUS_BOUNDS, {
       color: "#ffffff",
       weight: 1.2,
       opacity: 0.4,
@@ -207,32 +135,6 @@
       dashArray: "4 7",
       interactive: false,
     }).addTo(map);
-  }
-
-  function updateCampusFadePolygons(locations) {
-    campusCorePolygon = buildCampusCorePolygon(locations || []);
-
-    drawCampusOutline();
-    syncCampusTileClip();
-  }
-
-  function syncCampusTileClip() {
-    if (!map) return;
-
-    CAMPUS_FADE_STEPS.forEach((step) => {
-      const pane = campusTilePanes[step.pane];
-      const polygonPoints = scalePolygon(campusCorePolygon, step.scale);
-      if (!pane || !polygonPoints.length) return;
-
-      const polygon = polygonPoints
-        .map((latLng) => map.latLngToContainerPoint(latLng))
-        .map((point) => point.x + "px " + point.y + "px")
-        .join(", ");
-
-      const clip = "polygon(" + polygon + ")";
-      pane.style.clipPath = clip;
-      pane.style.webkitClipPath = clip;
-    });
   }
 
   // --- Map ------------------------------------------------------------------
@@ -255,20 +157,18 @@
       const pane = map.createPane(step.pane);
       pane.style.zIndex = String(step.zIndex);
       pane.style.pointerEvents = "none";
-      campusTilePanes[step.pane] = pane;
 
       L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
         maxZoom: 19,
         pane: step.pane,
+        bounds: L.latLngBounds(step.bounds),
         opacity: step.opacity,
         attribution:
           '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
       }).addTo(map);
     });
 
-    updateCampusFadePolygons([]);
-    map.on("zoom move resize", syncCampusTileClip);
-    syncCampusTileClip();
+    drawCampusOutline();
   }
 
   function markerMeta(loc, activeSpaceType) {
@@ -1083,7 +983,6 @@
       }
       renderList(allLocations);
       renderMarkers(allLocations, el("filter-space-type").value);
-      updateCampusFadePolygons(allLocations);
       const bounds = L.latLngBounds(allLocations.map((l) => [l.latitude, l.longitude]));
       if (bounds.isValid()) map.fitBounds(bounds.pad(0.2));
 
