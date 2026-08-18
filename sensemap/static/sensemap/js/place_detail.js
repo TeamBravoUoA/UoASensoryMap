@@ -102,7 +102,7 @@
     wrap.innerHTML = spaces
       .map((s) => {
         const flags =
-          (s.is_quiet_zone
+          (s.is_quiet_zone && s.space_type !== "quiet"
             ? '<span class="chip quiet">Quiet zone</span>'
             : "") +
           (s.is_safe_space_neurodivergent_students
@@ -145,6 +145,10 @@
 
             ${s.description ? `<p>${escapeHtml(s.description)}</p>` : ""}
 
+            ${s.wayfinding ? `<p class="muted-note"><strong>Wayfinding:</strong> ${escapeHtml(s.wayfinding)}</p>` : ""}
+
+            ${s.sensory_profiles && s.sensory_profiles.length ? `<div class="sensory-grid small">${profiles}</div>` : ""}
+
             <a class="btn" style="margin-top:0.6rem;border-radius:999px;padding:0.4rem 0.85rem;font-size:0.85rem;text-decoration:none;" href="/space/${s.id}/">Space details &rarr;</a>
           </article>`;
       })
@@ -167,13 +171,19 @@
 
     wrap.innerHTML = images
       .map(
-        (img) => `
+        (img) => {
+          const dim =
+            img.width && img.height
+              ? ` width="${img.width}" height="${img.height}"`
+              : "";
+          return `
       <a href="${escapeHtml(img.image)}" target="_blank" rel="noopener">
         <img
           src="${escapeHtml(img.image)}"
-          alt="${escapeHtml(img.caption || "Gallery image")}"
+          alt="${escapeHtml(img.caption || "Gallery image")}"${dim}
           loading="lazy">
-      </a>`
+      </a>`;
+        }
       )
       .join("");
   }
@@ -265,12 +275,6 @@
       renderSpaces(d.spaces || []);
       renderGallery(d.gallery_images || []);
 
-      const physical = document.getElementById("tab-physical");
-      if (physical)
-        physical.innerHTML = `<p>${escapeHtml(
-          d.physical_access || "No information available."
-        )}</p>`;
-
       const mapLink = el("dp-map-link");
 
       if (d.uoa_map_link) {
@@ -284,8 +288,6 @@
 
       el("detail-loader").hidden = true;
       el("detail-card").hidden = false;
-
-      setupTabs();
 
     } catch (err) {
       el("detail-loader").hidden = true;

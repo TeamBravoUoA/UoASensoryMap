@@ -3,7 +3,7 @@
 
 {% block page_title %}Place details &middot; UoA Sensory Map{% endblock %}
 {% block page_meta_content %}Detailed sensory information for a University of Aberdeen location.{% endblock %}
-{% block styles_version %}11{% endblock %}
+{% block styles_version %}15{% endblock %}
 {% block skip_target_id %}detail-main{% endblock %}
 {% block skip_text %}Skip to details{% endblock %}
 {% block header_nav %}
@@ -35,15 +35,6 @@
           <p class="detail-page-desc" id="dp-desc"></p>
         </section>
 
-        <section class="info-tabs" aria-label="Place Information">
-          <div class="tab-buttons" role="tablist">
-            <button class="tab-btn active" data-tab="tab-physical" type="button">Physical Access</button>
-          </div>
-
-        <div class="tab-panel active" id="tab-physical">
-          
-        </div>
-        </section>
         <section id="dp-access-section">
           <h3>Access</h3>
           <div id="dp-access"></div>
@@ -82,5 +73,5 @@
 {% endblock %}
 
 {% block page_scripts %}
-  <script src="{% static 'sensemap/js/place_detail.js' %}?v=18"></script>
+  <script src="{% static 'sensemap/js/place_detail.js' %}?v=21"></script>
 {% endblock %}

@@ -52,7 +52,7 @@
     student_services: { label: "Student Services", iconUrl: "facility.svg", color: "#2e7d32", desc: "Support, advice and wellbeing services." },
     research_laboratory: { label: "Research / Labs", iconUrl: "study.svg", color: "#1565c0", desc: "Research buildings and laboratories." },
     garden: { label: "Garden", iconUrl: "garden.svg", color: "#558b2f", desc: "Gardens and outdoor green space." },
-    cafe: { label: "Cafe", iconUrl: "food_drink.svg", color: "#ef6c00", desc: "Cafes and food outlets." },
+    cafe: { label: "Cafeteria", iconUrl: "food_drink.svg", color: "#ef6c00", desc: "Cafes and food outlets." },
     outdoor: { label: "Outdoor", iconUrl: "garden.svg", color: "#607d8b", desc: "Outdoor and miscellaneous spaces." },
     sports_facility: { label: "Sports Facility", iconUrl: "sports.svg", color: "#7b1fa2", desc: "Gyms, sports halls and recreational facilities." },
   };
@@ -63,12 +63,16 @@
   ];
   const FALLBACK_CATEGORY = { label: "Place", iconUrl: "facility.svg", color: "#607d8b", desc: "" };
 
+  // Location marker on the map: all locations are shown with a facility/building icon.
+  // The badge background uses the location's category colour, but the SVG icon is always a facility.
+  const BUILDING_META = { label: "Building", iconUrl: "facility.svg" };
+
   // Space type metadata (matches Space.SPACE_TYPE_CHOICES).
   const SPACE_TYPE_META = {
     study: { label: "Study Space", iconUrl: "study.svg", color: "#1565c0", desc: "Focused work, desks and reading areas." },
     quiet: { label: "Quiet Space", iconUrl: "quiet.svg", color: "#5e35b1", desc: "Low-stimulation areas to rest and decompress." },
     social: { label: "Social Space", iconUrl: "social.svg", color: "#f9a825", desc: "Lounges and meeting spots, often lively." },
-    food_drink: { label: "Food & Drink", iconUrl: "food_drink.svg", color: "#ef6c00", desc: "Cafes, food courts and places to eat." },
+    food_drink: { label: "Cafeteria", iconUrl: "food_drink.svg", color: "#ef6c00", desc: "Cafes, food courts and places to eat." },
     // facility: { label: "Facility", iconUrl: "facility.svg", color: "#00838f", desc: "General support and service facilities." },
     // sensory: { label: "Sensory Room", iconUrl: "sensory.svg", color: "#d81b60", desc: "Calming rooms designed for sensory regulation." },
     sport: { label: "Sport / Fitness", iconUrl: "sports.svg", color: "#7b1fa2", desc: "Gyms, sports halls and recreational facilities." },
@@ -80,6 +84,7 @@
 
   // --- State ----------------------------------------------------------------
   let allLocations = [];
+  let allSpaces = [];
   let markers = {}; // id -> L.marker
   let map;
   let campusOutlineLayer;
@@ -144,13 +149,40 @@
     // Base layer: light, label-free tiles everywhere. This is what shows through
     // for anywhere off-campus, so the city around Old Aberdeen recedes into the
     // background instead of competing with the campus markers.
-    L.tileLayer("https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}.png", {
+    const cartoBase = L.tileLayer("https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}.png", {
       maxZoom: 19,
       subdomains: "abcd",
       attribution:
         '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, ' +
         '&copy; <a href="https://carto.com/attributions">CARTO</a>',
     }).addTo(map);
+
+    // CARTO can intermittently fail (rate limits / network), leaving gray
+    // tiles. Retry each failed tile once; if failures keep happening, swap
+    // the base layer to OpenStreetMap so the map never stays gray.
+    let cartoErrorCount = 0;
+    let baseFallbackDone = false;
+    cartoBase.on("tileerror", (e) => {
+      const tile = e.tile;
+      // Retry the tile once with a cache-busting query param.
+      if (tile && !tile.dataset.retried) {
+        tile.dataset.retried = "1";
+        setTimeout(() => {
+          tile.src = e.tile.src.split("#")[0] + "#retry";
+        }, 500);
+        return;
+      }
+      cartoErrorCount++;
+      if (cartoErrorCount >= 5 && !baseFallbackDone) {
+        baseFallbackDone = true;
+        map.removeLayer(cartoBase);
+        L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+          maxZoom: 19,
+          attribution:
+            '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+        }).addTo(map);
+      }
+    });
 
     // Three stacked overlays create a soft transition from campus to surroundings.
     CAMPUS_FADE_STEPS.forEach((step) => {
@@ -179,21 +211,22 @@
   }
 
   function makeIcon(loc, activeSpaceType) {
-    const meta = markerMeta(loc, activeSpaceType);
-    // Border colour conveys average sensory intensity; fill + SVG icon conveys category.
+    const catMeta = markerMeta(loc, activeSpaceType);
+    // Border colour conveys average sensory intensity; fill colour comes from the
+    // category; the SVG icon is always a building for locations.
     const border = loc.avg_sensory == null ? "#9e9e9e" : scaleColour(loc.avg_sensory, false);
     const ring = loc.has_quiet_zone ? "box-shadow:0 0 0 4px rgba(94,53,177,0.35);" : "";
     return L.divIcon({
       className: "sensory-pin",
       html:
         '<span class="pin-badge" style="background:' +
-        meta.color +
+        catMeta.color +
         ";border-color:" +
         border +
         ";" +
         ring +
         '">' +
-        iconImg(meta, loc.name) +
+        iconImg(BUILDING_META, loc.name) +
         "</span>",
       iconSize: [34, 34],
       iconAnchor: [17, 17],
@@ -209,11 +242,49 @@
         icon: makeIcon(loc, activeSpaceType),
         keyboard: true,
         title: loc.name,
-        alt: loc.name + (loc.has_quiet_zone ? " (quiet zone)" : ""),
+        alt: loc.name + (loc.has_quiet_zone && !(loc.space_types || []).includes("quiet") ? " (quiet zone)" : ""),
       });
       marker.on("click", () => selectLocation(loc.id, true));
       marker.addTo(map);
       markers[loc.id] = marker;
+    });
+  }
+
+  function renderSpaceMarkers(spaces) {
+    if (!spaces || !spaces.length) return;
+    spaces.forEach((space) => {
+      if (!space.latitude || !space.longitude) return;
+      const meta = SPACE_TYPE_META[space.space_type] || FALLBACK_SPACE;
+      const icon = L.divIcon({
+        className: "sensory-pin space-pin",
+        html:
+          '<span class="pin-badge" style="background:' +
+          meta.color +
+          '">' +
+          iconImg(meta, space.name) +
+          "</span>",
+        iconSize: [28, 28],
+        iconAnchor: [14, 14],
+        popupAnchor: [0, -14],
+      });
+      const marker = L.marker([space.latitude, space.longitude], {
+        icon: icon,
+        keyboard: true,
+        title: space.name + " - " + (space.location?.name || ""),
+        alt: space.name,
+      });
+      marker.bindTooltip(space.name + " - " + (space.location?.name || ""), {
+        direction: "top",
+        offset: [0, -10],
+        className: "space-tooltip",
+      });
+      marker.on("click", () => {
+        if (space.location?.id) {
+          selectLocation(space.location.id, true);
+        }
+      });
+      marker.addTo(map);
+      markers["space-" + space.id] = marker;
     });
   }
 
@@ -231,7 +302,7 @@
       .map((loc) => {
         const colour = loc.avg_sensory == null ? "#9e9e9e" : scaleColour(loc.avg_sensory, loc.has_quiet_zone);
         const badges =
-          (loc.has_quiet_zone ? '<span class="chip">Quiet zone</span>' : "") +
+          (loc.has_quiet_zone && !(loc.space_types || []).includes("quiet") ? '<span class="chip">Quiet zone</span>' : "") +
           (loc.has_neurodivergent_safe ? '<span class="chip nd">ND-safe</span>' : "");
         const spaceBadges = (loc.space_types || [])
           .map((t) => {
@@ -327,9 +398,13 @@
       .forEach((btn) => {
         btn.addEventListener("click", () => {
           el("filter-space-type").value = btn.dataset.st;
+          const mobile = el("filter-space-type-mobile");
+          if (mobile) mobile.value = btn.dataset.st;
           applyFilters();
         });
       });
+    const mobileSelect = el("filter-space-type-mobile");
+    if (mobileSelect) mobileSelect.value = el("filter-space-type").value;
     setActiveChip(el("filter-space-type").value);
   }
 
@@ -453,8 +528,21 @@
       .map((s) => {
         const m = SPACE_TYPE_META[s.space_type] || FALLBACK_SPACE;
         const flags =
-          (s.is_quiet_zone ? '<span class="chip">Quiet zone</span>' : "") +
+          (s.is_quiet_zone && s.space_type !== "quiet" ? '<span class="chip">Quiet zone</span>' : "") +
           (s.is_safe_space_neurodivergent_students ? '<span class="chip nd">ND-safe</span>' : "");
+        const bars = (s.sensory_profiles || [])
+          .map(
+            (p) =>
+              '<span class="space-bar"><small>' +
+              escapeHtml(p.attribute) +
+              '</small><b><i style="width:' +
+              (p.rating / 5) * 100 +
+              "%;background:" +
+              scaleColour(p.rating, false) +
+              '"></i></b></span>'
+          )
+          .join("");
+
         const facs = (s.facilities || [])
           .map(
             (f) =>
@@ -466,18 +554,6 @@
               (f.status ? "\u2713 " : "\u2014 ") +
               escapeHtml(f.name) +
               "</span>"
-          )
-          .join("");
-        const bars = (s.sensory_profiles || [])
-          .map(
-            (p) =>
-              '<span class="space-bar"><small>' +
-              escapeHtml(p.attribute) +
-              '</small><b><i style="width:' +
-              (p.rating / 5) * 100 +
-              "%;background:" +
-              scaleColour(p.rating, false) +
-              '"></i></b></span>'
           )
           .join("");
         return (
@@ -501,11 +577,8 @@
             : "") +
           (s.id ? '<p class="detail-more"><a href="/space/' + s.id + '/">Space details &rarr;</a></p>' : "") +
           (s.description ? "<p>" + escapeHtml(s.description) + "</p>" : "") +
-          (s.sensory_experience
-            ? '<p class="muted-note"><strong>Sensory:</strong> ' + escapeHtml(s.sensory_experience) + "</p>"
-            : "") +
           (s.wayfinding
-            ? '<p class="muted-note"><strong>Finding it:</strong> ' + escapeHtml(s.wayfinding) + "</p>"
+            ? '<p class="muted-note"><strong>Wayfinding:</strong> ' + escapeHtml(s.wayfinding) + "</p>"
             : "") +
           (bars ? '<div class="space-bars">' + bars + "</div>" : "") +
           (facs ? '<div class="facilities">' + facs + "</div>" : "") +
@@ -637,6 +710,22 @@
     }
     renderList(filtered);
     renderMarkers(filtered, spaceType);
+
+    // Also filter and re-render space markers so the map shows spaces, not just locations.
+    const filteredSpaces = (allSpaces || []).filter((s) => {
+      if (spaceType && s.space_type !== spaceType) return false;
+      if (campus && s.location?.campus !== campus) return false;
+      if (category && s.location?.category !== category) return false;
+      if (quietOnly && !s.is_quiet_zone) return false;
+      if (ndOnly && !s.is_safe_space_neurodivergent_students) return false;
+      if (search) {
+        const hay = (s.name + " " + (s.description || "")).toLowerCase();
+        if (!hay.includes(search)) return false;
+      }
+      return true;
+    });
+    renderSpaceMarkers(filteredSpaces);
+
     setActiveChip(spaceType);
   }
 
@@ -712,11 +801,17 @@
 
   // --- Wire up --------------------------------------------------------------
   function setupControls() {
-    ["search", "filter-campus", "filter-category", "filter-space-type", "filter-quiet", "filter-nd"].forEach((id) => {
+    ["search", "filter-campus", "filter-category", "filter-space-type", "filter-space-type-mobile", "filter-quiet", "filter-nd"].forEach((id) => {
       const node = el(id);
       if (!node) return;
       const evt = node.type === "checkbox" || node.tagName === "SELECT" ? "change" : "input";
-      node.addEventListener(evt, applyFilters);
+      node.addEventListener(evt, (e) => {
+        if (e.target && e.target.id === "filter-space-type-mobile") {
+          const desktop = el("filter-space-type");
+          if (desktop) desktop.value = e.target.value;
+        }
+        applyFilters();
+      });
     });
     const detailClose = el("detail-close");
     if (detailClose) detailClose.addEventListener("click", closeDetail);
@@ -946,7 +1041,7 @@
       { key: "study", label: "Study Space" },
       { key: "quiet", label: "Quiet Space" },
       { key: "social", label: "Social Space" },
-      { key: "food_drink", label: "Food & Drink" },
+      { key: "food_drink", label: "Cafeteria" },
       { key: "sport", label: "Sport / Fitness" },
       { key: "outdoor", label: "Outdoor" },
     ];
@@ -959,17 +1054,20 @@
       if (!byKey[o.key]) byKey[o.key] = o;
     });
     fill("filter-space-type", Object.values(byKey), "Any space type");
+    fill("filter-space-type-mobile", Object.values(byKey), "All places");
   }
 
   async function loadData() {
     try {
-      const [metaRes, locRes] = await Promise.all([
+      const [metaRes, locRes, spaceRes] = await Promise.all([
         fetch("/api/meta/"),
         fetch("/api/locations/"),
+        fetch("/api/spaces/"),
       ]);
       if (!locRes.ok) throw new Error("Request failed: " + locRes.status);
       metaData = metaRes.ok ? await metaRes.json() : null;
       allLocations = await locRes.json();
+      allSpaces = spaceRes.ok ? await spaceRes.json() : [];
 
       buildFilters();
       renderLegend();

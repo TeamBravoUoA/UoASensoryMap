@@ -1,5 +1,4 @@
 from django.db import models
-from django.db.models import Q, CheckConstraint
 from django.core.exceptions import ValidationError
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.utils.text import slugify
@@ -93,7 +92,7 @@ class Location(ExternalIDModel, TimeStampedModel):
         SUPPORT_BUILDING = "support_building", "Support Building"
         NURSERY = "nursery", "Nursery"
         SHOP = "shop", "Shop"
-        CAFE = "cafe", "Cafe"
+        CAFE = "cafe", "Cafeteria"
 
 
     name = models.CharField(max_length=255, unique=True, db_index=True)
@@ -182,7 +181,9 @@ class Space(ExternalIDModel, TimeStampedModel):
         STUDY = "study", "Study Space"
         QUIET = "quiet", "Quiet Space"
         SOCIAL = "social", "Social Space"
-        OTHER = "other", "Other"
+        FOOD_DRINK = "food_drink", "Cafeteria"
+        SPORT = "sport", "Sport / Fitness"
+        OUTDOOR = "outdoor", "Outdoor"
 
 
     location = models.ForeignKey(
@@ -192,7 +193,7 @@ class Space(ExternalIDModel, TimeStampedModel):
     )
 
     name = models.CharField(max_length=255, db_index=True)
-    
+
     space_type = models.CharField(
         max_length=50,
         choices=SpaceType.choices,
@@ -218,6 +219,25 @@ class Space(ExternalIDModel, TimeStampedModel):
 
     wayfinding = models.TextField(blank=True)
     sensory_experience = models.TextField(blank=True)
+
+    latitude = models.DecimalField(
+        max_digits=9,
+        decimal_places=6,
+        null=True,
+        blank=True,
+    )
+
+    longitude = models.DecimalField(
+        max_digits=9,
+        decimal_places=6,
+        null=True,
+        blank=True,
+    )
+
+    floor = models.CharField(
+        max_length=50,
+        blank=True,
+    )
 
     is_quiet_zone = models.BooleanField(default=False)
     is_safe_space_neurodivergent_students = models.BooleanField(default=False)
@@ -350,7 +370,9 @@ class LocationSensoryProfile(TimeStampedModel):
         validators=[
             MinValueValidator(1),
             MaxValueValidator(5)
-        ]
+        ],
+        null=True,
+        blank=True,
     )
 
     notes = models.TextField(blank=True)
@@ -406,72 +428,6 @@ class SpaceSensoryProfile(TimeStampedModel):
     def __str__(self):
         return f"{self.space.name} - {self.sensory_attribute.name}"
 
-
-class FeedbackReport(TimeStampedModel):
-    """
-    User feedback tied to either a Location OR a Space.
-    """
-
-    class Status(models.TextChoices):
-        PENDING = "pending", "Pending"
-        ACCEPTED = "accepted", "Accepted"
-        REJECTED = "rejected", "Rejected"
-
-
-    location = models.ForeignKey(
-        Location,
-        on_delete=models.CASCADE,
-        null=True,
-        blank=True,
-        related_name="feedback_reports"
-    )
-
-    space = models.ForeignKey(
-        Space,
-        on_delete=models.CASCADE,
-        null=True,
-        blank=True,
-        related_name="feedback_reports"
-    )
-
-    comment = models.TextField()
-
-    is_anonymous = models.BooleanField(default=True)
-
-    reporter_name = models.CharField(max_length=255, blank=True)
-    reporter_email = models.EmailField(blank=True)
-
-    status = models.CharField(
-        max_length=20,
-        choices=Status.choices,
-        default=Status.PENDING,
-        db_index=True,
-    )
-
-    class Meta:
-        ordering = ["-created_at"]
-        constraints = [
-            CheckConstraint(
-                condition=(
-                    Q(location__isnull=False, space__isnull=True) |
-                    Q(location__isnull=True, space__isnull=False)
-                ),
-                name="feedback_exclusive_target"
-            )
-        ]
-
-    def clean(self):
-        # Require identity only for non-anonymous feedback
-        if not self.is_anonymous:
-            if not self.reporter_name or not self.reporter_email:
-                raise ValidationError(
-                    "Name and email are required for non-anonymous feedback."
-                )
-
-    def __str__(self):
-        if self.space:
-            return f"Feedback - {self.space.name}"
-        return f"Feedback - {self.location.name}"
 
 
 class FeedbackSensoryRating(TimeStampedModel):

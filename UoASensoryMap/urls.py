@@ -24,7 +24,7 @@ urlpatterns = [
     path("", include("sensemap.urls")),
 ]
 
-# Serve media files in both development and production
+# Serve media files in all environments (needed for Render production)
 urlpatterns += [
     re_path(r"^media/(?P<path>.*)$", serve, {"document_root": settings.MEDIA_ROOT}),
 ]

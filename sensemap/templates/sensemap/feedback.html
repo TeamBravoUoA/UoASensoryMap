@@ -4,7 +4,7 @@
 {% block page_title %}Feedback &middot; UoA Sensory Map{% endblock %}
 {% block page_meta_name %}feedback{% endblock %}
 {% block page_meta_content %}Detailed sensor feedback for a University of Aberdeen location.{% endblock %}
-{% block styles_version %}11{% endblock %}
+{% block styles_version %}15{% endblock %}
 {% block skip_target_id %}feedback-main{% endblock %}
 {% block skip_text %}Skip to feedback{% endblock %}
 {% block header_tagline %}Share sensory information about a location to help others plan their visit and improve the campus experience.{% endblock %}
@@ -20,7 +20,7 @@
 
       <div class="feedback-layout" id="feedback-card" hidden>
         <article class="feedback-page-card">
-          <div id="feedback-message" role="status" style="padding:1rem 0;font-weight:600;"></div>
+          <div id="feedback-message" class="feedback-message" role="status"></div>
           <header class="feedback-page-head">
             <div class="feedback-page-title">
               <h3 class="section-heading"><span class="section-icon" aria-hidden="true">&#128172;</span>About this form</h3>
@@ -112,6 +112,17 @@
           </section>
         </article>
 
+        <div class="modal-backdrop" id="confirm-modal" role="dialog" aria-modal="true" aria-labelledby="confirm-title">
+          <div class="modal">
+            <h2 id="confirm-title" tabindex="-1">Submit feedback?</h2>
+            <p class="modal-intro">Your sensory ratings will be added to this place's profile. Are you sure you want to submit?</p>
+            <div style="display:flex;justify-content:flex-end;gap:0.6rem;margin-top:1rem">
+              <button type="button" class="btn secondary" id="confirm-cancel">Cancel</button>
+              <button type="button" class="btn" id="confirm-submit">Yes, submit</button>
+            </div>
+          </div>
+        </div>
+
         <aside class="feedback-sidebar">
           <div class="sidebar-card why-card">
             <h3 class="sidebar-card-title"><span class="sidebar-card-icon" aria-hidden="true">&#128154;</span>Why your feedback matters</h3>
@@ -143,5 +154,5 @@
 {% endblock %}
 
 {% block page_scripts %}
-  <script src="{% static 'sensemap/js/feedback.js' %}?v=4"></script>
+  <script src="{% static 'sensemap/js/feedback.js' %}?v=9"></script>
 {% endblock %}

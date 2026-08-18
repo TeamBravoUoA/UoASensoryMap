@@ -3,6 +3,7 @@
 import os
 import time
 import requests
+import sys
 from dotenv import load_dotenv
 
 
@@ -72,7 +73,13 @@ def _try_model(model, prompt, api_key):
         try:
             response = _call_model(model, prompt, api_key)
             if response.status_code == 200:
-                return response.json()["choices"][0]["message"]["content"].strip()
+                data = response.json()
+                #Fall secure, in case LLM output dont respond
+                if "choices" in data and data["choices"]:
+                    return data ["choices"][0]["message"]["content"].strip()
+                else:
+                    print(f"  {model}: response missing 'choices' - falling back. ({str(data)[:120]})")
+                    return None
                 
              # Busy: wait and retry the same model
             if response.status_code == 429:
@@ -100,6 +107,7 @@ def enrich_finding(finding):
     finding_dict = {
         "rule_id": finding.rule_id,
         "severity": finding.severity,
+        "attack_type_exposure": finding.attack_type_exposure,
         "file_path": finding.file_path,
         "line": finding.line,
         "message": finding.message,

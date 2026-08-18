@@ -21,6 +21,9 @@ load_dotenv()
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+MEDIA_URL = "/media/"
+MEDIA_ROOT = BASE_DIR / "sensemap" / "media"
+
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/6.0/howto/deployment/checklist/
@@ -76,7 +79,7 @@ TEMPLATES = [
     },
 ]
 
-# WSGI_APPLICATION = 'UoASensoryMap.wsgi.application'
+WSGI_APPLICATION = 'UoASensoryMap.wsgi.application'
 
 
 # Database
@@ -131,7 +134,3 @@ USE_TZ = True
 STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
-
-# Media files (seeded images and user uploads)
-MEDIA_URL = '/media/'
-MEDIA_ROOT = BASE_DIR / 'sensemap' / 'media'

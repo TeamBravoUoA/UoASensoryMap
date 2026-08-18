@@ -6,7 +6,6 @@ from pathlib import Path
 from datetime import datetime, time
 from django.core.management.base import BaseCommand
 from django.db import transaction
-from django.db.models import Avg
 from tqdm import tqdm
 from sensemap.models import (
     Facility,
@@ -19,33 +18,6 @@ from sensemap.models import (
     LocationSensoryProfile, 
     SpaceSensoryProfile,
 )
-
-# Reference data
-FACILITIES = [
-    "Wi-Fi",
-    "Power outlets",
-    "Accessible toilet",
-    "Step-free access",
-    "Water fountain",
-    "Gender-neutral toilet",
-    "Hearing loop",
-]
-
-SENSORY_ATTRIBUTES = ["Auditory", "Visual", "Olfactory", "Thermal", "Crowding"]
-
-WEEKDAY = (time(8, 0), time(22, 0))
-SAT = (time(9, 0), time(17, 0))
-SUN = (time(11, 0), time(16, 0))
-
-
-def hours(loc_kwargs, weekday=WEEKDAY, sat=SAT, sun=SUN):
-    loc_kwargs.update(
-        weekday_open_time=weekday[0], weekday_close_time=weekday[1],
-        saturday_open_time=sat[0], saturday_close_time=sat[1],
-        sunday_holiday_open_time=sun[0], sunday_holiday_close_time=sun[1],
-    )
-    return loc_kwargs
-
 
 BASE_DIR = Path(__file__).resolve().parents[3]
 DATA_DIR = BASE_DIR / "data"
@@ -77,14 +49,13 @@ CAMPUS_MAP = {
     "Hillhead": "hillhead",
 }
 
-SAFE_SPACE_THRESHOLD = 2.5
+
 MAX_RETRIES = 3
 RETRY_DELAY = 1.5
 
 
 logger = logging.getLogger("etl_seeder")
 logger.setLevel(logging.INFO)
-
 handler = logging.FileHandler(BASE_DIR / "etl_seed.log")
 formatter = logging.Formatter("%(asctime)s | %(levelname)s | %(message)s")
 handler.setFormatter(formatter)
@@ -102,6 +73,20 @@ def parse_int(value):
         return int(value)
     except Exception:
         return None
+
+def parse_rating(value):
+    """Parse and validate a sensory rating between 1 and 5."""
+    rating = parse_int(value)
+
+    if rating is None:
+        return None
+
+    if not 1 <= rating <= 5:
+        raise ValueError(
+            f"Rating must be between 1 and 5, received: {value}"
+        )
+
+    return rating
 
 
 def parse_float(value):
@@ -154,7 +139,7 @@ class Command(BaseCommand):
     Includes retry logic, logging, and optional error skipping.
     """
 
-    help = "Production-grade ETL seeder"
+    help = "Seed the sensory map database from CSV datasets"
 
     def add_arguments(self, parser):
         parser.add_argument("--dry-run", action="store_true")
@@ -172,11 +157,20 @@ class Command(BaseCommand):
             self.seed_locations()
             self.seed_spaces()
             self.seed_location_facilities()
-            self.seed_space_facilities()         
-            self.seed_location_sensory_profiles()
+            self.seed_space_facilities()
             self.seed_gallery()
             self.seed_space_sensory_profiles()
-            self.update_space_safety()
+            self.seed_location_sensory_profiles()
+
+            if self.dry_run:
+                transaction.set_rollback(True)
+                logger.info("DRY RUN COMPLETED — CHANGES ROLLED BACK")
+                self.stdout.write(
+                    self.style.WARNING(
+                        "Dry run completed; all changes were rolled back."
+                    )
+                )
+
 
         logger.info("ETL COMPLETED")
 
@@ -209,6 +203,11 @@ class Command(BaseCommand):
         """Seed sensory attributes used for evaluation."""
         rows = load_csv("SensoryAttributes.csv")
 
+        # Wipe and rebuild: attribute IDs/names can be remapped in the CSV,
+        # and the name field has a UNIQUE constraint, so updates alone can
+        # fail when names move between external_ids.
+        SensoryAttribute.objects.all().delete()
+
         for row in tqdm(rows, desc="Sensory Attributes"):
             self.safe_execute(
                 row.get("sensory_attribute_id"),
@@ -226,7 +225,7 @@ class Command(BaseCommand):
 
         for row in tqdm(rows, desc="Locations"):
 
-            thumbnail = row.get("thumbnails_image", "").replace("\\", "/")
+            thumbnail = row.get("thumbnails_image", "").replace("\\", "/").strip().strip("/")
 
             self.safe_execute(
                 row.get("location_id"),
@@ -263,8 +262,11 @@ class Command(BaseCommand):
                 location = Location.objects.get(
                     external_id=parse_int(row["location_id"])
                 )
-            except Exception:
-                logger.error(f"Missing location for space {row['space_id']}")
+            except Location.DoesNotExist:
+                logger.error(
+                    f"Missing location {row.get('location_id')} "
+                    f"for space {row.get('space_id')}"
+                )
                 if self.skip_errors:
                     continue
                 raise
@@ -273,6 +275,8 @@ class Command(BaseCommand):
                 row.get("thumbnail_image", "")
                 .replace("\\", "/")
                 .replace("thumnail_images", "thumbnail_images")
+                .strip()
+                .strip("/")
             )
 
             self.safe_execute(
@@ -284,6 +288,9 @@ class Command(BaseCommand):
                     "name": row["name"].strip(),
                     "space_type": row["space_type"],
                     "description": row.get("description", ""),
+                    "latitude": parse_float(row.get("latitude")),
+                    "longitude": parse_float(row.get("longitude")),
+                    "floor": row.get("floor", "").strip(),
                     "thumbnail_image": thumbnail,
                     "weekday_open_time": parse_time(row.get("week_days_opentime")),
                     "weekday_close_time": parse_time(row.get("weekdays_close_time")),
@@ -292,9 +299,9 @@ class Command(BaseCommand):
                     "sunday_holiday_open_time": parse_time(row.get("sunday_holidays_open_time")),
                     "sunday_holiday_close_time": parse_time(row.get("Sunday_holidays_close_time")),
                     "opening_hrs_notes": row.get("opening_hours_note", ""),
-                    "sensory_experience": row.get("sensory_experience", ""),
                     "wayfinding": row.get("wayfinding", ""),
                     "is_quiet_zone": parse_bool(row.get("is_quiet_zone")),
+                    "is_safe_space_neurodivergent_students": parse_bool(row.get("is_safety_space_neurodivergent_students")),
                 },
             )
     
@@ -311,7 +318,12 @@ class Command(BaseCommand):
                 facility = Facility.objects.get(
                     external_id=parse_int(row["facility_id"])
                 )
-            except Exception:
+            except (Location.DoesNotExist, Facility.DoesNotExist) as exc:
+                logger.error(
+                    f"Missing relationship object for location "
+                    f"{row.get('location_id')} and facility "
+                    f"{row.get('facility_id')}: {exc}"
+                )
                 if self.skip_errors:
                     continue
                 raise
@@ -340,7 +352,12 @@ class Command(BaseCommand):
                 facility = Facility.objects.get(
                     external_id=parse_int(row["facility_id"])
                 )
-            except Exception:
+            except (Space.DoesNotExist, Facility.DoesNotExist) as exc:
+                logger.error(
+                    f"Missing relationship object for space "
+                    f"{row.get('space_id')} and facility "
+                    f"{row.get('facility_id')}: {exc}"
+                )
                 if self.skip_errors:
                     continue
                 raise
@@ -365,8 +382,14 @@ class Command(BaseCommand):
                 location = Location.objects.get(
                     external_id=parse_int(row["location_id"])
                 )
-            except Exception:
-                continue
+            except Location.DoesNotExist:
+                logger.error(
+                    f"Missing location {row.get('location_id')} for gallery image "
+                    f"{row.get('image')}"
+                )
+                if self.skip_errors:
+                    continue
+                raise
 
             image = row.get("image", "").replace("\\", "/")
 
@@ -379,36 +402,45 @@ class Command(BaseCommand):
             )
 
     def seed_location_sensory_profiles(self):
-        """Compute location-level sensory ratings from space data."""
+        """Seed sensory ratings for locations from CSV."""
+        rows = load_csv("LocationSensoryProfile.csv")
 
-        from django.db.models import Avg
-
-        locations = Location.objects.all()
-
-        for location in tqdm(locations, desc="Location Sensory Profiles"):
-
-            aggregated = (
-                SpaceSensoryProfile.objects
-                .filter(space__location=location)
-                .values("sensory_attribute")
-                .annotate(avg_rating=Avg("rating"))
-            )
-
-            for row in aggregated:
-
-                attr_id = row["sensory_attribute"]
-                avg_rating = row["avg_rating"]
-
-                self.safe_execute(
-                    f"{location.id}-{attr_id}",
-                    LocationSensoryProfile.objects.update_or_create,
-                    location=location,
-                    sensory_attribute_id=attr_id,
-                    defaults={
-                        "rating": avg_rating,   # ✔ computed value
-                        "notes": "Auto-calculated from spaces"
-                    },
+        for row in tqdm(rows, desc="Location Sensory Profiles"):
+            try:
+                location = Location.objects.get(
+                    external_id=parse_int(row["location_id"])
                 )
+                attr = SensoryAttribute.objects.get(
+                    external_id=parse_int(row["sensory_attribute_id"])
+                )
+            except (
+                Location.DoesNotExist,
+                SensoryAttribute.DoesNotExist
+            ) as exc:
+                logger.error(
+                    f"Missing relationship object for location "
+                    f"{row.get('location_id')} and sensory attribute "
+                    f"{row.get('sensory_attribute_id')}: {exc}"
+                )
+                if self.skip_errors:
+                    continue
+                raise
+
+            # Skip rows with missing ratings
+            rating = parse_rating(row.get("location_rating"))
+            if rating is None:
+                continue
+
+            self.safe_execute(
+                f"{row['location_id']}-{row['sensory_attribute_id']}",
+                LocationSensoryProfile.objects.update_or_create,
+                location=location,
+                sensory_attribute=attr,
+                defaults={
+                    "rating": rating,
+                    "notes": row.get("notes", ""),
+                },
+            )
 
 
     def seed_space_sensory_profiles(self):
@@ -423,10 +455,23 @@ class Command(BaseCommand):
                 attr = SensoryAttribute.objects.get(
                     external_id=parse_int(row["sensory_attribute_id"])
                 )
-            except Exception:
+            except (
+                Space.DoesNotExist,
+                SensoryAttribute.DoesNotExist
+            ) as exc:
+                logger.error(
+                    f"Missing relationship object for space "
+                    f"{row.get('space_id')} and sensory attribute "
+                    f"{row.get('sensory_attribute_id')}: {exc}"
+                )
                 if self.skip_errors:
                     continue
                 raise
+
+            #Skip rows with missing ratings
+            rating = parse_rating(row.get("space_rating"))
+            if rating is None:
+                continue
 
             self.safe_execute(
                 f"{row['space_id']}-{row['sensory_attribute_id']}",
@@ -434,20 +479,7 @@ class Command(BaseCommand):
                 space=space,
                 sensory_attribute=attr,
                 defaults={
-                    "rating": int(row["space_ratings"]),
+                    "rating": rating,
                     "notes": row.get("notes", ""),
                 },
             )
-
-    def update_space_safety(self):
-        """Compute whether spaces are safe for neurodivergent users."""
-        spaces = Space.objects.annotate(
-            avg_rating=Avg("space_sensory_profiles__rating")
-        )
-
-        for space in tqdm(spaces, desc="Safety calc"):
-            if space.avg_rating is not None:
-                space.is_safe_space_neurodivergent_students = (
-                    space.avg_rating <= SAFE_SPACE_THRESHOLD
-                )
-                space.save(update_fields=["is_safe_space_neurodivergent_students"])

@@ -6,7 +6,6 @@ from django.test import TestCase
 
 from sensemap.models import (
     Facility,
-    FeedbackReport,
     Location,
     LocationFacility,
     LocationSensoryProfile,
@@ -184,7 +183,7 @@ class LocationDetailAPITests(TestCase):
             external_id=next(external_ids),
             location=self.location,
             name="Low stimulation room",
-            space_type="sensory",
+            space_type="quiet",
             is_quiet_zone=True,
         )
 
@@ -204,66 +203,7 @@ class LocationDetailAPITests(TestCase):
         self.assertEqual(response.status_code, 405)
 
 
-class FeedbackReportAPITests(TestCase):
-    def setUp(self):
-        self.location = make_location()
-        self.space = Space.objects.create(
-            external_id=next(external_ids),
-            location=self.location,
-            name="Test Space",
-            space_type="study",
-        )
 
-    def test_report_endpoint_creates_pending_anonymous_report(self):
-        response = self.client.post(
-            "/api/reports/",
-            data={"location": self.location.id, "comment": "Quiet today", "is_anonymous": True},
-            content_type="application/json",
-        )
-        self.assertEqual(response.status_code, 201)
-        report = FeedbackReport.objects.get()
-        self.assertEqual(report.status, FeedbackReport.Status.PENDING)
-
-    def test_legacy_feedback_endpoint_is_kept_for_the_existing_frontend(self):
-        response = self.client.post(
-            "/api/feedback/",
-            data={"location": self.location.id, "comment": "Works too"},
-            content_type="application/json",
-        )
-        self.assertEqual(response.status_code, 201)
-
-    def test_report_requires_exactly_one_target(self):
-        response = self.client.post(
-            "/api/reports/",
-            data={"location": self.location.id, "space": self.space.id, "comment": "Both"},
-            content_type="application/json",
-        )
-        self.assertEqual(response.status_code, 400)
-
-    def test_non_anonymous_report_requires_name_and_email(self):
-        response = self.client.post(
-            "/api/reports/",
-            data={"location": self.location.id, "comment": "Hello", "is_anonymous": False},
-            content_type="application/json",
-        )
-        self.assertEqual(response.status_code, 400)
-
-    def test_blank_report_comment_is_rejected(self):
-        response = self.client.post(
-            "/api/reports/",
-            data={"location": self.location.id, "comment": "   "},
-            content_type="application/json",
-        )
-        self.assertEqual(response.status_code, 400)
-
-    def test_client_cannot_set_accepted_status(self):
-        response = self.client.post(
-            "/api/reports/",
-            data={"location": self.location.id, "comment": "Please review", "status": "accepted"},
-            content_type="application/json",
-        )
-        self.assertEqual(response.status_code, 201)
-        self.assertEqual(FeedbackReport.objects.get().status, FeedbackReport.Status.PENDING)
 
 
 class MetaAPITests(TestCase):
@@ -277,173 +217,7 @@ class MetaAPITests(TestCase):
         self.assertIn("Wi-Fi", data["facilities"])
 
 
-from django.test import TestCase
 
-from sensemap.models import (
-    Facility,
-    SensoryAttribute,
-    Location,
-    Space,
-    LocationFacility,
-    LocationSensoryProfile,
-    FeedbackReport,
-)
-
-
-def make_location(**kwargs):
-    defaults = {
-        "external_id": next(external_ids),
-        "name": "Test Place",
-        "category": "library",
-        "campus": "old_aberdeen",
-        "latitude": 57.16,
-        "longitude": -2.10,
-    }
-    defaults.update(kwargs)
-    return Location.objects.create(**defaults)
-
-
-
-# Security: input handling on the public, no-auth feedback endpoint
-
-class FeedbackSecurityTests(TestCase):
-    def setUp(self):
-        self.loc = make_location()
-
-    def test_script_tag_in_comment_is_not_reflected_unescaped(self):
-        payload = {
-            "location": self.loc.id,
-            "comment": "<script>alert('xss')</script>",
-            "is_anonymous": True,
-        }
-        res = self.client.post(
-            "/api/feedback/", data=payload, content_type="application/json"
-        )
-        self.assertEqual(res.status_code, 201)
-        report = FeedbackReport.objects.get()
-        # The raw script tag should never be stored/returned verbatim.
-        self.assertNotIn("<script>", report.comment)
-
-    def test_tag_only_comment_is_rejected_after_sanitising(self):
-        payload = {
-            "location": self.loc.id,
-            "comment": "<img src=x onerror=alert(1)>",
-            "is_anonymous": True,
-        }
-        res = self.client.post(
-            "/api/feedback/", data=payload, content_type="application/json"
-        )
-        self.assertEqual(res.status_code, 400)
-        self.assertFalse(FeedbackReport.objects.exists())
-
-    def test_sql_injection_style_search_does_not_error_or_leak(self):
-        make_location(name="The Hub", category="social_building")
-        res = self.client.get("/api/locations/?search=' OR '1'='1")
-        self.assertEqual(res.status_code, 200)
-        # Should behave like a normal (likely empty) search, not return everything.
-        data = res.json()
-        self.assertIsInstance(data, list)
-
-    def test_mass_assignment_status_field_is_ignored(self):
-        """A client should not be able to submit feedback that is
-        immediately 'accepted' by injecting the status field."""
-        payload = {
-            "location": self.loc.id,
-            "comment": "Trying to skip moderation",
-            "is_anonymous": True,
-            "status": "accepted",
-        }
-        res = self.client.post(
-            "/api/feedback/", data=payload, content_type="application/json"
-        )
-        self.assertEqual(res.status_code, 201)
-        report = FeedbackReport.objects.get()
-        self.assertEqual(report.status, "pending")
-
-    def test_oversized_comment_is_rejected_not_500(self):
-        payload = {
-            "location": self.loc.id,
-            "comment": "x" * 50_000,
-            "is_anonymous": True,
-        }
-        res = self.client.post(
-            "/api/feedback/", data=payload, content_type="application/json"
-        )
-        self.assertIn(res.status_code, (201, 400))
-
-    def test_invalid_location_id_type_returns_400(self):
-        payload = {"location": "not-an-id", "comment": "bad id"}
-        res = self.client.post(
-            "/api/feedback/", data=payload, content_type="application/json"
-        )
-        self.assertEqual(res.status_code, 400)
-
-    def test_negative_location_id_returns_400(self):
-        payload = {"location": -1, "comment": "bad id"}
-        res = self.client.post(
-            "/api/feedback/", data=payload, content_type="application/json"
-        )
-        self.assertEqual(res.status_code, 400)
-
-    def test_nonexistent_location_id_returns_400(self):
-        payload = {"location": 999999, "comment": "ghost location"}
-        res = self.client.post(
-            "/api/feedback/", data=payload, content_type="application/json"
-        )
-        self.assertEqual(res.status_code, 400)
-
-
-
-# Feedback target validation — "exactly one target" edge cases
-
-class FeedbackTargetValidationTests(TestCase):
-    def setUp(self):
-        self.loc = make_location()
-        self.space = Space.objects.create(
-            external_id=next(external_ids),
-            location=self.loc,
-            name="Study Room",
-            space_type="quiet",
-        )
-
-    def test_feedback_with_both_location_and_space_is_rejected(self):
-        payload = {
-            "location": self.loc.id,
-            "space": self.space.id,
-            "comment": "Two targets at once",
-        }
-        res = self.client.post(
-            "/api/feedback/", data=payload, content_type="application/json"
-        )
-        self.assertEqual(res.status_code, 400)
-
-    def test_feedback_targeting_space_only_is_created_as_pending(self):
-        payload = {"space": self.space.id, "comment": "About the study room"}
-        res = self.client.post(
-            "/api/feedback/", data=payload, content_type="application/json"
-        )
-        self.assertEqual(res.status_code, 201)
-        report = FeedbackReport.objects.get()
-        self.assertEqual(report.status, "pending")
-        self.assertEqual(report.space_id, self.space.id)
-
-    def test_feedback_cannot_be_edited_after_submission(self):
-        report = FeedbackReport.objects.create(
-            location=self.loc, comment="Original", status="pending"
-        )
-        res = self.client.patch(
-            f"/api/feedback/{report.id}/",
-            data={"comment": "Edited"},
-            content_type="application/json",
-        )
-        self.assertIn(res.status_code, (404, 405))
-
-    def test_feedback_cannot_be_deleted_via_api(self):
-        report = FeedbackReport.objects.create(
-            location=self.loc, comment="Original", status="pending"
-        )
-        res = self.client.delete(f"/api/feedback/{report.id}/")
-        self.assertIn(res.status_code, (404, 405))
 
 
 

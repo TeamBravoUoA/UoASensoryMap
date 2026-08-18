@@ -24,7 +24,6 @@ from .models import (
     LocationGalleryImage,
     LocationSensoryProfile,
     SpaceSensoryProfile,
-    FeedbackReport,
     FeedbackSensoryRating,
 )
 
@@ -98,23 +97,26 @@ class SpaceSensoryProfileSerializer(serializers.ModelSerializer):
 
 
 class GalleryImageSerializer(serializers.ModelSerializer):
+    width = serializers.SerializerMethodField()
+    height = serializers.SerializerMethodField()
+
     class Meta:
         model = LocationGalleryImage
-        fields = ["id", "image", "caption"]
+        fields = ["id", "image", "caption", "width", "height"]
 
+    def _dimensions(self, obj):
+        try:
+            from django.core.files.images import get_image_dimensions
+            return get_image_dimensions(obj.image)
+        except Exception:
+            return (None, None)
 
-class FeedbackPublicSerializer(serializers.ModelSerializer):
-    """Accepted feedback shown on the detail panel (reporter hidden if anon)."""
+    def get_width(self, obj):
+        return self._dimensions(obj)[0]
 
-    class Meta:
-        model = FeedbackReport
-        fields = ["id", "comment", "reporter_name", "is_anonymous", "created_at"]
+    def get_height(self, obj):
+        return self._dimensions(obj)[1]
 
-    def to_representation(self, instance):
-        data = super().to_representation(instance)
-        if instance.is_anonymous:
-            data["reporter_name"] = ""
-        return data
 
 
 class SpaceLocationSerializer(serializers.ModelSerializer):
@@ -156,6 +158,9 @@ class SpaceSerializer(serializers.ModelSerializer):
             "space_type_display",
             "description",
             "thumbnail_image",
+            "latitude",
+            "longitude",
+            "floor",
             "weekday_open_time",
             "weekday_close_time",
             "saturday_open_time",
@@ -164,7 +169,6 @@ class SpaceSerializer(serializers.ModelSerializer):
             "sunday_holiday_close_time",
             "opening_hrs_notes",
             "wayfinding",
-            "sensory_experience",
             "is_quiet_zone",
             "is_safe_space_neurodivergent_students",
             "facilities",
@@ -207,6 +211,9 @@ class QuietZoneSerializer(SpaceSerializer):
             "space_type",
             "space_type_display",
             "description",
+            "latitude",
+            "longitude",
+            "floor",
             "is_quiet_zone",
             "is_safe_space_neurodivergent_students",
             "facilities",
@@ -304,7 +311,6 @@ class LocationDetailSerializer(LocationListSerializer):
     spaces = SpaceSerializer(many=True, read_only=True)
     quiet_zones = serializers.SerializerMethodField()
     gallery_images = GalleryImageSerializer(many=True, read_only=True)
-    feedback = serializers.SerializerMethodField()
 
     class Meta(LocationListSerializer.Meta):
         fields = LocationListSerializer.Meta.fields + [
@@ -316,9 +322,6 @@ class LocationDetailSerializer(LocationListSerializer):
             "sunday_holiday_close_time",
             "opening_hrs_notes",
             "additional_access_notes",
-            "sensory_experience",
-            "wayfinding",
-            "physical_access",
             "uoa_map_link",
             "thumbnail_image",
             "facilities",
@@ -326,16 +329,12 @@ class LocationDetailSerializer(LocationListSerializer):
             "spaces",
             "quiet_zones",
             "gallery_images",
-            "feedback",
+            
         ]
 
     def get_quiet_zones(self, obj):
         quiet_spaces = [space for space in obj.spaces.all() if space.is_quiet_zone]
         return QuietZoneSerializer(quiet_spaces, many=True, context=self.context).data
-
-    def get_feedback(self, obj):
-        accepted = [f for f in obj.feedback_reports.all() if f.status == "accepted"]
-        return FeedbackPublicSerializer(accepted, many=True).data
 
     def get_sensory_profiles(self, obj):
         base = {}
@@ -362,44 +361,6 @@ class LocationDetailSerializer(LocationListSerializer):
         return result
 
 
-# --------------------------------------------------------------------------- #
-# Feedback (write) serializer
-# --------------------------------------------------------------------------- #
-class FeedbackReportSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = FeedbackReport
-        fields = [
-            "id",
-            "location",
-            "space",
-            "comment",
-            "is_anonymous",
-            "reporter_name",
-            "reporter_email",
-            "status",
-            "created_at",
-        ]
-        read_only_fields = ["status", "created_at"]
-
-    def validate_comment(self, value):
-        value = strip_tags(value).strip()
-        if not value:
-            raise serializers.ValidationError("A report comment cannot be blank.")
-        return value
-
-    def validate(self, data):
-        location = data.get("location")
-        space = data.get("space")
-        if bool(location) == bool(space):
-            raise serializers.ValidationError(
-                "Provide exactly one of 'location' or 'space'."
-            )
-        if not data.get("is_anonymous", True):
-            if not data.get("reporter_name") or not data.get("reporter_email"):
-                raise serializers.ValidationError(
-                    "Name and email are required when feedback is not anonymous."
-                )
-        return data
 
 
 class FeedbackSensoryRatingBatchSerializer(serializers.Serializer):
@@ -415,7 +376,8 @@ class FeedbackSensoryRatingBatchSerializer(serializers.Serializer):
     reporter_name = serializers.CharField(allow_blank=True, required=False)
     reporter_email = serializers.EmailField(allow_blank=True, required=False)
     ratings = serializers.DictField(
-        child=serializers.IntegerField(min_value=1, max_value=5)
+        child=serializers.IntegerField(min_value=1, max_value=5),
+        allow_empty=False,
     )
 
     def validate(self, data):

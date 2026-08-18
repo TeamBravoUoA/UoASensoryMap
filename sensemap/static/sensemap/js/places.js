@@ -12,7 +12,7 @@
     study: { label: "Study Space", iconUrl: "study.svg", color: "#1565c0" },
     quiet: { label: "Quiet Space", iconUrl: "quiet.svg", color: "#5e35b1" },
     social: { label: "Social Space", iconUrl: "social.svg", color: "#f9a825" },
-    food_drink: { label: "Food & Drink", iconUrl: "food_drink.svg", color: "#ef6c00" },
+    food_drink: { label: "Cafeteria", iconUrl: "food_drink.svg", color: "#ef6c00" },
     facility: { label: "Facility", iconUrl: "facility.svg", color: "#00838f" },
     sensory: { label: "Sensory Room", iconUrl: "sensory.svg", color: "#d81b60" },
     other: { label: "Other", iconUrl: "other.svg", color: "#2e7d32" },
@@ -58,6 +58,7 @@
       campus_display: loc.campus_display,
       has_quiet_zone: space.is_quiet_zone,
       has_neurodivergent_safe: space.is_safe_space_neurodivergent_students,
+      wayfinding: space.wayfinding,
       id_access_needed: loc.id_access_needed,
       facilities_available: (space.facilities || [])
         .filter((f) => f.status)
@@ -81,7 +82,7 @@
 
   function badgesHtml(loc) {
     let html = "";
-    if (loc.has_quiet_zone) html += '<span class="pill quiet">Quiet zone</span>';
+    if (loc.has_quiet_zone && !(loc.space_types || []).includes("quiet")) html += '<span class="pill quiet">Quiet zone</span>';
     if (loc.has_neurodivergent_safe) html += '<span class="pill nd">ND-safe</span>';
     if (loc.id_access_needed) html += '<span class="pill id">ID needed</span>';
     (loc.space_types || []).forEach((t) => {
@@ -109,6 +110,9 @@
       '<p class="place-desc">' +
       escapeHtml(loc.description || "No description provided.") +
       "</p>" +
+      (loc.wayfinding
+        ? '<p class="place-wayfinding"><strong>Wayfinding:</strong> ' + escapeHtml(loc.wayfinding) + "</p>"
+        : "") +
       '<div class="place-pills">' + badgesHtml(loc) + "</div>" +
       '<a class="more-info" href="/place/' + loc.slug + '/">Full details &rarr;</a>' +
       "</div>" +
