@@ -36,7 +36,7 @@
       zIndex: 250,
     },
   ];
-  const SCALE_COLOURS = ["#2e7d32", "#7cb342", "#f9a825", "#ef6c00", "#c62828"];
+  const SCALE_COLOURS = ["#c62828", "#e65100", "#f9a825", "#7cb342", "#2e7d32"];
   const QUIET_COLOUR = "#5e35b1";
 
   const ICON_BASE = "/static/sensemap/icons/";
