@@ -1,10 +1,10 @@
-﻿sensory_attribute_id,name,description
-1,auditory,"Measures the visual environment, including lighting, brightness, glare, colors, and visual distractions."
-2,visual,"Measures the level of noise, echoes, background sounds, and overall sound environment."
-3,legitibity,"Measures temperature and overall thermal comfort, including heating, cooling, and ventilation."
+sensory_attribute_id,name,description
+1,auditory,"Measures the level of noise, echoes, background sounds, and overall sound environment."
+2,visual,"Measures the visual environment, including lighting, brightness, glare, colours, and visual distractions."
+3,legibility,"Measures how easy the environment is to read and understand, including clear signage, layout predictability, and wayfinding."
 4,safety_feeling,"Measures how safe, secure, and comfortable users feel within the space, considering visibility, accessibility, and overall atmosphere."
 5,predictability,"Measures how consistent and easy the environment is to understand and navigate, including clear layouts, signage, and routine levels."
-6,olfactory,Measures the presence and intensity of smells or odors that may affect comfort or sensory experience.
+6,olfactory,"Measures the presence and intensity of smells or odors that may affect comfort or sensory experience."
 7,tactile,"Measures physical sensations from surfaces and materials, including seating comfort, textures, vibrations, and touch-related experiences."
 8,thermal,"Measures temperature and overall thermal comfort, including heating, cooling, and ventilation."
 9,vestibular,"Measures factors that may affect balance or spatial orientation, such as stairs, ramps, elevators, uneven flooring, or movement within the space."
