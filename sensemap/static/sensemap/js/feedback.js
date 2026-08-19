@@ -29,14 +29,11 @@
   ];
 
   const SENSORY_ATTRIBUTES = [
-    { key: "auditory", label: "Auditory (Sound)", description: "How loud or quiet is the environment?", icon: "sensory.svg" },
-    { key: "visual", label: "Visual (Light)", description: "How bright or dim is the lighting?", icon: "light.svg" },
-    { key: "olfactory", label: "Olfactory (Smell)", description: "How pleasant or strong are the smells?", icon: "smell.svg" },
-    { key: "thermal", label: "Thermal (Temperature)", description: "How warm or cool does this place feel?", icon: "temp.svg" },
-    { key: "tactile", label: "Tactile (Surfaces)", description: "How comfortable are the surfaces and textures?", icon: "touch.svg" },
-    { key: "vestibular", label: "Vestibular (Movement)", description: "How easy is it to move and navigate?", icon: "vestibular.svg" },
-    { key: "predictability", label: "Predictability", description: "How consistent and easy to understand is the space?", icon: "predict.svg" },
-    { key: "safety_feeling", label: "Safety & Comfort", description: "How safe and secure do you feel?", icon: "safety.svg" },
+    { key: "auditory_comfort", name: "Auditory Comfort", label: "Auditory Comfort (Sound)", description: "How comfortable is the sound environment, including noise levels and echoes?", icon: "sensory.svg" },
+    { key: "visual_comfort", name: "Visual Comfort", label: "Visual Comfort (Light)", description: "How comfortable is the visual environment, including lighting, glare and distractions?", icon: "light.svg" },
+    { key: "legibility", name: "Legibility", label: "Legibility (Navigation)", description: "How easy is it to understand and navigate the environment, including layout and signage?", icon: "legibility.svg" },
+    { key: "safety_security", name: "Safety & Security", label: "Safety & Security", description: "How safe and secure do you feel within the environment?", icon: "safety.svg" },
+    { key: "predictable_space", name: "Predictable Space", label: "Predictable Space", description: "How consistent and predictable is the environment, including activity levels and routines?", icon: "predict.svg" },
   ];
 
   function renderOverallScale() {
@@ -159,7 +156,7 @@
     const ratings = {};
     SENSORY_ATTRIBUTES.forEach((a) => {
       const elVal = el("sensory-" + a.key + "-value");
-      if (elVal && elVal.value) ratings[a.key] = parseInt(elVal.value, 10);
+      if (elVal && elVal.value) ratings[a.name] = parseInt(elVal.value, 10);
     });
 
     if (Object.keys(ratings).length === 0) {
