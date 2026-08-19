@@ -406,7 +406,7 @@ class Command(BaseCommand):
                 LocationGalleryImage.objects.update_or_create,
                 location=location,
                 image=image,
-                defaults={"caption": row.get("caption", "")},
+                defaults={"caption": row.get("caption", "") or ""},
             )
 
     def seed_location_sensory_profiles(self):

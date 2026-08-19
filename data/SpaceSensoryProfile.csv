@@ -1,155 +1,186 @@
 ﻿location_id,space_id,sensory_attribute_id,space_rating,notes
-1,1,1,4,Frequently noisy due to conversations or activities.
-1,1,2,4,Bright lighting with noticeable visual distractions.
-1,1,3,3,Noticeable odors present during certain times.
-1,1,4,3,Moderate temperature fluctuations throughout the day.
-1,1,5,4,Multiple changes in elevation or busy movement patterns.
-2,2,1,2,Generally quiet with only occasional sounds.
-2,2,2,3,Moderate lighting and occasional glare or busy surroundings.
-2,2,3,1,No noticeable odors.
-2,2,4,3,Moderate temperature fluctuations throughout the day.
-2,2,5,2,Minor changes in floor levels or movement required.
-3,3,1,2,Very quiet environment with almost no background noise.
-3,3,2,3,Moderate lighting and occasional glare or busy surroundings.
-3,3,3,1,No noticeable odors.
-3,3,4,3,Generally comfortable with slight temperature changes.
-3,3,5,2,Minor changes in floor levels or movement required.
-3,3,6,3,No tactile assessment available.
-3,3,7,4,Navigation can be confusing in several areas.
-3,3,8,4,Some factors may reduce the feeling of safety or comfort.
-4,4,1,1,Very quiet environment with almost no background noise.
-4,4,2,2,Good lighting with only minor visual distractions. 
-4,4,3,1,No noticeable odors.
-4,4,4,3,Moderate temperature fluctuations throughout the day.
-4,4,5,1,Easy to navigate with level surfaces and minimal movement.
-4,4,6,3,No tactile assessment available.
-4,4,7,5,Unpredictable environment with difficult navigation and inconsistent layout.
-4,4,8,5,Environment may feel stressful or uncomfortable for some users.
-5,5,1,2,Generally quiet with only occasional sounds.
-5,5,2,3,Moderate lighting and occasional glare or busy surroundings.
-5,5,3,1,No noticeable odors.
-5,5,4,3,Moderate temperature fluctuations throughout the day.
-5,5,5,2,Minor changes in floor levels or movement required.
-5,5,6,3,No tactile assessment available.
-5,5,7,4,Navigation can be confusing in several areas.
-5,5,8,4,Some factors may reduce the feeling of safety or comfort.
-6,6,1,1,Very quiet environment with almost no background noise.
-6,6,2,2,Good lighting with only minor visual distractions. 
-6,6,3,1,No noticeable odors.
-6,6,4,3,Moderate temperature fluctuations throughout the day.
-6,6,5,1,Easy to navigate with level surfaces and minimal movement.
-6,6,6,3,No tactile assessment available.
-6,6,7,5,Unpredictable environment with difficult navigation and inconsistent layout.
-6,6,8,5,Environment may feel stressful or uncomfortable for some users.
-7,7,1,2,Generally quiet with only occasional sounds.
-7,7,2,3,Moderate lighting and occasional glare or busy surroundings.
-7,7,3,1,No noticeable odors.
-7,7,4,3,Moderate temperature fluctuations throughout the day.
-7,7,5,2,Minor changes in floor levels or movement required.
-7,7,6,3,No tactile assessment available.
-7,7,7,3,Some changes in layout or signage may require attention.
-7,7,8,4,Some factors may reduce the feeling of safety or comfort.
-8,8,1,1,Very quiet environment with almost no background noise.
-8,8,2,3,Moderate lighting and occasional glare or busy surroundings.
-8,8,3,1,No noticeable odors.
-8,8,4,3,Moderate temperature fluctuations throughout the day.
-8,8,5,1,Easy to navigate with level surfaces and minimal movement.
-8,8,6,3,No tactile assessment available.
-8,8,7,4,Navigation can be confusing in several areas.
-8,8,8,5,Environment may feel stressful or uncomfortable for some users.
-9,9,1,4,Frequently noisy due to conversations or activities.
-9,9,2,4,Bright lighting with noticeable visual distractions.
-9,9,3,3,Noticeable odors present during certain times.
-9,9,4,3,Moderate temperature fluctuations throughout the day.
-9,9,5,4,Multiple changes in elevation or busy movement patterns.
-9,9,6,3,No tactile assessment available.
-9,9,7,2,Mostly predictable with only minor navigation challenges.
-9,9,8,3,Generally feels safe with only minor concerns.
-10,10,1,1,Very quiet environment with almost no background noise.
-10,10,2,2,Good lighting with only minor visual distractions. 
-10,10,3,1,No noticeable odors.
-10,10,4,3,Moderate temperature fluctuations throughout the day.
-10,10,5,1,Easy to navigate with level surfaces and minimal movement.
-10,10,6,3,No tactile assessment available.
-10,10,7,5,Unpredictable environment with difficult navigation and inconsistent layout.
-10,10,8,5,Environment may feel stressful or uncomfortable for some users.
-12,12,1,1,Very quiet environment with almost no background noise.
-12,12,2,4,Bright lighting with noticeable visual distractions.
-12,12,3,3,Noticeable odors present during certain times.
-12,12,4,3,Moderate temperature fluctuations throughout the day.
-12,12,5,3,"Some stairs, ramps, or movement may affect navigation."
-12,12,6,3,No tactile assessment available.
-12,12,7,3,Some changes in layout or signage may require attention.
-12,12,8,4,Some factors may reduce the feeling of safety or comfort.
-14,14,1,1,Very quiet environment with almost no background noise.
-14,14,2,3,Moderate lighting and occasional glare or busy surroundings.
-14,14,3,1,No noticeable odors.
-14,14,4,3,Moderate temperature fluctuations throughout the day.
-14,14,5,1,Easy to navigate with level surfaces and minimal movement.
-14,14,6,3,No tactile assessment available.
-14,14,7,4,Navigation can be confusing in several areas.
-14,14,8,5,Environment may feel stressful or uncomfortable for some users.
-15,15,1,4,Frequently noisy due to conversations or activities.
-15,15,2,4,Bright lighting with noticeable visual distractions.
-15,15,3,3,Noticeable odors present during certain times.
-15,15,4,3,Moderate temperature fluctuations throughout the day.
-15,15,5,4,Multiple changes in elevation or busy movement patterns.
-15,15,6,3,No tactile assessment available.
-15,15,7,2,Mostly predictable with only minor navigation challenges.
-15,15,8,3,Moderately safe but may feel crowded or busy at times.
-16,16,1,2,Generally quiet with only occasional sounds.
-16,16,2,3,Moderate lighting and occasional glare or busy surroundings.
-16,16,3,1,No noticeable odors.
-16,16,4,3,Moderate temperature fluctuations throughout the day.
-16,16,5,2,Minor changes in floor levels or movement required.
-16,16,6,3,No tactile assessment available.
-16,16,7,4,Navigation can be confusing in several areas.
-16,16,8,4,Some factors may reduce the feeling of safety or comfort.
-17,17,1,2,Generally quiet with only occasional sounds.
-17,17,2,3,Moderate lighting and occasional glare or busy surroundings.
-17,17,3,1,No noticeable odors.
-17,17,4,3,Moderate temperature fluctuations throughout the day.
-17,17,5,2,Minor changes in floor levels or movement required.
-17,17,6,3,No tactile assessment available.
-17,17,7,4,Navigation can be confusing in several areas.
-17,17,8,4,Some factors may reduce the feeling of safety or comfort.
-18,18,1,2,Generally quiet with only occasional sounds.
-18,18,2,3,Moderate lighting and occasional glare or busy surroundings.
-18,18,3,1,No noticeable odors.
-18,18,4,3,Moderate temperature fluctuations throughout the day.
-18,18,5,2,Minor changes in floor levels or movement required.
-18,18,6,3,No tactile assessment available.
-18,18,7,4,Navigation can be confusing in several areas.
-18,18,8,4,Some factors may reduce the feeling of safety or comfort.
-19,19,1,1,Very quiet environment with almost no background noise.
-19,19,2,4,Bright lighting with noticeable visual distractions.
-19,19,3,3,Noticeable odors present during certain times.
-19,19,4,3,Moderate temperature fluctuations throughout the day.
-19,19,5,3,"Some stairs, ramps, or movement may affect navigation."
-19,19,6,3,No tactile assessment available.
-19,19,7,3,Some changes in layout or signage may require attention.
-19,19,8,4,Some factors may reduce the feeling of safety or comfort.
-20,20,1,1,Very quiet environment with almost no background noise.
-20,20,2,4,Bright lighting with noticeable visual distractions.
-20,20,3,3,Noticeable odors present during certain times.
-20,20,4,3,Moderate temperature fluctuations throughout the day.
-20,20,5,3,"Some stairs, ramps, or movement may affect navigation."
-20,20,6,3,No tactile assessment available.
-20,20,7,3,Some changes in layout or signage may require attention.
-20,20,8,4,Some factors may reduce the feeling of safety or comfort.
-21,21,1,1,Very quiet environment with almost no background noise.
-21,21,2,4,Bright lighting with noticeable visual distractions.
-21,21,3,3,Noticeable odors present during certain times.
-21,21,4,3,Moderate temperature fluctuations throughout the day.
-21,21,5,3,"Some stairs, ramps, or movement may affect navigation."
-21,21,6,3,No tactile assessment available.
-21,21,7,3,Some changes in layout or signage may require attention.
-21,21,8,4,Some factors may reduce the feeling of safety or comfort.
-23,23,1,1,Very quiet environment with almost no background noise.
-23,23,2,1,"Soft, comfortable lighting with minimal visual distractions."
-23,23,3,1,No noticeable odors.
-23,23,4,3,Moderate temperature fluctuations throughout the day.
-23,23,5,1,Easy to navigate with level surfaces and minimal movement.
-23,23,6,3,No tactile assessment available.
-23,23,7,5,Unpredictable environment with difficult navigation and inconsistent layout.
-23,23,8,5,Environment may feel stressful or uncomfortable for some users.
+1,1,1,2,
+1,1,2,3,
+1,1,3,4,
+1,1,4,4.5,
+1,1,5,3,
+1,2,1,3,
+1,2,2,4,
+1,2,3,4.5,
+1,2,4,5,
+1,2,5,4,
+1,3,1,3,
+1,3,2,4,
+1,3,3,4,
+1,3,4,5,
+1,3,5,4,
+1,4,1,3.5,
+1,4,2,4,
+1,4,3,4,
+1,4,4,5,
+1,4,5,4.5,
+1,5,1,4,
+1,5,2,4,
+1,5,3,4,
+1,5,4,5,
+1,5,5,4.5,
+1,6,1,4.5,
+1,6,2,4,
+1,6,3,4,
+1,6,4,5,
+1,6,5,4.5,
+1,7,1,5,
+1,7,2,4,
+1,7,3,4,
+1,7,4,5,
+1,7,5,5,
+1,8,1,5,
+1,8,2,4,
+1,8,3,4,
+1,8,4,5,
+1,8,5,5,
+1,9,1,4,
+1,9,2,4.5,
+1,9,3,4,
+1,9,4,5,
+1,9,5,4,
+2,10,1,3.5,
+2,10,2,4,
+2,10,3,3,
+2,10,4,4.5,
+2,10,5,3.5,
+6,11,1,4,
+6,11,2,3,
+6,11,3,3.5,
+6,11,4,4,
+6,11,5,3.5,
+7,12,1,3,
+7,12,2,3.5,
+7,12,3,3.5,
+7,12,4,4,
+7,12,5,3,
+7,13,1,4.5,
+7,13,2,4,
+7,13,3,3.5,
+7,13,4,4.5,
+7,13,5,4.5,
+8,14,1,2.5,
+8,14,2,2.5,
+8,14,3,3.5,
+8,14,4,4,
+8,14,5,2.5,
+10,15,1,2,
+10,15,2,3.5,
+10,15,3,3,
+10,15,4,3.5,
+10,15,5,2.5,
+12,16,1,3,
+12,16,2,3.5,
+12,16,3,3,
+12,16,4,3.5,
+12,16,5,3,
+14,17,1,3,
+14,17,2,2.5,
+14,17,3,3.5,
+14,17,4,3.5,
+14,17,5,3,
+18,18,1,4,
+18,18,2,3,
+18,18,3,2,
+18,18,4,2.5,
+18,18,5,3,
+19,19,1,4,
+19,19,2,3.5,
+19,19,3,3,
+19,19,4,4,
+19,19,5,3.5,
+8,20,1,4.5,
+8,20,2,3.5,
+8,20,3,4,
+8,20,4,4.5,
+8,20,5,4.5,
+12,21,1,4.5,
+12,21,2,4,
+12,21,3,3.5,
+12,21,4,4.5,
+12,21,5,4.5,
+18,22,1,2.5,
+18,22,2,3.5,
+18,22,3,2.5,
+18,22,4,2.5,
+18,22,5,2.5,
+12,23,1,4.5,
+12,23,2,4.5,
+12,23,3,3.5,
+12,23,4,4.5,
+12,23,5,4,
+8,24,1,1.5,
+8,24,2,2.5,
+8,24,3,3.5,
+8,24,4,3.5,
+8,24,5,2,
+8,25,1,4.5,
+8,25,2,3.5,
+8,25,3,4,
+8,25,4,4.5,
+8,25,5,4.5,
+8,26,1,2,
+8,26,2,2.5,
+8,26,3,3,
+8,26,4,3.5,
+8,26,5,2,
+8,27,1,2.5,
+8,27,2,2.5,
+8,27,3,4,
+8,27,4,4,
+8,27,5,3,
+24,28,1,5,
+24,28,2,4.5,
+24,28,3,4.5,
+24,28,4,4.5,
+24,28,5,4.5,
+11,29,1,3,
+11,29,2,4,
+11,29,3,4,
+11,29,4,3,
+11,29,5,3.5,
+11,30,1,4,
+11,30,2,4,
+11,30,3,4,
+11,30,4,4,
+11,30,5,4.5,
+11,31,1,2.5,
+11,31,2,3.5,
+11,31,3,3.5,
+11,31,4,3,
+11,31,5,3,
+1,32,1,3.5,
+1,32,2,3.5,
+1,32,3,4.5,
+1,32,4,5,
+1,32,5,4,
+1,33,1,4,
+1,33,2,4.5,
+1,33,3,4.5,
+1,33,4,5,
+1,33,5,4.5,
+8,34,1,2.5,
+8,34,2,3.5,
+8,34,3,4,
+8,34,4,4,
+8,34,5,3,
+7,35,1,4.5,
+7,35,2,4.5,
+7,35,3,4,
+7,35,4,4.5,
+7,35,5,4,
+19,36,1,3,
+19,36,2,3.5,
+19,36,3,4.5,
+19,36,4,4,
+19,36,5,3.5,
+40,37,1,4.5,
+40,37,2,4.5,
+40,37,3,4,
+40,37,4,4,
+40,37,5,4,

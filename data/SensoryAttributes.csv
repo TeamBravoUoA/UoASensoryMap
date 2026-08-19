@@ -1,6 +1,6 @@
 ﻿sensory_attribute_id,name,description,icon
-1,auditory comfort,"Measures how comfortable the sound environment is, including noise levels, echoes, background conversations and sudden sounds."
-2,visual comfort,"Measures how comfortable the visual environment is, including lighting, brightness, glare, colours and visual distractions."
-3,legibility,"Measures how easily users can understand and navigate the environment, including layout, signage, landmarks and route clarity."
-4,safety security,"Measures how safe and secure users feel within the environment, including visibility, accessibility and confidence when using the space."
-5,predictable space,"Measures how consistent and predictable the environment is, including expected activity levels, routines, layout and possible changes."
+1,Auditory Comfort,"Measures how comfortable the sound environment is, including noise levels, echoes, background conversations and sudden sounds.",images/sensory_attributes/icons/sensory.svg
+2,Visual Comfort,"Measures how comfortable the visual environment is, including lighting, brightness, glare, colours and visual distractions.",images/sensory_attributes/icons/light.svg
+3,Legibility,"Measures how easily users can understand and navigate the environment, including layout, signage, landmarks and route clarity.",images/sensory_attributes/icons/legibility.svg
+4,Safety & Security,"Measures how safe and secure users feel within the environment, including visibility, accessibility and confidence when using the space.",images/sensory_attributes/icons/safety.svg
+5,Predictable Space,"Measures how consistent and predictable the environment is, including expected activity levels, routines, layout and possible changes.",images/sensory_attributes/icons/predict.svg

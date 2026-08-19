@@ -2,6 +2,7 @@ from django.db import models
 from django.core.exceptions import ValidationError
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.utils.text import slugify
+from django.conf import settings
 
 class ExternalIDModel(models.Model):
     """
@@ -16,11 +17,30 @@ class ExternalIDModel(models.Model):
 
 class TimeStampedModel(models.Model):
     """
-    Abstract base model that adds created_at and updated_at fields.
+    Abstract base model that adds created_at and updated_at fields and records the responsible admin users.
     Used for consistent audit tracking across all models.
     """
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        editable=False,
+        related_name="%(app_label)s_%(class)s_created_records",
+    )
+
+    updated_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        editable=False,
+        related_name="%(app_label)s_%(class)s_updated_records",
+    )
+
 
     class Meta:
         abstract = True

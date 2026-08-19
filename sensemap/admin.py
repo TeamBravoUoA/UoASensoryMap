@@ -15,14 +15,61 @@ from .models import (
 
 class ShowAllFieldsAdmin(admin.ModelAdmin):
     """
-    Display every concrete database field in the admin list page.
+    Shared administration configuration for timestamped models.
     """
+
+    readonly_fields = (
+        "created_at",
+        "updated_at",
+        "created_by",
+        "updated_by",
+    )
 
     def get_list_display(self, request):
         return [
             field.name
             for field in self.model._meta.concrete_fields
         ]
+
+    def get_list_filter(self, request):
+        existing_filters = tuple(super().get_list_filter(request))
+
+        audit_filters = (
+            "created_at",
+            "updated_at",
+            "created_by",
+            "updated_by",
+        )
+
+        return tuple(
+            dict.fromkeys(existing_filters + audit_filters)
+        )
+
+    def get_search_fields(self, request):
+        existing_fields = tuple(super().get_search_fields(request))
+
+        audit_search_fields = (
+            "created_by__username",
+            "created_by__first_name",
+            "created_by__last_name",
+            "created_by__email",
+            "updated_by__username",
+            "updated_by__first_name",
+            "updated_by__last_name",
+            "updated_by__email",
+        )
+
+        return tuple(
+            dict.fromkeys(existing_fields + audit_search_fields)
+        )
+
+    def save_model(self, request, obj, form, change):
+        if not change or obj.created_by_id is None:
+            obj.created_by = request.user
+
+        obj.updated_by = request.user
+        super().save_model(request, obj, form, change)
+
 
 @admin.register(Facility)
 class FacilityAdmin(ShowAllFieldsAdmin):
@@ -48,9 +95,11 @@ class LocationAdmin(ShowAllFieldsAdmin):
         "category",
         "campus",
         "id_access_needed",
+        "created_at",
+        "updated_at",
     )
 
-    ordering = ("name",)
+    ordering = ("external_id",)
 
 
 class SpaceFacilityInline(admin.TabularInline):
@@ -74,6 +123,8 @@ class SpaceAdmin(ShowAllFieldsAdmin):
         "is_safe_space_neurodivergent_students",
         "floor",
         "location",
+        "created_at",
+        "updated_at",
     )
 
     autocomplete_fields = ("location",)
@@ -132,6 +183,23 @@ class SpaceAdmin(ShowAllFieldsAdmin):
         ),
     )
 
+    def save_formset(self, request, form, formset, change):
+        instances = formset.save(commit=False)
+
+        for deleted_object in formset.deleted_objects:
+            deleted_object.delete()
+
+        for instance in instances:
+            if hasattr(instance, "created_by"):
+                if instance.created_by_id is None:
+                    instance.created_by = request.user
+
+                instance.updated_by = request.user
+
+            instance.save()
+
+        formset.save_m2m()
+
 
 @admin.register(LocationFacility)
 class LocationFacilityAdmin(ShowAllFieldsAdmin):
@@ -144,6 +212,7 @@ class LocationFacilityAdmin(ShowAllFieldsAdmin):
         "location__name",
         "location__also_known_as",
         "facility__name",
+        "created_by__username",
     )
 
     autocomplete_fields = (
@@ -154,6 +223,8 @@ class LocationFacilityAdmin(ShowAllFieldsAdmin):
     list_select_related = (
         "location",
         "facility",
+        "created_at",
+        "updated_at",
     )
 
     ordering = (
