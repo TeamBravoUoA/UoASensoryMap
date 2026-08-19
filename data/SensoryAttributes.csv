@@ -1,4 +1,4 @@
-﻿sensory_attribute_id,name,description,icon
+sensory_attribute_id,name,description,icon
 1,Auditory Comfort,"Measures how comfortable the sound environment is, including noise levels, echoes, background conversations and sudden sounds.",images/sensory_attributes/icons/sensory.svg
 2,Visual Comfort,"Measures how comfortable the visual environment is, including lighting, brightness, glare, colours and visual distractions.",images/sensory_attributes/icons/light.svg
 3,Legibility,"Measures how easily users can understand and navigate the environment, including layout, signage, landmarks and route clarity.",images/sensory_attributes/icons/legibility.svg

@@ -27,10 +27,12 @@ DATA_DIR = BASE_DIR / "data"
 CATEGORY_MAP = {
     "Library": "library",
     "Teaching building": "teaching_building",
+    "Teaching Building": "teaching_building",
     "Conference / Events building": "conference_events",
     "Conference / Events Building": "conference_events",
     "Cultural Space": "cultural_space",
     "Social building": "social_building",
+    "Social Building": "social_building",
     "Student Services": "student_services",
     "Student Accommodation": "student_accommodation",
     "Research / Laboratories": "research_laboratory",
