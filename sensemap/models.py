@@ -1,8 +1,8 @@
 from django.db import models
+from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.utils.text import slugify
-from django.conf import settings
 
 class ExternalIDModel(models.Model):
     """
@@ -513,3 +513,69 @@ class FeedbackSensoryRating(TimeStampedModel):
         if self.space:
             return f"Sensory Rating Feedback - {self.space.name}"
         return f"Sensory Rating Feedback - {self.location.name}"
+
+
+from django.conf import settings
+from django.db import models
+
+
+class AuditLog(models.Model):
+
+    class Action(models.TextChoices):
+        CREATED = "created", "Created"
+        UPDATED = "updated", "Updated"
+        DELETED = "deleted", "Deleted"
+
+    app_label = models.CharField(max_length=100)
+    model_name = models.CharField(max_length=100)
+    record_id = models.CharField(max_length=100)
+    record_name = models.CharField(max_length=255)
+
+    location_id_snapshot = models.PositiveIntegerField(
+        null=True,
+        blank=True
+    )
+    location_name_snapshot = models.CharField(
+        max_length=255,
+        blank=True
+    )
+
+    action = models.CharField(
+        max_length=20,
+        choices=Action.choices,
+        db_index=True
+    )
+
+    changed_fields = models.JSONField(default=list, blank=True)
+    previous_values = models.JSONField(default=dict, blank=True)
+    new_values = models.JSONField(default=dict, blank=True)
+
+    changed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="sensory_map_audit_logs"
+    )
+
+    changed_at = models.DateTimeField(
+        auto_now_add=True,
+        db_index=True
+    )
+
+    class Meta:
+        ordering = ["-changed_at"]
+        indexes = [
+            models.Index(
+                fields=["model_name", "changed_at"]
+            ),
+            models.Index(
+                fields=["action", "changed_at"]
+            ),
+        ]
+
+    def __str__(self):
+        return (
+            f"{self.get_action_display()}: "
+            f"{self.model_name} – {self.record_name}"
+        )
