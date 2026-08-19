@@ -1,15 +1,12 @@
 import csv
 import json
-
 from datetime import date, datetime, time
 from decimal import Decimal
-
 from django.contrib import admin
 from django.db import models
 from django.db.models.fields.files import FieldFile
 from django.http import HttpResponse
 from django.utils import timezone
-
 from .models import (
     Facility,
     SensoryAttribute,
