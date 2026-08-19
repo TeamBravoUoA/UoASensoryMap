@@ -777,6 +777,8 @@ textarea {
 .help-modal { max-width: 540px; }
 .help-body { color: var(--text); font-size: 0.9rem; line-height: 1.55; }
 .help-body p { margin: 0.6rem 0; }
+.help-body h3 { margin: 1.1rem 0 0.35rem; font-size: 0.98rem; color: var(--brand, var(--text)); }
+.help-body h3:first-child { margin-top: 0; }
 .modal-intro { color: var(--muted); font-size: 0.85rem; margin-top: 0; }
 .space-types-grid { display: grid; gap: 0.6rem; }
 

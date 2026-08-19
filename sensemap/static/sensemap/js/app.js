@@ -365,8 +365,22 @@
     );
   }
 
+  // Row explaining the building/location marker shown on the map.
+  function buildingRow() {
+    return (
+      '<div class="legend-item large">' +
+      '<span class="legend-badge" style="background:#003466">' +
+      iconImg(BUILDING_META, "Building / Location") +
+      "</span>" +
+      '<span class="legend-text"><span class="legend-name">Building / Location</span>' +
+      '<span class="legend-desc">This icon marks a building or location on the map. Click it to see the spaces inside.</span>' +
+      "</span></div>"
+    );
+  }
+
   function renderLegend() {
-    el("space-types-grid").innerHTML = SPACE_TYPE_ORDER.map((t) => spaceTypeRow(t)).join("");
+    el("space-types-grid").innerHTML =
+      buildingRow() + SPACE_TYPE_ORDER.map((t) => spaceTypeRow(t)).join("");
   }
 
   // Quick space-type filter chips shown over the map.
