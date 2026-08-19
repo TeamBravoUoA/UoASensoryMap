@@ -35,6 +35,22 @@
     return d.innerHTML;
   }
 
+  function searchScore(loc, needle) {
+    const name = (loc.name || "").toLowerCase();
+    const aka = ((loc.also_known_as || "")).toLowerCase();
+    const desc = ((loc.description || "")).toLowerCase();
+    const spaceTypes = (loc.space_types || []).join(" ").toLowerCase();
+
+    if (name === needle) return 100;
+    if (name.startsWith(needle + " ") || name.startsWith(needle)) return 80;
+    if (name.includes(" " + needle)) return 60;
+    if (name.includes(needle)) return 40;
+    if (aka.includes(needle)) return 30;
+    if (spaceTypes.includes(needle)) return 20;
+    if (desc.includes(needle)) return 10;
+    return 0;
+  }
+
   function iconImg(meta, alt) {
     return (
       '<img src="' + ICON_BASE + meta.iconUrl +
@@ -146,6 +162,15 @@
       }
       return true;
     });
+
+    if (search) {
+      filtered.sort((a, b) => {
+        const scoreA = searchScore(a, search);
+        const scoreB = searchScore(b, search);
+        if (scoreB !== scoreA) return scoreB - scoreA;
+        return a.name.localeCompare(b.name);
+      });
+    }
 
     render(filtered);
   }
