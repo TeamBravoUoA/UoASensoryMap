@@ -8,35 +8,29 @@
   // --- Config ---------------------------------------------------------------
   const CAMPUS_CENTER = [57.1648, -2.1015]; // Old Aberdeen campus
 
-  // Bounding box around all seeded Old Aberdeen locations (lat 57.16259–57.167984,
-  // lng -2.106355–-2.093883), padded out a bit so buildings on the edge of
-  // campus aren't clipped. Used to restrict the "real" full-colour tiles to
-  // just the campus, so everywhere else falls back to the darkened base layer.
-  const CAMPUS_BOUNDS = L.latLngBounds(
-    [57.1619, -2.1066], // SW
-    [57.1679, -2.0962]  // NE
-  );
+  // Circular "spotlight" around Old Aberdeen campus (centred on CAMPUS_CENTER),
+  // similar in spirit to TCD Sense Map's campus vignette. Radii are hard-coded
+  // in metres and comfortably cover all seeded Old Aberdeen locations
+  // (lat 57.16259–57.167984, lng -2.106355–-2.093883). Used to restrict the
+  // "real" full-colour tiles to a circle around campus, so everywhere else
+  // falls back to the darkened base layer.
+  const CAMPUS_RADIUS_METERS = 420; // core: fully opaque circle around campus
   const CAMPUS_FADE_STEPS = [
     {
-      pane: "campus-tiles-outer",
-      bounds: [[57.1602, -2.1092], [57.1692, -2.0936]],
-      opacity: 0.26,
-      zIndex: 230,
-    },
-    {
       pane: "campus-tiles-mid",
-      bounds: [[57.16054, -2.10881], [57.16886, -2.09399]],
+      radius: 560,
       opacity: 0.55,
       zIndex: 240,
     },
     {
       pane: "campus-tiles-core",
-      bounds: [[57.16088, -2.10842], [57.16852, -2.09438]],
+      radius: CAMPUS_RADIUS_METERS,
       opacity: 1,
       zIndex: 250,
     },
   ];
-  const SCALE_COLOURS = ["#2e7d32", "#7cb342", "#f9a825", "#ef6c00", "#c62828"];
+  // const SCALE_COLOURS = ["#2e7d32", "#7cb342", "#f9a825", "#ef6c00", "#c62828"];
+  const SCALE_COLOURS = ["#c62828", "#ef6c00", "#f9a825", "#7cb342", "#2e7d32"];
   const QUIET_COLOUR = "#5e35b1";
 
   const ICON_BASE = "/static/sensemap/icons/";
@@ -132,7 +126,8 @@
     if (!map) return;
     if (campusOutlineLayer) map.removeLayer(campusOutlineLayer);
 
-    campusOutlineLayer = L.rectangle(CAMPUS_BOUNDS, {
+    campusOutlineLayer = L.circle(CAMPUS_CENTER, {
+      radius: CAMPUS_RADIUS_METERS,
       color: "#ffffff",
       weight: 1.2,
       opacity: 0.4,
@@ -140,6 +135,30 @@
       dashArray: "4 7",
       interactive: false,
     }).addTo(map);
+  }
+
+  // Keeps the circular campus "spotlight" panes clipped to a circle (rather
+  // than Leaflet's rectangular tile `bounds`) so the reveal around campus
+  // matches a round vignette, e.g. TCD Sense Map's campus view. The clip-path
+  // is expressed in the pane's own local pixel space, so panning (a CSS
+  // transform on the pane) carries the clip along with the tiles for free —
+  // this only needs recalculating when the zoom level (and so metres-per-pixel)
+  // changes.
+  function updateCampusClip() {
+    if (!map) return;
+    const zoom = map.getZoom();
+    const centerPoint = map.project(L.latLng(CAMPUS_CENTER), zoom).subtract(map.getPixelOrigin());
+    const metersPerPixel =
+      (156543.03392 * Math.cos((CAMPUS_CENTER[0] * Math.PI) / 180)) / Math.pow(2, zoom);
+
+    CAMPUS_FADE_STEPS.forEach((step) => {
+      const pane = map.getPane(step.pane);
+      if (!pane) return;
+      const radiusPx = step.radius / metersPerPixel;
+      const clip = "circle(" + radiusPx + "px at " + centerPoint.x + "px " + centerPoint.y + "px)";
+      pane.style.clipPath = clip;
+      pane.style.webkitClipPath = clip;
+    });
   }
 
   // --- Map ------------------------------------------------------------------
@@ -185,6 +204,9 @@
     });
 
     // Three stacked overlays create a soft transition from campus to surroundings.
+    // Each pane holds a full (unbounded) tile layer; a CSS circular clip-path
+    // (see updateCampusClip) restricts what's actually visible to a circle
+    // around campus, instead of Leaflet's rectangular `bounds` option.
     CAMPUS_FADE_STEPS.forEach((step) => {
       const pane = map.createPane(step.pane);
       pane.style.zIndex = String(step.zIndex);
@@ -193,12 +215,17 @@
       L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
         maxZoom: 19,
         pane: step.pane,
-        bounds: L.latLngBounds(step.bounds),
         opacity: step.opacity,
         attribution:
           '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
       }).addTo(map);
     });
+
+    // Recompute the circular clip whenever zoom changes (metres-per-pixel and
+    // the pane's pixel origin both change); panning is handled for free since
+    // the clip travels with the pane's own CSS transform.
+    map.on("zoomend viewreset resize", updateCampusClip);
+    updateCampusClip();
 
     drawCampusOutline();
   }
