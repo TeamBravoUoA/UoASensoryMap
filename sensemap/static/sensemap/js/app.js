@@ -717,16 +717,11 @@
     renderSensory(d.sensory_profiles || []);
     renderSpaces(d.spaces || []);
     renderGallery(d.gallery_images || []);
-    renderFeedback(d.feedback || []);
 
     el("detail-map-link").innerHTML = d.uoa_map_link
       ? '<a href="' + d.uoa_map_link + '" target="_blank" rel="noopener">View on the University map \u2197</a>'
       : "";
     el("detail-more-link").href = "/place/" + d.slug + "/";
-
-    const btn = el("open-feedback-btn");
-    btn.dataset.locationId = d.id;
-    btn.dataset.locationName = d.name;
   }
 
   function renderFeedback(items) {

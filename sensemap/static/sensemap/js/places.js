@@ -130,7 +130,7 @@
         ? '<p class="place-wayfinding"><strong>Wayfinding:</strong> ' + escapeHtml(loc.wayfinding) + "</p>"
         : "") +
       '<div class="place-pills">' + badgesHtml(loc) + "</div>" +
-      '<a class="more-info" href="/place/' + loc.slug + '/">Full details &rarr;</a>' +
+      '<a class="more-info" href="/place/' + loc.slug + '/">Full details</a>' +
       "</div>" +
       "</li>"
     );
