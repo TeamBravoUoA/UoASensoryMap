@@ -229,38 +229,66 @@ class Command(BaseCommand):
                 },
             )
 
+    def _seed_location(self, row):
+        """Create or update a Location row, handling external_id and name changes."""
+        name = row["name"].strip()
+        external_id = parse_int(row["location_id"])
+        thumbnail = row.get("thumbnails_image", "").replace("\\", "/").strip().strip("/")
+
+        defaults = {
+            "also_known_as": row.get("also_known_as", ""),
+            "category": CATEGORY_MAP[row["Category"].strip()],
+            "campus": CAMPUS_MAP[row["campus"].strip()],
+            "description": row.get("location_description", ""),
+            "latitude": parse_float(row["latitude"]),
+            "longitude": parse_float(row["longitude"]),
+            "weekday_open_time": parse_time(row.get("week_days_opentime")),
+            "weekday_close_time": parse_time(row.get("weekdays_close_time")),
+            "saturday_open_time": parse_time(row.get("Saturday_open_time")),
+            "saturday_close_time": parse_time(row.get("saturday_close_time")),
+            "sunday_holiday_open_time": parse_time(row.get("sunday_holidays_open_time")),
+            "sunday_holiday_close_time": parse_time(row.get("Sunday_holidays_close_time")),
+            "opening_hrs_notes": row.get("opening_hours_note", ""),
+            "id_access_needed": parse_bool(row.get("id_access_needed")),
+            "additional_access_notes": row.get("additional_access_notes", ""),
+            "thumbnail_image": thumbnail,
+            "uoa_map_link": row.get("uoa_map_link", ""),
+        }
+
+        loc_by_external = Location.objects.filter(external_id=external_id).first()
+        loc_by_name = Location.objects.filter(name=name).first()
+
+        if loc_by_external and loc_by_name and loc_by_external.pk == loc_by_name.pk:
+            loc = loc_by_external
+        elif loc_by_external and loc_by_name:
+            old_external_id = loc_by_name.external_id
+            loc_by_external.external_id = old_external_id
+            loc_by_external.save()
+            loc = loc_by_name
+            loc.external_id = external_id
+        elif loc_by_name:
+            loc = loc_by_name
+            loc.external_id = external_id
+        elif loc_by_external:
+            loc = loc_by_external
+            loc.name = name
+        else:
+            loc = Location(name=name, external_id=external_id)
+
+        for attr, value in defaults.items():
+            setattr(loc, attr, value)
+
+        loc.save()
+
     def seed_locations(self):
         """Seed university locations."""
         rows = load_csv("Location.csv")
 
         for row in tqdm(rows, desc="Locations"):
-
-            thumbnail = row.get("thumbnails_image", "").replace("\\", "/").strip().strip("/")
-
             self.safe_execute(
                 row.get("location_id"),
-                Location.objects.update_or_create,
-                external_id=parse_int(row["location_id"]),
-                defaults={
-                    "name": row["name"].strip(),
-                    "also_known_as": row.get("also_known_as", ""),
-                    "category": CATEGORY_MAP[row["Category"].strip()],
-                    "campus": CAMPUS_MAP[row["campus"].strip()],
-                    "description": row.get("location_description", ""),
-                    "latitude": parse_float(row["latitude"]),
-                    "longitude": parse_float(row["longitude"]),
-                    "weekday_open_time": parse_time(row.get("week_days_opentime")),
-                    "weekday_close_time": parse_time(row.get("weekdays_close_time")),
-                    "saturday_open_time": parse_time(row.get("Saturday_open_time")),
-                    "saturday_close_time": parse_time(row.get("saturday_close_time")),
-                    "sunday_holiday_open_time": parse_time(row.get("sunday_holidays_open_time")),
-                    "sunday_holiday_close_time": parse_time(row.get("Sunday_holidays_close_time")),
-                    "opening_hrs_notes": row.get("opening_hours_note", ""),
-                    "id_access_needed": parse_bool(row.get("id_access_needed")),
-                    "additional_access_notes": row.get("additional_access_notes", ""),
-                    "thumbnail_image": thumbnail,
-                    "uoa_map_link": row.get("uoa_map_link", ""),
-                },
+                self._seed_location,
+                row,
             )
 
     def seed_spaces(self):
