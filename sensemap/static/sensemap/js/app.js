@@ -8,35 +8,40 @@
   // --- Config ---------------------------------------------------------------
   const CAMPUS_CENTER = [57.1648, -2.1015]; // Old Aberdeen campus
 
-  // Bounding box around all seeded Old Aberdeen locations (lat 57.16259–57.167984,
-  // lng -2.106355–-2.093883), padded out a bit so buildings on the edge of
-  // campus aren't clipped. Used to restrict the "real" full-colour tiles to
-  // just the campus, so everywhere else falls back to the darkened base layer.
-  const CAMPUS_BOUNDS = L.latLngBounds(
-    [57.1619, -2.1066], // SW
-    [57.1679, -2.0962]  // NE
-  );
-  const CAMPUS_FADE_STEPS = [
+  // Circular "spotlight" around each UoA campus.
+  // Each campus gets a set of stacked clip-path panes (outer/mid/core) to
+  // transition from full-colour campus tiles to the darker surrounding basemap.
+  const CAMPUS_SPOTLIGHTS = [
     {
-      pane: "campus-tiles-outer",
-      bounds: [[57.1602, -2.1092], [57.1692, -2.0936]],
-      opacity: 0.26,
-      zIndex: 230,
+      name: "old",
+      center: CAMPUS_CENTER,
+      steps: [
+        { pane: "campus-tiles-old-outer", radius: 700, opacity: 0.25, zIndex: 230 },
+        { pane: "campus-tiles-old-mid", radius: 560, opacity: 0.55, zIndex: 240 },
+        { pane: "campus-tiles-old-core", radius: 420, opacity: 1, zIndex: 250 },
+      ],
     },
     {
-      pane: "campus-tiles-mid",
-      bounds: [[57.16054, -2.10881], [57.16886, -2.09399]],
-      opacity: 0.55,
-      zIndex: 240,
+      name: "hillhead",
+      center: [57.1763, -2.1032],
+      steps: [
+        { pane: "campus-tiles-hillhead-outer", radius: 500, opacity: 0.25, zIndex: 230 },
+        { pane: "campus-tiles-hillhead-mid", radius: 400, opacity: 0.55, zIndex: 240 },
+        { pane: "campus-tiles-hillhead-core", radius: 300, opacity: 1, zIndex: 250 },
+      ],
     },
     {
-      pane: "campus-tiles-core",
-      bounds: [[57.16088, -2.10842], [57.16852, -2.09438]],
-      opacity: 1,
-      zIndex: 250,
+      name: "foresterhill",
+      center: [57.1560, -2.1359],
+      steps: [
+        { pane: "campus-tiles-foresterhill-outer", radius: 500, opacity: 0.25, zIndex: 230 },
+        { pane: "campus-tiles-foresterhill-mid", radius: 400, opacity: 0.55, zIndex: 240 },
+        { pane: "campus-tiles-foresterhill-core", radius: 300, opacity: 1, zIndex: 250 },
+      ],
     },
   ];
-  const SCALE_COLOURS = ["#c62828", "#e65100", "#f9a825", "#7cb342", "#2e7d32"];
+  // const SCALE_COLOURS = ["#2e7d32", "#7cb342", "#f9a825", "#ef6c00", "#c62828"];
+  const SCALE_COLOURS = ["#c62828", "#ef6c00", "#f9a825", "#7cb342", "#2e7d32"];
   const QUIET_COLOUR = "#5e35b1";
 
   const ICON_BASE = "/static/sensemap/icons/";
@@ -87,7 +92,7 @@
   let allSpaces = [];
   let markers = {}; // id -> L.marker
   let map;
-  let campusOutlineLayer;
+  let campusOutlineLayers = [];
   // radar chart removed
   let selectedId = null;
   let detailCache = {};
@@ -130,16 +135,49 @@
 
   function drawCampusOutline() {
     if (!map) return;
-    if (campusOutlineLayer) map.removeLayer(campusOutlineLayer);
+    campusOutlineLayers.forEach((layer) => map.removeLayer(layer));
+    campusOutlineLayers = [];
 
-    campusOutlineLayer = L.rectangle(CAMPUS_BOUNDS, {
-      color: "#ffffff",
-      weight: 1.2,
-      opacity: 0.4,
-      fill: false,
-      dashArray: "4 7",
-      interactive: false,
-    }).addTo(map);
+    CAMPUS_SPOTLIGHTS.forEach((campus) => {
+      const core = campus.steps[campus.steps.length - 1];
+      const layer = L.circle(campus.center, {
+        radius: core.radius,
+        color: "#ffffff",
+        weight: 1.2,
+        opacity: 0.4,
+        fill: false,
+        dashArray: "4 7",
+        interactive: false,
+      }).addTo(map);
+      campusOutlineLayers.push(layer);
+    });
+  }
+
+  // Keeps the circular campus "spotlight" panes clipped to a circle (rather
+  // than Leaflet's rectangular tile `bounds`) so the reveal around campus
+  // matches a round vignette, e.g. TCD Sense Map's campus view. The clip-path
+  // is expressed in the pane's own local pixel space, so panning (a CSS
+  // transform on the pane) carries the clip along with the tiles for free —
+  // this only needs recalculating when the zoom level (and so metres-per-pixel)
+  // changes.
+  function updateCampusClip() {
+    if (!map) return;
+    const zoom = map.getZoom();
+
+    CAMPUS_SPOTLIGHTS.forEach((campus) => {
+      const centerPoint = map.project(L.latLng(campus.center), zoom).subtract(map.getPixelOrigin());
+      const metersPerPixel =
+        (156543.03392 * Math.cos((campus.center[0] * Math.PI) / 180)) / Math.pow(2, zoom);
+
+      campus.steps.forEach((step) => {
+        const pane = map.getPane(step.pane);
+        if (!pane) return;
+        const radiusPx = step.radius / metersPerPixel;
+        const clip = "circle(" + radiusPx + "px at " + centerPoint.x + "px " + centerPoint.y + "px)";
+        pane.style.clipPath = clip;
+        pane.style.webkitClipPath = clip;
+      });
+    });
   }
 
   // --- Map ------------------------------------------------------------------
@@ -185,20 +223,30 @@
     });
 
     // Three stacked overlays create a soft transition from campus to surroundings.
-    CAMPUS_FADE_STEPS.forEach((step) => {
-      const pane = map.createPane(step.pane);
-      pane.style.zIndex = String(step.zIndex);
-      pane.style.pointerEvents = "none";
+    // Each pane holds a full (unbounded) tile layer; a CSS circular clip-path
+    // (see updateCampusClip) restricts what's actually visible to a circle
+    // around campus, instead of Leaflet's rectangular `bounds` option.
+    CAMPUS_SPOTLIGHTS.forEach((campus) => {
+      campus.steps.forEach((step) => {
+        const pane = map.createPane(step.pane);
+        pane.style.zIndex = String(step.zIndex);
+        pane.style.pointerEvents = "none";
 
-      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-        maxZoom: 19,
-        pane: step.pane,
-        bounds: L.latLngBounds(step.bounds),
-        opacity: step.opacity,
-        attribution:
-          '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-      }).addTo(map);
+        L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+          maxZoom: 19,
+          pane: step.pane,
+          opacity: step.opacity,
+          attribution:
+            '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+        }).addTo(map);
+      });
     });
+
+    // Recompute the circular clip whenever zoom changes (metres-per-pixel and
+    // the pane's pixel origin both change); panning is handled for free since
+    // the clip travels with the pane's own CSS transform.
+    map.on("zoomend viewreset resize", updateCampusClip);
+    updateCampusClip();
 
     drawCampusOutline();
   }
@@ -365,8 +413,22 @@
     );
   }
 
+  // Row explaining the building/location marker shown on the map.
+  function buildingRow() {
+    return (
+      '<div class="legend-item large">' +
+      '<span class="legend-badge" style="background:#003466">' +
+      iconImg(BUILDING_META, "Building / Location") +
+      "</span>" +
+      '<span class="legend-text"><span class="legend-name">Building / Location</span>' +
+      '<span class="legend-desc">This icon marks a building or location on the map. Click it to see the spaces inside.</span>' +
+      "</span></div>"
+    );
+  }
+
   function renderLegend() {
-    el("space-types-grid").innerHTML = SPACE_TYPE_ORDER.map((t) => spaceTypeRow(t)).join("");
+    el("space-types-grid").innerHTML =
+      buildingRow() + SPACE_TYPE_ORDER.map((t) => spaceTypeRow(t)).join("");
   }
 
   // Quick space-type filter chips shown over the map.
@@ -655,16 +717,11 @@
     renderSensory(d.sensory_profiles || []);
     renderSpaces(d.spaces || []);
     renderGallery(d.gallery_images || []);
-    renderFeedback(d.feedback || []);
 
     el("detail-map-link").innerHTML = d.uoa_map_link
       ? '<a href="' + d.uoa_map_link + '" target="_blank" rel="noopener">View on the University map \u2197</a>'
       : "";
     el("detail-more-link").href = "/place/" + d.slug + "/";
-
-    const btn = el("open-feedback-btn");
-    btn.dataset.locationId = d.id;
-    btn.dataset.locationName = d.name;
   }
 
   function renderFeedback(items) {
