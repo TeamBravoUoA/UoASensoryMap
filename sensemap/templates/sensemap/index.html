@@ -9,7 +9,7 @@
 
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
         integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
-  <link rel="stylesheet" href="{% static 'sensemap/css/styles.css' %}?v=18" />
+  <link rel="stylesheet" href="{% static 'sensemap/css/styles.css' %}?v=19" />
   <link rel="icon" type="image/png" href="{% static 'sensemap/icons/logo.png' %}">
 </head>
 <body>
@@ -209,7 +209,7 @@
   <div class="modal-backdrop" id="space-types-modal" role="dialog" aria-modal="true" aria-labelledby="space-types-title">
     <div class="modal space-types-modal">
       <h2 id="space-types-title" tabindex="-1">Space types</h2>
-      <p class="modal-intro">Inside each place, individual spaces are tagged with one of these types. Use the chips on the map to filter places by the space types they offer.</p>
+      <p class="modal-intro">Buildings and locations appear on the map with the marker shown below. Inside each place, individual spaces are tagged with one of these types. Use the chips on the map to filter places by the space types they offer.</p>
       <div class="space-types-grid" id="space-types-grid"></div>
       <div style="display:flex;justify-content:flex-end;margin-top:1rem">
         <button type="button" class="btn" id="space-types-close">Close</button>
@@ -222,12 +222,28 @@
     <div class="modal help-modal">
       <h2 id="help-title" tabindex="-1">Help</h2>
       <div class="help-body">
-        <p><strong>Browse the map</strong> to find places on campus. Click a marker to see details, opening hours, facilities and sensory profiles.</p>
-        <p><strong>Filter places</strong> with the chips at the top or the sidebar panel. You can filter by campus, category, space type, quiet zone and neurodivergent-safe spaces.</p>
-        <p><strong>Space types</strong> describe the kinds of spaces inside each building, such as study rooms, quiet areas, social lounges, food &amp; drink, facilities and sensory rooms.</p>
-        <p><strong>Sensory ring colour</strong> around each marker shows the average sensory intensity: green is low/calm, yellow is moderate, red is high.</p>
-        <p><strong>Places page</strong> lists all locations in a card view. Open it from the top navigation or the floating <em>Places</em> button.</p>
-        <p><strong>Feedback</strong> can be left from any location's detail panel to help keep the map accurate.</p>
+        <h3>What is the Sensory Map?</h3>
+        <p>The Sensory Map helps you find places on the University of Aberdeen campus that suit how you feel. Some people prefer quiet, calm spaces; others like busy, social ones. This map shows you what to expect from each place before you go, including how noisy, bright or busy it usually is.</p>
+
+        <h3>Finding a place</h3>
+        <p><strong>Browse the map:</strong> Move around the map and click any marker (the small icons) to open a panel with details about that place, including opening hours, photos, available facilities and its sensory profile.</p>
+        <p><strong>Search:</strong> Type a name into the search box at the top, for example "library" or "cafe". The best matches appear first, and clicking a result takes you straight to it on the map.</p>
+        <p><strong>Places page:</strong> If you prefer a simple list instead of a map, open the <em>Places</em> page from the top navigation. It shows every location as a card you can browse and filter.</p>
+
+        <h3>Filtering</h3>
+        <p><strong>Filter chips and sidebar:</strong> Use the buttons above the map (or the sidebar panel) to narrow things down. You can filter by campus, the type of building (like library or cafe), the type of space inside, quiet zones and spaces recommended for neurodivergent students.</p>
+        <p><strong>Space types</strong> describe what you can do inside a building, for example study rooms for focused work, quiet areas for a calm break, social lounges for meeting friends, food &amp; drink spots, and outdoor spaces.</p>
+
+        <h3>Understanding the sensory information</h3>
+        <p><strong>Sensory ring colour:</strong> Each marker has a coloured ring showing the overall sensory intensity of the place. Green means low and calm, yellow means moderate, and red means high, so it may be loud, bright or busy.</p>
+        <p><strong>Sensory profile:</strong> Inside a place's detail panel you'll see ratings from 1 to 5 for things like sound comfort, lighting, how easy it is to find your way, how safe it feels and how predictable it is. A higher number means more comfortable. These ratings come from real visits and student feedback.</p>
+        <p><strong>Quiet zones</strong> are marked places where noise is kept to a minimum, ideal if you need to concentrate or take a break from a busy day.</p>
+
+        <h3>Sharing your experience</h3>
+        <p><strong>Leave feedback:</strong> Every place has a <em>Leave feedback</em> button in its detail panel. Rate how the place felt to you on a 1 to 5 scale. It only takes a minute, you can stay anonymous, and your ratings help keep the map accurate for everyone.</p>
+
+        <h3>Need more help?</h3>
+        <p>If something isn't working or you have a question, visit the <em>Feedback</em> page from the top navigation and contact us by email. We're happy to help.</p>
       </div>
       <div style="display:flex;justify-content:flex-end;margin-top:1rem">
         <button type="button" class="btn" id="help-close">Close</button>
@@ -257,6 +273,6 @@
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
           integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
-  <script src="{% static 'sensemap/js/app.js' %}?v=27"></script>
+  <script src="{% static 'sensemap/js/app.js' %}?v=30"></script>
 </body>
 </html>

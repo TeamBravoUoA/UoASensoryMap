@@ -3,6 +3,7 @@ import json
 import time as _time
 import logging
 from pathlib import Path
+from decimal import Decimal, InvalidOperation
 from datetime import datetime, time
 from django.core.management.base import BaseCommand
 from django.db import transaction
@@ -26,10 +27,12 @@ DATA_DIR = BASE_DIR / "data"
 CATEGORY_MAP = {
     "Library": "library",
     "Teaching building": "teaching_building",
+    "Teaching Building": "teaching_building",
     "Conference / Events building": "conference_events",
     "Conference / Events Building": "conference_events",
     "Cultural Space": "cultural_space",
     "Social building": "social_building",
+    "Social Building": "social_building",
     "Student Services": "student_services",
     "Student Accommodation": "student_accommodation",
     "Research / Laboratories": "research_laboratory",
@@ -75,13 +78,16 @@ def parse_int(value):
         return None
 
 def parse_rating(value):
-    """Parse and validate a sensory rating between 1 and 5."""
-    rating = parse_int(value)
-
-    if rating is None:
+    """Parse and validate a decimal sensory rating between 1 and 5."""
+    if value is None or str(value).strip() == "":
         return None
 
-    if not 1 <= rating <= 5:
+    try:
+        rating = Decimal(str(value).strip())
+    except (InvalidOperation, TypeError, ValueError):
+        return None
+
+    if not Decimal("1.0") <= rating <= Decimal("5.0"):
         raise ValueError(
             f"Rating must be between 1 and 5, received: {value}"
         )
@@ -203,9 +209,7 @@ class Command(BaseCommand):
         """Seed sensory attributes used for evaluation."""
         rows = load_csv("SensoryAttributes.csv")
 
-        # Wipe and rebuild: attribute IDs/names can be remapped in the CSV,
-        # and the name field has a UNIQUE constraint, so updates alone can
-        # fail when names move between external_ids.
+        """Wipe and rebuild: attribute IDs/names can be remapped in the CSV, and the name field has a UNIQUE constraint, so updates alone can fail when names move between external_ids."""
         SensoryAttribute.objects.all().delete()
 
         for row in tqdm(rows, desc="Sensory Attributes"):
@@ -216,6 +220,12 @@ class Command(BaseCommand):
                 defaults={
                     "name": row["name"].strip(),
                     "description": row.get("description", ""),
+                    "icon": (
+                        row.get("icon", "")
+                        .replace("\\", "/")
+                        .strip()
+                        .lstrip("/")
+                    ),
                 },
             )
 
@@ -398,7 +408,7 @@ class Command(BaseCommand):
                 LocationGalleryImage.objects.update_or_create,
                 location=location,
                 image=image,
-                defaults={"caption": row.get("caption", "")},
+                defaults={"caption": row.get("caption", "") or ""},
             )
 
     def seed_location_sensory_profiles(self):

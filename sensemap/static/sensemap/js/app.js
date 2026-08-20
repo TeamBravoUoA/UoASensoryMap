@@ -392,8 +392,22 @@
     );
   }
 
+  // Row explaining the building/location marker shown on the map.
+  function buildingRow() {
+    return (
+      '<div class="legend-item large">' +
+      '<span class="legend-badge" style="background:#003466">' +
+      iconImg(BUILDING_META, "Building / Location") +
+      "</span>" +
+      '<span class="legend-text"><span class="legend-name">Building / Location</span>' +
+      '<span class="legend-desc">This icon marks a building or location on the map. Click it to see the spaces inside.</span>' +
+      "</span></div>"
+    );
+  }
+
   function renderLegend() {
-    el("space-types-grid").innerHTML = SPACE_TYPE_ORDER.map((t) => spaceTypeRow(t)).join("");
+    el("space-types-grid").innerHTML =
+      buildingRow() + SPACE_TYPE_ORDER.map((t) => spaceTypeRow(t)).join("");
   }
 
   // Quick space-type filter chips shown over the map.
@@ -445,6 +459,22 @@
     const d = document.createElement("div");
     d.textContent = s == null ? "" : s;
     return d.innerHTML;
+  }
+
+  function searchScore(loc, needle) {
+    const name = (loc.name || "").toLowerCase();
+    const aka = ((loc.also_known_as || "")).toLowerCase();
+    const desc = ((loc.description || "")).toLowerCase();
+    const spaceTypes = (loc.space_types || []).join(" ").toLowerCase();
+
+    if (name === needle) return 100;
+    if (name.startsWith(needle + " ") || name.startsWith(needle)) return 80;
+    if (name.includes(" " + needle)) return 60;
+    if (name.includes(needle)) return 40;
+    if (aka.includes(needle)) return 30;
+    if (spaceTypes.includes(needle)) return 20;
+    if (desc.includes(needle)) return 10;
+    return 0;
   }
 
   // --- Detail panel ---------------------------------------------------------
@@ -732,6 +762,15 @@
       return true;
     });
 
+    if (search) {
+      filtered.sort((a, b) => {
+        const scoreA = searchScore(a, search);
+        const scoreB = searchScore(b, search);
+        if (scoreB !== scoreA) return scoreB - scoreA;
+        return a.name.localeCompare(b.name);
+      });
+    }
+
     if (selectedId && !filtered.some((loc) => loc.id === selectedId)) {
       closeDetail();
     }
@@ -998,16 +1037,14 @@
         open(allLocations);
         return;
       }
-      const matches = allLocations.filter((loc) => {
-        const hay = (
-          loc.name +
-          " " +
-          (loc.also_known_as || "") +
-          " " +
-          (loc.description || "")
-        ).toLowerCase();
-        return hay.includes(needle);
-      });
+      const matches = allLocations
+        .map((loc) => ({ loc, score: searchScore(loc, needle) }))
+        .filter(({ score }) => score > 0)
+        .sort((a, b) => {
+          if (b.score !== a.score) return b.score - a.score;
+          return a.loc.name.localeCompare(b.loc.name);
+        })
+        .map(({ loc }) => loc);
 
       if (!matches.length) {
         navResults = [];
