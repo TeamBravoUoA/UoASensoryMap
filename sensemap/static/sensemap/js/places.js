@@ -68,6 +68,7 @@
       thumbnail: space.thumbnail_image,
       space_types: [space.space_type],
       slug: loc.slug,
+      is_space: true,
       category: loc.category,
       category_display: loc.category_display,
       campus: loc.campus,
@@ -153,7 +154,7 @@
         : "") +
       '<div class="place-pills">' + badgesHtml(loc) + "</div>" +
       facilitiesHtml(loc) +
-      '<a class="more-info" href="/place/' + loc.slug + '/">Full details</a>' +
+      '<a class="more-info" href="' + (loc.is_space ? '/space/' + loc.id + '/' : '/place/' + loc.slug + '/') + '">Full details</a>' +
       "</div>" +
       "</li>"
     );
