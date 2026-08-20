@@ -1,11 +1,11 @@
 ﻿facility_id,name,icon_facility_available,icon_facility_unavailable
-1,seating available,,
-2,plug sockets available,,
-3,food drink available,,
-4,kettle provided,,
-5,microwave provided,,
-6,toilet available,,
-7,toilet accessible,,
-8,outside access wheelchair,,
-9,inside step-free wheelchair access,,
-10,parking accessible,,
+1,seating available,images/facilities/icons/seating.svg,images/facilities/icons/seating_off.svg
+2,plug sockets available,images/facilities/icons/plug_sockets.svg,images/facilities/icons/plug_sockets_off.svg
+3,food drink available,images/facilities/icons/food_drink.svg,images/facilities/icons/food_drink_off.svg
+4,kettle provided,images/facilities/icons/kettle.svg,images/facilities/icons/kettle_off.svg
+5,microwave provided,images/facilities/icons/microwave.svg,images/facilities/icons/microwave_off.svg
+6,toilet available,images/facilities/icons/toilet.svg,images/facilities/icons/toilet_off.svg
+7,toilet accessible,images/facilities/icons/toilet_accessible.svg,images/facilities/icons/toilet_accessible_off.svg
+8,outside access wheelchair,images/facilities/icons/wheelchair_outside.svg,images/facilities/icons/wheelchair_outside_off.svg
+9,inside step-free wheelchair access,images/facilities/icons/wheelchair_stepfree.svg,images/facilities/icons/wheelchair_stepfree_off.svg
+10,parking accessible,images/facilities/icons/parking.svg,images/facilities/icons/parking_off.svg

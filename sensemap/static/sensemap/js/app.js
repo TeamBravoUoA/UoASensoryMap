@@ -96,6 +96,8 @@
   // radar chart removed
   let selectedId = null;
   let detailCache = {};
+  let detailPollTimer = null;
+  const DETAIL_POLL_MS = 20000;
   let metaData = null;
 
   // --- DOM ------------------------------------------------------------------
@@ -358,6 +360,19 @@
             return '<span class="space-tag" title="' + escapeHtml(m.label) + '" style="background:' + m.color + '">' + iconImg(m, m.label) + "</span>";
           })
           .join("");
+        const facilityBadges = (loc.facilities_available || [])
+          .map((f) => {
+            const label = escapeHtml(f.name) + (f.notes ? " \u2014 " + escapeHtml(f.notes) : "");
+            const safeLabel = label.replace(/"/g, "&quot;");
+            if (f.icon) {
+              return (
+                '<img class="sidebar-facility-icon" src="' + escapeHtml(f.icon) + '" alt="" ' +
+                'aria-label="' + safeLabel + '" title="' + safeLabel + '">'
+              );
+            }
+            return '<span class="sidebar-facility-name" title="' + safeLabel + '">' + escapeHtml(f.name) + '</span>';
+          })
+          .join("");
         return (
           '<li><button type="button" class="location-item" data-id="' +
           loc.id +
@@ -379,6 +394,7 @@
           '<span class="mini-sensory" aria-hidden="true">' +
           spaceBadges +
           "</span>" +
+          (facilityBadges ? '<span class="mini-facilities" aria-hidden="true">' + facilityBadges + "</span>" : "") +
           "</button></li>"
         );
       })
@@ -526,9 +542,39 @@
     } catch (err) {
       el("detail-desc").textContent = "Could not load details: " + err.message;
     }
+
+    startDetailPolling(id);
+  }
+
+  // Poll the API while the detail panel is open so sensory ratings and other
+  // data update in near real time without a page refresh.
+  function startDetailPolling(id) {
+    stopDetailPolling();
+    detailPollTimer = setInterval(async () => {
+      if (selectedId !== id || document.hidden) return;
+      try {
+        const res = await fetch("/api/locations/" + id + "/");
+        if (!res.ok) return;
+        const fresh = await res.json();
+        if (JSON.stringify(fresh) !== JSON.stringify(detailCache[id])) {
+          detailCache[id] = fresh;
+          if (selectedId === id) renderDetail(fresh);
+        }
+      } catch (err) {
+        /* network hiccup — try again on the next tick */
+      }
+    }, DETAIL_POLL_MS);
+  }
+
+  function stopDetailPolling() {
+    if (detailPollTimer) {
+      clearInterval(detailPollTimer);
+      detailPollTimer = null;
+    }
   }
 
   function closeDetail() {
+    stopDetailPolling();
     detailEl.classList.remove("open");
     detailEl.setAttribute("aria-hidden", "true");
     selectedId = null;
@@ -554,17 +600,34 @@
       return;
     }
     wrap.innerHTML = facs
-      .map(
-        (f) =>
-          '<span class="facility ' +
-          (f.status ? "on" : "") +
-          '"' +
+      .map((f) => {
+        const icon = f.status ? f.icon_available : f.icon_unavailable;
+        const label =
+          escapeHtml(f.name) +
+          (f.status ? " \u2014 available" : " \u2014 not available") +
+          (f.notes ? " \u2014 " + escapeHtml(f.notes) : "");
+        const safeLabel = label.replace(/"/g, "&quot;");
+        if (icon) {
+          return (
+            '<div class="facility-item">' +
+            '<img class="facility-icon ' + (f.status ? "on" : "off") + '" ' +
+            'src="' + escapeHtml(icon) + '" ' +
+            'alt="" ' +
+            'aria-label="' + safeLabel + '" ' +
+            'title="' + safeLabel + '">' +
+            (f.notes ? '<small class="facility-note">' + escapeHtml(f.notes) + '</small>' : '') +
+            '</div>'
+          );
+        }
+        return (
+          '<span class="facility ' + (f.status ? "on" : "") + '"' +
           (f.notes ? ' title="' + escapeHtml(f.notes) + '"' : "") +
           ">" +
           (f.status ? "\u2713 " : "\u2014 ") +
           escapeHtml(f.name) +
           "</span>"
-      )
+        );
+      })
       .join("");
   }
 
