@@ -7,6 +7,7 @@ from decimal import Decimal, InvalidOperation
 from datetime import datetime, time
 from django.core.management.base import BaseCommand
 from django.db import transaction
+from django.db.models import Max
 from tqdm import tqdm
 from sensemap.models import (
     Facility,
@@ -262,11 +263,21 @@ class Command(BaseCommand):
         if loc_by_external and loc_by_name and loc_by_external.pk == loc_by_name.pk:
             loc = loc_by_external
         elif loc_by_external and loc_by_name:
+            # Both the name and the new external_id point to different records.
+            # Use a temporary external_id to swap values without hitting
+            # the unique constraint.
             old_external_id = loc_by_name.external_id
-            loc_by_external.external_id = old_external_id
+            temp_id = (Location.objects.aggregate(m=Max('external_id'))['m'] or 0) + 1
+
+            loc_by_external.external_id = temp_id
             loc_by_external.save()
+
             loc = loc_by_name
             loc.external_id = external_id
+            loc.save()
+
+            loc_by_external.external_id = old_external_id
+            loc_by_external.save()
         elif loc_by_name:
             loc = loc_by_name
             loc.external_id = external_id
@@ -329,11 +340,21 @@ class Command(BaseCommand):
         if loc_by_external and loc_by_unique and loc_by_external.pk == loc_by_unique.pk:
             loc = loc_by_external
         elif loc_by_external and loc_by_unique:
+            # Both the (location, name) key and the new external_id point to
+            # different records. Use a temporary external_id to swap values
+            # without hitting the unique constraint.
             old_external_id = loc_by_unique.external_id
-            loc_by_external.external_id = old_external_id
+            temp_id = (Space.objects.aggregate(m=Max('external_id'))['m'] or 0) + 1
+
+            loc_by_external.external_id = temp_id
             loc_by_external.save()
+
             loc = loc_by_unique
             loc.external_id = external_id
+            loc.save()
+
+            loc_by_external.external_id = old_external_id
+            loc_by_external.save()
         elif loc_by_unique:
             loc = loc_by_unique
             loc.external_id = external_id
