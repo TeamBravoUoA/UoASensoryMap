@@ -2092,3 +2092,94 @@ textarea {
     font-size: 0.75rem;
   }
 }
+
+/* Facility icon chips */
+.facility-icon {
+  width: 32px;
+  height: 32px;
+  padding: 5px;
+  border-radius: 8px;
+  background: #fff;
+  border: 1px solid var(--border);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+  object-fit: contain;
+  cursor: help;
+}
+.facility-item {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.35rem;
+  text-align: center;
+  vertical-align: top;
+  width: 110px;
+  margin-bottom: 0.75rem;
+}
+.facility-item.small {
+  gap: 0.2rem;
+  width: 90px;
+  margin-bottom: 0.5rem;
+}
+.facility-note {
+  font-size: 0.85rem;
+  color: var(--text);
+  line-height: 1.35;
+  word-wrap: break-word;
+}
+.facility-item.small .facility-note {
+  font-size: 0.75rem;
+}
+.facility-icon.off {
+  opacity: 0.75;
+  filter: grayscale(0.7);
+}
+
+/* Larger facility icons on dedicated detail pages */
+.detail-page .facility-icon {
+  width: 48px;
+  height: 48px;
+  padding: 7px;
+}
+
+/* Smaller facility icons inside space cards */
+.facility-icon.small {
+  width: 22px;
+  height: 22px;
+  padding: 3px;
+}
+
+/* Facility icons in the map sidebar list */
+.mini-facilities {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-top: 0.4rem;
+}
+.sidebar-facility-icon {
+  width: 20px;
+  height: 20px;
+  padding: 3px;
+  border-radius: 6px;
+  background: #fff;
+  border: 1px solid var(--border);
+  object-fit: contain;
+  cursor: help;
+}
+
+/* Facility icons on the All places page */
+.place-facilities {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  margin: 0.5rem 0;
+}
+.place-facility-icon {
+  width: 34px;
+  height: 34px;
+  padding: 5px;
+  border-radius: 8px;
+  background: #fff;
+  border: 1px solid var(--border);
+  object-fit: contain;
+  cursor: help;
+}

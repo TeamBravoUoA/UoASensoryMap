@@ -78,7 +78,7 @@
       id_access_needed: loc.id_access_needed,
       facilities_available: (space.facilities || [])
         .filter((f) => f.status)
-        .map((f) => f.name),
+        .map((f) => ({ name: f.name, icon: f.icon_available, notes: f.notes })),
     };
   }
 
@@ -113,6 +113,28 @@
     return html;
   }
 
+  function facilitiesHtml(loc) {
+    const facs = loc.facilities_available || [];
+    if (!facs.length) return "";
+    return (
+      '<div class="place-facilities">' +
+      facs
+        .map((f) => {
+          const label = escapeHtml(f.name) + (f.notes ? " \u2014 " + escapeHtml(f.notes) : "");
+          const safeLabel = label.replace(/"/g, "&quot;");
+          if (f.icon) {
+            return (
+              '<img class="place-facility-icon" src="' + escapeHtml(f.icon) +
+              '" alt="" aria-label="' + safeLabel + '" title="' + safeLabel + '">'
+            );
+          }
+          return '<span class="place-facility-name" title="' + safeLabel + '">' + escapeHtml(f.name) + "</span>";
+        })
+        .join("") +
+      "</div>"
+    );
+  }
+
   function cardHtml(loc) {
     const sub =
       escapeHtml(loc.category_display || "") +
@@ -130,6 +152,7 @@
         ? '<p class="place-wayfinding"><strong>Wayfinding:</strong> ' + escapeHtml(loc.wayfinding) + "</p>"
         : "") +
       '<div class="place-pills">' + badgesHtml(loc) + "</div>" +
+      facilitiesHtml(loc) +
       '<a class="more-info" href="/place/' + loc.slug + '/">Full details</a>' +
       "</div>" +
       "</li>"
@@ -151,7 +174,7 @@
       if (quietOnly && !loc.has_quiet_zone) return false;
       if (ndOnly && !loc.has_neurodivergent_safe) return false;
       if (activeFacilities.size) {
-        const have = new Set(loc.facilities_available || []);
+        const have = new Set((loc.facilities_available || []).map((f) => f.name));
         for (const f of activeFacilities) if (!have.has(f)) return false;
       }
       if (search) {

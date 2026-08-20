@@ -286,9 +286,19 @@ class LocationListSerializer(serializers.ModelSerializer):
         ]
 
     def get_facilities_available(self, obj):
-        return sorted(
-            {lf.facility.name for lf in obj.location_facilities.all() if lf.status}
-        )
+        return [
+            {
+                "name": lf.facility.name,
+                "icon": (
+                    lf.facility.icon_facility_available.url
+                    if lf.facility.icon_facility_available
+                    else None
+                ),
+                "notes": lf.notes,
+            }
+            for lf in obj.location_facilities.all()
+            if lf.status
+        ]
 
     def get_thumbnail(self, obj):
         if not obj.thumbnail_image:

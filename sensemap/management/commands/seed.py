@@ -204,7 +204,21 @@ class Command(BaseCommand):
                 row.get("facility_id"),
                 Facility.objects.update_or_create,
                 external_id=parse_int(row["facility_id"]),
-                defaults={"name": row["name"].strip()},
+                defaults={
+                    "name": row["name"].strip(),
+                    "icon_facility_available": (
+                        row.get("icon_facility_available", "")
+                        .replace("\\", "/")
+                        .strip()
+                        .lstrip("/")
+                    ),
+                    "icon_facility_unavailable": (
+                        row.get("icon_facility_unavailable", "")
+                        .replace("\\", "/")
+                        .strip()
+                        .lstrip("/")
+                    ),
+                },
             )
 
     def seed_sensory_attributes(self):
