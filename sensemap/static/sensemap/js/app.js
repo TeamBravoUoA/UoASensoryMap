@@ -95,7 +95,9 @@
   let campusOutlineLayers = [];
   // radar chart removed
   let selectedId = null;
+  let selectedSpaceId = null;
   let detailCache = {};
+  let spaceDetailCache = {};
   let detailPollTimer = null;
   const DETAIL_POLL_MS = 20000;
   let metaData = null;
@@ -329,9 +331,7 @@
         className: "space-tooltip",
       });
       marker.on("click", () => {
-        if (space.location?.id) {
-          selectLocation(space.location.id, true);
-        }
+        selectSpace(space.id, true);
       });
       marker.addTo(map);
       markers["space-" + space.id] = marker;
@@ -578,9 +578,81 @@
     detailEl.classList.remove("open");
     detailEl.setAttribute("aria-hidden", "true");
     selectedId = null;
+    selectedSpaceId = null;
     listEl.querySelectorAll(".location-item").forEach((b) =>
       b.setAttribute("aria-current", "false")
     );
+  }
+
+  // --- Space detail panel --------------------------------------------------
+  async function selectSpace(id, focusPanel) {
+    selectedSpaceId = id;
+    selectedId = null;
+
+    const space = allSpaces.find((s) => s.id === id);
+    if (space && space.latitude && space.longitude) {
+      map.setView([space.latitude, space.longitude], 18, { animate: true });
+    }
+
+    closeSidebar();
+    detailEl.classList.add("open");
+    detailEl.setAttribute("aria-hidden", "false");
+    el("detail-title").textContent = space ? space.name : "Loading\u2026";
+    if (focusPanel) el("detail-title").focus();
+
+    try {
+      if (!spaceDetailCache[id]) {
+        const res = await fetch("/api/spaces/" + id + "/");
+        if (!res.ok) throw new Error("Request failed: " + res.status);
+        spaceDetailCache[id] = await res.json();
+      }
+      if (selectedSpaceId === id) renderSpaceDetail(spaceDetailCache[id]);
+    } catch (err) {
+      el("detail-desc").textContent = "Could not load details: " + err.message;
+    }
+  }
+
+  function renderSpaceDetail(s) {
+    var loc = s.location || {};
+    var meta = SPACE_TYPE_META[s.space_type] || FALLBACK_SPACE;
+
+    el("detail-title").textContent = s.name;
+    el("detail-sub").textContent =
+      (s.space_type_display || meta.label) +
+      (loc.name ? " \u00B7 " + loc.name : "") +
+      (loc.campus_display ? " \u00B7 " + loc.campus_display : "");
+    el("detail-also").textContent = "";
+    el("detail-desc").textContent = s.description || "No description provided.";
+
+    // access
+    el("detail-access").innerHTML =
+      '<span class="facility ' +
+      (loc.id_access_needed ? "" : "on") +
+      '">' +
+      (loc.id_access_needed ? "\uD83E\uDE93 University ID required" : "\u2713 Open access") +
+      "</span>";
+
+    // opening hours
+    el("detail-hours").innerHTML =
+      hoursRow("Mon\u2013Fri", s.weekday_open_time, s.weekday_close_time) +
+      hoursRow("Saturday", s.saturday_open_time, s.saturday_close_time) +
+      hoursRow("Sun / holidays", s.sunday_holiday_open_time, s.sunday_holiday_close_time);
+    el("detail-hours-notes").textContent = s.opening_hrs_notes || "";
+
+    // facilities
+    renderFacilities(el("location-facilities"), s.facilities || []);
+
+    // sensory profile
+    renderSensory(s.sensory_profiles || []);
+
+    // hide spaces list and gallery for space detail
+    var spacesSection = document.getElementById("spaces-section");
+    if (spacesSection) spacesSection.hidden = true;
+    var gallerySection = document.getElementById("gallery-section");
+    if (gallerySection) gallerySection.hidden = true;
+
+    el("detail-map-link").innerHTML = "";
+    el("detail-more-link").href = "/space/" + s.id + "/";
   }
 
   function fmtTime(t) {
@@ -778,6 +850,8 @@
 
     renderFacilities(el("location-facilities"), d.facilities || []);
     renderSensory(d.sensory_profiles || []);
+    var spacesSection = document.getElementById("spaces-section");
+    if (spacesSection) spacesSection.hidden = false;
     renderSpaces(d.spaces || []);
     renderGallery(d.gallery_images || []);
 
