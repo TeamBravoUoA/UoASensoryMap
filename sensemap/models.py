@@ -1,8 +1,8 @@
 from django.db import models
+from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.utils.text import slugify
-
 
 class ExternalIDModel(models.Model):
     """
@@ -17,11 +17,30 @@ class ExternalIDModel(models.Model):
 
 class TimeStampedModel(models.Model):
     """
-    Abstract base model that adds created_at and updated_at fields.
+    Abstract base model that adds created_at and updated_at fields and records the responsible admin users.
     Used for consistent audit tracking across all models.
     """
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        editable=False,
+        related_name="%(app_label)s_%(class)s_created_records",
+    )
+
+    updated_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        editable=False,
+        related_name="%(app_label)s_%(class)s_updated_records",
+    )
+
 
     class Meta:
         abstract = True
@@ -61,6 +80,12 @@ class SensoryAttribute(ExternalIDModel, TimeStampedModel):
     name = models.CharField(max_length=100, unique=True)
     description = models.TextField(blank=True)
 
+    icon = models.ImageField(
+        upload_to="images/sensory_attributes/icons/",
+        blank=True,
+        null=True
+    )
+
     class Meta:
         ordering = ["name"]
 
@@ -92,7 +117,7 @@ class Location(ExternalIDModel, TimeStampedModel):
         SUPPORT_BUILDING = "support_building", "Support Building"
         NURSERY = "nursery", "Nursery"
         SHOP = "shop", "Shop"
-        CAFE = "cafe", "Cafe"
+        CAFE = "cafe", "Cafeteria"
 
 
     name = models.CharField(max_length=255, unique=True, db_index=True)
@@ -113,9 +138,6 @@ class Location(ExternalIDModel, TimeStampedModel):
     )
 
     description = models.TextField(blank=True)
-    sensory_experience = models.TextField(blank=True)
-    wayfinding = models.TextField(blank=True)
-    physical_access = models.TextField(blank=True)
 
     latitude = models.DecimalField(max_digits=9, decimal_places=6)
     longitude = models.DecimalField(max_digits=9, decimal_places=6)
@@ -181,7 +203,9 @@ class Space(ExternalIDModel, TimeStampedModel):
         STUDY = "study", "Study Space"
         QUIET = "quiet", "Quiet Space"
         SOCIAL = "social", "Social Space"
-        OTHER = "other", "Other"
+        FOOD_DRINK = "food_drink", "Cafeteria"
+        SPORT = "sport", "Sport / Fitness"
+        OUTDOOR = "outdoor", "Outdoor"
 
 
     location = models.ForeignKey(
@@ -191,7 +215,7 @@ class Space(ExternalIDModel, TimeStampedModel):
     )
 
     name = models.CharField(max_length=255, db_index=True)
-    
+
     space_type = models.CharField(
         max_length=50,
         choices=SpaceType.choices,
@@ -216,7 +240,25 @@ class Space(ExternalIDModel, TimeStampedModel):
     opening_hrs_notes = models.TextField(blank=True)
 
     wayfinding = models.TextField(blank=True)
-    sensory_experience = models.TextField(blank=True)
+
+    latitude = models.DecimalField(
+        max_digits=9,
+        decimal_places=6,
+        null=True,
+        blank=True,
+    )
+
+    longitude = models.DecimalField(
+        max_digits=9,
+        decimal_places=6,
+        null=True,
+        blank=True,
+    )
+
+    floor = models.CharField(
+        max_length=50,
+        blank=True,
+    )
 
     is_quiet_zone = models.BooleanField(default=False)
     is_safe_space_neurodivergent_students = models.BooleanField(default=False)
@@ -345,11 +387,15 @@ class LocationSensoryProfile(TimeStampedModel):
         related_name="location_sensory_profiles"
     )
 
-    rating = models.PositiveSmallIntegerField(
+    rating = models.DecimalField(
+        max_digits=2,
+        decimal_places=1,
         validators=[
             MinValueValidator(1),
             MaxValueValidator(5)
-        ]
+        ],
+        null=True,
+        blank=True,
     )
 
     notes = models.TextField(blank=True)
@@ -384,12 +430,16 @@ class SpaceSensoryProfile(TimeStampedModel):
         related_name="space_sensory_profiles"
     )
 
-    rating = models.PositiveSmallIntegerField(
-        validators=[
-            MinValueValidator(1),
-            MaxValueValidator(5)
-        ]
-    )
+    rating = models.DecimalField(
+            max_digits=2,
+            decimal_places=1,
+            validators=[
+                MinValueValidator(1),
+                MaxValueValidator(5)
+            ],
+            null=True,
+            blank=True,
+        )
 
     notes = models.TextField(blank=True)
 
@@ -462,3 +512,69 @@ class FeedbackSensoryRating(TimeStampedModel):
         if self.space:
             return f"Sensory Rating Feedback - {self.space.name}"
         return f"Sensory Rating Feedback - {self.location.name}"
+
+
+from django.conf import settings
+from django.db import models
+
+
+class AuditLog(models.Model):
+
+    class Action(models.TextChoices):
+        CREATED = "created", "Created"
+        UPDATED = "updated", "Updated"
+        DELETED = "deleted", "Deleted"
+
+    app_label = models.CharField(max_length=100)
+    model_name = models.CharField(max_length=100)
+    record_id = models.CharField(max_length=100)
+    record_name = models.CharField(max_length=255)
+
+    location_id_snapshot = models.PositiveIntegerField(
+        null=True,
+        blank=True
+    )
+    location_name_snapshot = models.CharField(
+        max_length=255,
+        blank=True
+    )
+
+    action = models.CharField(
+        max_length=20,
+        choices=Action.choices,
+        db_index=True
+    )
+
+    changed_fields = models.JSONField(default=list, blank=True)
+    previous_values = models.JSONField(default=dict, blank=True)
+    new_values = models.JSONField(default=dict, blank=True)
+
+    changed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="sensory_map_audit_logs"
+    )
+
+    changed_at = models.DateTimeField(
+        auto_now_add=True,
+        db_index=True
+    )
+
+    class Meta:
+        ordering = ["-changed_at"]
+        indexes = [
+            models.Index(
+                fields=["model_name", "changed_at"]
+            ),
+            models.Index(
+                fields=["action", "changed_at"]
+            ),
+        ]
+
+    def __str__(self):
+        return (
+            f"{self.get_action_display()}: "
+            f"{self.model_name} – {self.record_name}"
+        )

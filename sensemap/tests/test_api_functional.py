@@ -183,7 +183,7 @@ class LocationDetailAPITests(TestCase):
             external_id=next(external_ids),
             location=self.location,
             name="Low stimulation room",
-            space_type="sensory",
+            space_type="quiet",
             is_quiet_zone=True,
         )
 

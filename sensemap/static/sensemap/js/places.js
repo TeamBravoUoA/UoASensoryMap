@@ -12,7 +12,7 @@
     study: { label: "Study Space", iconUrl: "study.svg", color: "#1565c0" },
     quiet: { label: "Quiet Space", iconUrl: "quiet.svg", color: "#5e35b1" },
     social: { label: "Social Space", iconUrl: "social.svg", color: "#f9a825" },
-    food_drink: { label: "Food & Drink", iconUrl: "food_drink.svg", color: "#ef6c00" },
+    food_drink: { label: "Cafeteria", iconUrl: "food_drink.svg", color: "#ef6c00" },
     facility: { label: "Facility", iconUrl: "facility.svg", color: "#00838f" },
     sensory: { label: "Sensory Room", iconUrl: "sensory.svg", color: "#d81b60" },
     other: { label: "Other", iconUrl: "other.svg", color: "#2e7d32" },
@@ -35,6 +35,22 @@
     return d.innerHTML;
   }
 
+  function searchScore(loc, needle) {
+    const name = (loc.name || "").toLowerCase();
+    const aka = ((loc.also_known_as || "")).toLowerCase();
+    const desc = ((loc.description || "")).toLowerCase();
+    const spaceTypes = (loc.space_types || []).join(" ").toLowerCase();
+
+    if (name === needle) return 100;
+    if (name.startsWith(needle + " ") || name.startsWith(needle)) return 80;
+    if (name.includes(" " + needle)) return 60;
+    if (name.includes(needle)) return 40;
+    if (aka.includes(needle)) return 30;
+    if (spaceTypes.includes(needle)) return 20;
+    if (desc.includes(needle)) return 10;
+    return 0;
+  }
+
   function iconImg(meta, alt) {
     return (
       '<img src="' + ICON_BASE + meta.iconUrl +
@@ -52,6 +68,7 @@
       thumbnail: space.thumbnail_image,
       space_types: [space.space_type],
       slug: loc.slug,
+      is_space: true,
       category: loc.category,
       category_display: loc.category_display,
       campus: loc.campus,
@@ -62,7 +79,7 @@
       id_access_needed: loc.id_access_needed,
       facilities_available: (space.facilities || [])
         .filter((f) => f.status)
-        .map((f) => f.name),
+        .map((f) => ({ name: f.name, icon: f.icon_available, notes: f.notes })),
     };
   }
 
@@ -97,6 +114,28 @@
     return html;
   }
 
+  function facilitiesHtml(loc) {
+    const facs = loc.facilities_available || [];
+    if (!facs.length) return "";
+    return (
+      '<div class="place-facilities">' +
+      facs
+        .map((f) => {
+          const label = escapeHtml(f.name) + (f.notes ? " \u2014 " + escapeHtml(f.notes) : "");
+          const safeLabel = label.replace(/"/g, "&quot;");
+          if (f.icon) {
+            return (
+              '<img class="place-facility-icon" src="' + escapeHtml(f.icon) +
+              '" alt="" aria-label="' + safeLabel + '" title="' + safeLabel + '">'
+            );
+          }
+          return '<span class="place-facility-name" title="' + safeLabel + '">' + escapeHtml(f.name) + "</span>";
+        })
+        .join("") +
+      "</div>"
+    );
+  }
+
   function cardHtml(loc) {
     const sub =
       escapeHtml(loc.category_display || "") +
@@ -114,7 +153,8 @@
         ? '<p class="place-wayfinding"><strong>Wayfinding:</strong> ' + escapeHtml(loc.wayfinding) + "</p>"
         : "") +
       '<div class="place-pills">' + badgesHtml(loc) + "</div>" +
-      '<a class="more-info" href="/place/' + loc.slug + '/">Full details &rarr;</a>' +
+      facilitiesHtml(loc) +
+      '<a class="more-info" href="' + (loc.is_space ? '/space/' + loc.id + '/' : '/place/' + loc.slug + '/') + '">Full details</a>' +
       "</div>" +
       "</li>"
     );
@@ -135,7 +175,7 @@
       if (quietOnly && !loc.has_quiet_zone) return false;
       if (ndOnly && !loc.has_neurodivergent_safe) return false;
       if (activeFacilities.size) {
-        const have = new Set(loc.facilities_available || []);
+        const have = new Set((loc.facilities_available || []).map((f) => f.name));
         for (const f of activeFacilities) if (!have.has(f)) return false;
       }
       if (search) {
@@ -146,6 +186,15 @@
       }
       return true;
     });
+
+    if (search) {
+      filtered.sort((a, b) => {
+        const scoreA = searchScore(a, search);
+        const scoreB = searchScore(b, search);
+        if (scoreB !== scoreA) return scoreB - scoreA;
+        return a.name.localeCompare(b.name);
+      });
+    }
 
     render(filtered);
   }

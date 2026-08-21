@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-labelledby="title desc">
+  <title id="title">Legibility</title>
+  <desc id="desc">A signpost with clear left and right directional arrows, representing understandable layout and wayfinding.</desc>
+
+  <!-- Post -->
+  <rect x="59" y="29" width="10" height="87" rx="5" fill="#6D4C41"/>
+  <path d="M47 116h34" fill="none" stroke="#6D4C41" stroke-width="8" stroke-linecap="round"/>
+
+  <!-- Right-pointing sign -->
+  <path d="M34 18h54l22 18-22 18H34a6 6 0 0 1-6-6V24a6 6 0 0 1 6-6Z"
+        fill="#F77E00" stroke="#C95F00" stroke-width="5" stroke-linejoin="round"/>
+  <path d="M45 36h43" fill="none" stroke="#FFFFFF" stroke-width="7" stroke-linecap="round"/>
+  <path d="m80 27 11 9-11 9" fill="none" stroke="#FFFFFF" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+
+  <!-- Left-pointing sign -->
+  <path d="M94 61H40L18 79l22 18h54a6 6 0 0 0 6-6V67a6 6 0 0 0-6-6Z"
+        fill="#2F80ED" stroke="#1F5FAF" stroke-width="5" stroke-linejoin="round"/>
+  <path d="M83 79H40" fill="none" stroke="#FFFFFF" stroke-width="7" stroke-linecap="round"/>
+  <path d="m48 70-11 9 11 9" fill="none" stroke="#FFFFFF" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

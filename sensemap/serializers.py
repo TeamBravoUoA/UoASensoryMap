@@ -43,6 +43,18 @@ class FacilitySerializer(serializers.ModelSerializer):
         ]
 
 
+class SensoryAttributeSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = SensoryAttribute
+        fields = [
+            "id",
+            "external_id",
+            "name",
+            "description",
+            "icon",
+        ]
+
+
 class _FacilityLinkSerializer(serializers.ModelSerializer):
     """Base for the through-models (LocationFacility / SpaceFacility)."""
 
@@ -97,9 +109,25 @@ class SpaceSensoryProfileSerializer(serializers.ModelSerializer):
 
 
 class GalleryImageSerializer(serializers.ModelSerializer):
+    width = serializers.SerializerMethodField()
+    height = serializers.SerializerMethodField()
+
     class Meta:
         model = LocationGalleryImage
-        fields = ["id", "image", "caption"]
+        fields = ["id", "image", "caption", "width", "height"]
+
+    def _dimensions(self, obj):
+        try:
+            from django.core.files.images import get_image_dimensions
+            return get_image_dimensions(obj.image)
+        except Exception:
+            return (None, None)
+
+    def get_width(self, obj):
+        return self._dimensions(obj)[0]
+
+    def get_height(self, obj):
+        return self._dimensions(obj)[1]
 
 
 
@@ -142,6 +170,9 @@ class SpaceSerializer(serializers.ModelSerializer):
             "space_type_display",
             "description",
             "thumbnail_image",
+            "latitude",
+            "longitude",
+            "floor",
             "weekday_open_time",
             "weekday_close_time",
             "saturday_open_time",
@@ -192,6 +223,9 @@ class QuietZoneSerializer(SpaceSerializer):
             "space_type",
             "space_type_display",
             "description",
+            "latitude",
+            "longitude",
+            "floor",
             "is_quiet_zone",
             "is_safe_space_neurodivergent_students",
             "facilities",
@@ -252,9 +286,19 @@ class LocationListSerializer(serializers.ModelSerializer):
         ]
 
     def get_facilities_available(self, obj):
-        return sorted(
-            {lf.facility.name for lf in obj.location_facilities.all() if lf.status}
-        )
+        return [
+            {
+                "name": lf.facility.name,
+                "icon": (
+                    lf.facility.icon_facility_available.url
+                    if lf.facility.icon_facility_available
+                    else None
+                ),
+                "notes": lf.notes,
+            }
+            for lf in obj.location_facilities.all()
+            if lf.status
+        ]
 
     def get_thumbnail(self, obj):
         if not obj.thumbnail_image:
@@ -354,7 +398,8 @@ class FeedbackSensoryRatingBatchSerializer(serializers.Serializer):
     reporter_name = serializers.CharField(allow_blank=True, required=False)
     reporter_email = serializers.EmailField(allow_blank=True, required=False)
     ratings = serializers.DictField(
-        child=serializers.IntegerField(min_value=1, max_value=5)
+        child=serializers.IntegerField(min_value=1, max_value=5),
+        allow_empty=False,
     )
 
     def validate(self, data):
