@@ -7,6 +7,7 @@ from decimal import Decimal, InvalidOperation
 from datetime import datetime, time
 from django.core.management.base import BaseCommand
 from django.db import transaction
+from django.db.models import Max
 from tqdm import tqdm
 from sensemap.models import (
     Facility,
@@ -181,17 +182,18 @@ class Command(BaseCommand):
         logger.info("ETL COMPLETED")
 
     def safe_execute(self, row_id, fn, *args, **kwargs):
-        """Execute DB operation with retry and error handling."""
-        try:
-            return retry(fn, *args, **kwargs)
-
-        except Exception as e:
-            logger.error(f"FAILED ROW | id={row_id} | error={str(e)}")
-
-            if self.skip_errors:
-                return None
-
-            raise
+        """Execute DB operation with retry and error handling inside a savepoint."""
+        for attempt in range(MAX_RETRIES):
+            try:
+                with transaction.atomic():
+                    return fn(*args, **kwargs)
+            except Exception as e:
+                if attempt == MAX_RETRIES - 1:
+                    logger.error(f"FAILED ROW | id={row_id} | error={str(e)}")
+                    if self.skip_errors:
+                        return None
+                    raise
+                _time.sleep(RETRY_DELAY)
 
     def seed_facilities(self):
         """Seed Facility reference data."""
@@ -202,7 +204,21 @@ class Command(BaseCommand):
                 row.get("facility_id"),
                 Facility.objects.update_or_create,
                 external_id=parse_int(row["facility_id"]),
-                defaults={"name": row["name"].strip()},
+                defaults={
+                    "name": row["name"].strip(),
+                    "icon_facility_available": (
+                        row.get("icon_facility_available", "")
+                        .replace("\\", "/")
+                        .strip()
+                        .lstrip("/")
+                    ),
+                    "icon_facility_unavailable": (
+                        row.get("icon_facility_unavailable", "")
+                        .replace("\\", "/")
+                        .strip()
+                        .lstrip("/")
+                    ),
+                },
             )
 
     def seed_sensory_attributes(self):
@@ -229,39 +245,144 @@ class Command(BaseCommand):
                 },
             )
 
+    def _seed_location(self, row):
+        """Create or update a Location row, handling external_id and name changes."""
+        name = row["name"].strip()
+        external_id = parse_int(row["location_id"])
+        thumbnail = row.get("thumbnails_image", "").replace("\\", "/").strip().strip("/")
+
+        defaults = {
+            "also_known_as": row.get("also_known_as", ""),
+            "category": CATEGORY_MAP[row["Category"].strip()],
+            "campus": CAMPUS_MAP[row["campus"].strip()],
+            "description": row.get("location_description", ""),
+            "latitude": parse_float(row["latitude"]),
+            "longitude": parse_float(row["longitude"]),
+            "weekday_open_time": parse_time(row.get("week_days_opentime")),
+            "weekday_close_time": parse_time(row.get("weekdays_close_time")),
+            "saturday_open_time": parse_time(row.get("Saturday_open_time")),
+            "saturday_close_time": parse_time(row.get("saturday_close_time")),
+            "sunday_holiday_open_time": parse_time(row.get("sunday_holidays_open_time")),
+            "sunday_holiday_close_time": parse_time(row.get("Sunday_holidays_close_time")),
+            "opening_hrs_notes": row.get("opening_hours_note", ""),
+            "id_access_needed": parse_bool(row.get("id_access_needed")),
+            "additional_access_notes": row.get("additional_access_notes", ""),
+            "thumbnail_image": thumbnail,
+            "uoa_map_link": row.get("uoa_map_link", ""),
+        }
+
+        loc_by_external = Location.objects.filter(external_id=external_id).first()
+        loc_by_name = Location.objects.filter(name=name).first()
+
+        if loc_by_external and loc_by_name and loc_by_external.pk == loc_by_name.pk:
+            loc = loc_by_external
+        elif loc_by_external and loc_by_name:
+            # Both the name and the new external_id point to different records.
+            # Use a temporary external_id to swap values without hitting
+            # the unique constraint.
+            old_external_id = loc_by_name.external_id
+            temp_id = (Location.objects.aggregate(m=Max('external_id'))['m'] or 0) + 1
+
+            loc_by_external.external_id = temp_id
+            loc_by_external.save()
+
+            loc = loc_by_name
+            loc.external_id = external_id
+            loc.save()
+
+            loc_by_external.external_id = old_external_id
+            loc_by_external.save()
+        elif loc_by_name:
+            loc = loc_by_name
+            loc.external_id = external_id
+        elif loc_by_external:
+            loc = loc_by_external
+            loc.name = name
+        else:
+            loc = Location(name=name, external_id=external_id)
+
+        for attr, value in defaults.items():
+            setattr(loc, attr, value)
+
+        loc.save()
+
     def seed_locations(self):
         """Seed university locations."""
         rows = load_csv("Location.csv")
 
         for row in tqdm(rows, desc="Locations"):
-
-            thumbnail = row.get("thumbnails_image", "").replace("\\", "/").strip().strip("/")
-
             self.safe_execute(
                 row.get("location_id"),
-                Location.objects.update_or_create,
-                external_id=parse_int(row["location_id"]),
-                defaults={
-                    "name": row["name"].strip(),
-                    "also_known_as": row.get("also_known_as", ""),
-                    "category": CATEGORY_MAP[row["Category"].strip()],
-                    "campus": CAMPUS_MAP[row["campus"].strip()],
-                    "description": row.get("location_description", ""),
-                    "latitude": parse_float(row["latitude"]),
-                    "longitude": parse_float(row["longitude"]),
-                    "weekday_open_time": parse_time(row.get("week_days_opentime")),
-                    "weekday_close_time": parse_time(row.get("weekdays_close_time")),
-                    "saturday_open_time": parse_time(row.get("Saturday_open_time")),
-                    "saturday_close_time": parse_time(row.get("saturday_close_time")),
-                    "sunday_holiday_open_time": parse_time(row.get("sunday_holidays_open_time")),
-                    "sunday_holiday_close_time": parse_time(row.get("Sunday_holidays_close_time")),
-                    "opening_hrs_notes": row.get("opening_hours_note", ""),
-                    "id_access_needed": parse_bool(row.get("id_access_needed")),
-                    "additional_access_notes": row.get("additional_access_notes", ""),
-                    "thumbnail_image": thumbnail,
-                    "uoa_map_link": row.get("uoa_map_link", ""),
-                },
+                self._seed_location,
+                row,
             )
+
+    def _seed_space(self, row, location):
+        """Create or update a Space row, handling external_id and location/name changes."""
+        name = row["name"].strip()
+        external_id = parse_int(row["space_id"])
+        thumbnail = (
+            row.get("thumbnail_image", "")
+            .replace("\\", "/")
+            .replace("thumnail_images", "thumbnail_images")
+            .strip()
+            .strip("/")
+        )
+
+        defaults = {
+            "space_type": row["space_type"],
+            "description": row.get("description", ""),
+            "latitude": parse_float(row.get("latitude")),
+            "longitude": parse_float(row.get("longitude")),
+            "floor": row.get("floor", "").strip(),
+            "thumbnail_image": thumbnail,
+            "weekday_open_time": parse_time(row.get("week_days_opentime")),
+            "weekday_close_time": parse_time(row.get("weekdays_close_time")),
+            "saturday_open_time": parse_time(row.get("Saturday_open_time")),
+            "saturday_close_time": parse_time(row.get("saturday_close_time")),
+            "sunday_holiday_open_time": parse_time(row.get("sunday_holidays_open_time")),
+            "sunday_holiday_close_time": parse_time(row.get("Sunday_holidays_close_time")),
+            "opening_hrs_notes": row.get("opening_hours_note", ""),
+            "wayfinding": row.get("wayfinding", ""),
+            "is_quiet_zone": parse_bool(row.get("is_quiet_zone")),
+            "is_safe_space_neurodivergent_students": parse_bool(row.get("is_safety_space_neurodivergent_students")),
+        }
+
+        loc_by_external = Space.objects.filter(external_id=external_id).first()
+        loc_by_unique = Space.objects.filter(location=location, name=name).first()
+
+        if loc_by_external and loc_by_unique and loc_by_external.pk == loc_by_unique.pk:
+            loc = loc_by_external
+        elif loc_by_external and loc_by_unique:
+            # Both the (location, name) key and the new external_id point to
+            # different records. Use a temporary external_id to swap values
+            # without hitting the unique constraint.
+            old_external_id = loc_by_unique.external_id
+            temp_id = (Space.objects.aggregate(m=Max('external_id'))['m'] or 0) + 1
+
+            loc_by_external.external_id = temp_id
+            loc_by_external.save()
+
+            loc = loc_by_unique
+            loc.external_id = external_id
+            loc.save()
+
+            loc_by_external.external_id = old_external_id
+            loc_by_external.save()
+        elif loc_by_unique:
+            loc = loc_by_unique
+            loc.external_id = external_id
+        elif loc_by_external:
+            loc = loc_by_external
+            loc.location = location
+            loc.name = name
+        else:
+            loc = Space(location=location, name=name, external_id=external_id)
+
+        for attr, value in defaults.items():
+            setattr(loc, attr, value)
+
+        loc.save()
 
     def seed_spaces(self):
         """Seed spaces within locations."""
@@ -291,28 +412,9 @@ class Command(BaseCommand):
 
             self.safe_execute(
                 row.get("space_id"),
-                Space.objects.update_or_create,
-                external_id=parse_int(row["space_id"]),
-                defaults={
-                    "location": location,
-                    "name": row["name"].strip(),
-                    "space_type": row["space_type"],
-                    "description": row.get("description", ""),
-                    "latitude": parse_float(row.get("latitude")),
-                    "longitude": parse_float(row.get("longitude")),
-                    "floor": row.get("floor", "").strip(),
-                    "thumbnail_image": thumbnail,
-                    "weekday_open_time": parse_time(row.get("week_days_opentime")),
-                    "weekday_close_time": parse_time(row.get("weekdays_close_time")),
-                    "saturday_open_time": parse_time(row.get("Saturday_open_time")),
-                    "saturday_close_time": parse_time(row.get("saturday_close_time")),
-                    "sunday_holiday_open_time": parse_time(row.get("sunday_holidays_open_time")),
-                    "sunday_holiday_close_time": parse_time(row.get("Sunday_holidays_close_time")),
-                    "opening_hrs_notes": row.get("opening_hours_note", ""),
-                    "wayfinding": row.get("wayfinding", ""),
-                    "is_quiet_zone": parse_bool(row.get("is_quiet_zone")),
-                    "is_safe_space_neurodivergent_students": parse_bool(row.get("is_safety_space_neurodivergent_students")),
-                },
+                self._seed_space,
+                row,
+                location,
             )
     
 

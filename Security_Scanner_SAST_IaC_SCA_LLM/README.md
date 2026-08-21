@@ -12,33 +12,106 @@ analyse the project's own codebase for security issues.
 The scanner reports the vulnerabilities found and recommendations in plain language,
 so anyone can understand them — not only developers.
 
+## Requirements
+
+- Python 3.12+
+- Install project dependencies: `pip install -r requirements.txt`
+- Install Checkov (IaC pillar): `pip install checkov`
+- A `.env` file with `OPENROUTER_API_KEY` set (see AI enrichment section)
+
 ## Scanner design
 
-### Layer 1: Rule-based scanner (Python)
+The scanner has three pillars, feeding a shared AI enrichment layer (see architecture diagram):
 
-Detection rules based on cybersecurity standards from OWASP:
+| Pillar | Connectivity |
+|---|---|
+| SAST | None — pure local file parsing, no network at all |
+| IaC | None — local subprocess call locally installed (Checkov) |
+| SCA | Remote HTTPS API (OSV), no auth required |
+| AI enrichment | Remote HTTPS API (OpenRouter), API key required |
 
-- Web Application Security Considerations
-- OWASP Code Review Guide
+### Pillar 1 — SAST: Rule-based scanner (Python, AST parsing)
+
+19 detection rules, grounded in established cybersecurity standards:
+
 - OWASP Top 10 (most critical security risks to web applications)
+- OWASP Code Review Guide
 - OWASP Testing Guide
+- Web Application Security Considerations
+- CWE (Common Weakness Enumeration) references where applicable
 
-### Layer 2: AI enrichment
+**How it works:**
+
+1. Every `.py` file in the project is parsed into an AST (Abstract Syntax Tree) — Python's own internal representation of the code's structure
+2. Each rule walks the tree looking for a specific dangerous pattern — a hardcoded secret, a call to `eval()`, a missing permission check, etc.
+3. Matched patterns are reported as a Finding (rule ID, severity, attack technique, file/line, message, standard reference)
+4. Findings are passed through an AI enrichment layer for a plain-language explanation and suggested fix, then formatted into a Markdown report and posted automatically as a PR comment
+
+**Scope:** static analysis only — the scanner reads code structure, it never executes any of the code it scans. 
+
+### Pillar 2 — IaC: Infrastructure as Code (Checkov)
+
+Open-source IaC scanner (Checkov), configured to scan Terraform (`.tf`) files.
+
+Since UoA Sense Map does not currently provision infrastructure via Terraform, a demonstration file (`infra/demo.tf`) provides 3 paired True Positive / True Negative configuration samples — network exposure, encryption at rest, and IAM least-privilege — to verify the scanning integration end-to-end.
+
+**Connectivity:**
+
+Checkov runs entirely locally as an installed CLI tool — no API, no network request, no credentials needed. The scanner invokes it via a subprocess call (`subprocess.run(["checkov", ...])`), the same as typing the command directly in a terminal.
+
+**How it works:**
+
+1. Checkov reads `.tf` files in the `infra/` folder and checks each resource block against its built-in rule library (network exposure, encryption, IAM permissions, and more)
+2. Findings are captured from Checkov's own output and formatted consistently with the SAST and SCA pillars' reports
+3. Runs as part of the same CI/CD pipeline, alongside SAST and SCA
+
+**Scope:** UoA Sense Map does not currently provision infrastructure via Terraform (deployment is Gunicorn + WhiteNoise, no cloud IaC in place). A demonstration file (`infra/demo.tf`) provides 3 paired True Positive / True Negative configuration samples — network exposure, encryption at rest, and IAM least-privilege — to verify the scanning integration end-to-end. This file is not real infrastructure and should never be applied; it exists only to prove the tooling works correctly, so the pillar is ready to adopt if the project's deployment.
+
+---
+
+### Pillar 3 — SCA: Third-Party Dependency Scanning (OSV API)
+
+Checks every package pinned in `requirements.txt` against the [OSV (Open Source Vulnerabilities) database](https://osv.dev) — a free, public vulnerability database maintained by Google, covering PyPI (the official registry Python packages are published to and installed from) and other language ecosystems.
+
+Grounded in:
+
+- OWASP Top 10:2025 A03 – Software Supply Chain Failures
+- OWASP Code Review Guide
+
+**Connectivity:**
+
+Connects to the OSV (Open Source Vulnerabilities) API over HTTPS — a free, public REST API, no authentication or API key required. The scanner sends one HTTP POST request per package (name, version, ecosystem) to `https://api.osv.dev/v1/query` and reads back any matched vulnerability records as JSON.
+
+**How it works:**
+
+1. Parse `requirements.txt` to extract each package name and pinned version
+2. Query the OSV API for each package/version pair
+3. Any matched CVE is reported as a Finding (package, version, CVE ID, severity), reusing the same reporting format as the SAST and IaC pillars
+4. Runs as part of the same CI/CD pipeline, alongside SAST and IaC
+
+**Scope:** scans every package listed in `requirements.txt` — this includes packages you directly chose (Django, DRF, Pillow, psycopg2-binary) as well as packages pulled in as dependencies of those but still explicitly pinned in the file (e.g. asgiref, sqlparse). Any package NOT listed in requirements.txt — i.e. resolved silently at install time without being pinned — falls outside this scanner's current scope, along with broader supply-chain integrity checks (unpinned versions, unhashed packages, CI Action pinning).Detecting these would require dynamic analysis (actually installing dependencies and inspecting the resolved environment), which is out of scope for this static analysis scanner.
+
+### Pillar 4: AI enrichment
 
 This part of the scanner takes a security finding (produced by the rule-based
 scanner) and asks a hosted language model, via the OpenRouter API, to explain it
 in plain language and suggest a fix.
 
 Design notes:
-- The AI layer is **additive**. If it fails (model busy, withdrawn, offline), the
-  caller still has the original rule-based finding. We never depend on it for
-  detection. Its role is to translate the findings (vulnerabilities and
-  recommendations) into plain language that everyone can understand, not only
-  developers.
+- The AI layer is **additive**. If it fails (model busy, deprecated, or offline),
+  the caller still has the original rule-based finding — detection never depends
+  on it. Its role is to translate findings (vulnerabilities and recommendations)
+  into plain language that everyone can understand, not only developers.
 - Models are tried in priority order (fallback list). A "busy" model (429) is
   retried briefly; an "unavailable" model (402/404) is skipped immediately.
-- The API key is read from the environment (.env), never hard-coded.
+- The API key is read from the environment (`.env`), never hardcoded.
 
+**Connectivity:**
+OpenRouter hosted in a remote service. HTTP request through API request.
+
+**How it works:**
+
+**Scope:**
 ## Architecture
 
 security/
@@ -52,8 +125,9 @@ security/
 ├── iac/
 │   ├── __init__.py
 │   └── iac_scanner.py          # Pillar 3 — IaC: infrastructure-as-code / CI-CD config
-│                                #             checks (delegated to checkov as a CI step,
-│                                #             output normalised into the shared Finding shape)
+├── infra/
+│   └── demo.tf                  # True Positives (TP)/True Negatives(TN) for IaC functionality validation.         
+│                                # Checkov's
 ├── ai/
 │   ├── __init__.py
 │   ├── test_qwen.py
@@ -74,13 +148,22 @@ pillar alongside SAST and SCA. The deployment is PaaS-based, so the pillar targe
 using the same True Positive / True Negative approach applied to every other rule in the scanner.
 
 ## How to run
-python -m security
+python -m demo.py
 
 ## Tools
 
+SAST
 - **Python / Django** — the application under analysis and the language the scanner is written in.
+
+IaC
+- **checkov** — performed with Checkov, an open-source IaC scanner. 
+              —  Vendor (Palo Alto Networks)
+              —  Framework scanned: Terraform (HashiCorp)
+
+SCA
 - **OSV API** — vulnerability database queried by the SCA layer for known CVEs.
-- **checkov** — external IaC scanner wrapped by the IaC layer, delegated to rather than custom-built.
+
+LLM from Open AI
 - **OpenRouter** — API gateway and key provider for Layer 2.
 - **LLM providers** — GPT-OSS from OpenAI (main model, connecting successfully), Qwen (recommended model trying second) and Llama (trying third)
 

@@ -53,12 +53,18 @@
     }
 
     wrap.innerHTML = facilities
-      .map(
-        (f) => `
-          <span class="facility ${f.status ? "on" : "off"}">
-            ${f.status ? "✓" : "—"} ${escapeHtml(f.name)}
-          </span>`
-      )
+      .map((f) => {
+        const icon = f.status ? f.icon_available : f.icon_unavailable;
+        const label =
+          escapeHtml(f.name) +
+          (f.status ? " — available" : " — not available") +
+          (f.notes ? " — " + escapeHtml(f.notes) : "");
+        const safeLabel = label.replace(/"/g, "&quot;");
+        if (icon) {
+          return `<div class="facility-item"><img class="facility-icon ${f.status ? "on" : "off"}" src="${escapeHtml(icon)}" alt="" aria-label="${safeLabel}" title="${safeLabel}">${f.notes ? `<small class="facility-note">${escapeHtml(f.notes)}</small>` : ""}</div>`;
+        }
+        return `<span class="facility ${f.status ? "on" : "off"}">${f.status ? "✓" : "—"} ${escapeHtml(f.name)}</span>`;
+      })
       .join("");
   }
 
@@ -123,14 +129,18 @@
           .join("");
 
         const facs = (s.facilities || [])
-          .map(
-            (f) => `
-              <span class="facility small ${f.status ? "on" : ""}" title="${
-                f.notes ? escapeHtml(f.notes).replace(/"/g, "&quot;") : ""
-              }">
-                ${f.status ? "✓" : "—"} ${escapeHtml(f.name)}
-              </span>`
-          )
+          .map((f) => {
+            const icon = f.status ? f.icon_available : f.icon_unavailable;
+            const label =
+              escapeHtml(f.name) +
+              (f.status ? " — available" : " — not available") +
+              (f.notes ? " — " + escapeHtml(f.notes) : "");
+            const safeLabel = label.replace(/"/g, "&quot;");
+            if (icon) {
+              return `<div class="facility-item small"><img class="facility-icon small ${f.status ? "on" : "off"}" src="${escapeHtml(icon)}" alt="" aria-label="${safeLabel}" title="${safeLabel}">${f.notes ? `<small class="facility-note">${escapeHtml(f.notes)}</small>` : ""}</div>`;
+            }
+            return `<span class="facility small ${f.status ? "on" : "off"}" title="${f.notes ? escapeHtml(f.notes).replace(/"/g, "&quot;") : ""}">${f.status ? "✓" : "—"} ${escapeHtml(f.name)}</span>`;
+          })
           .join("");
 
         return `
@@ -209,6 +219,8 @@
     });
   }
 
+  let lastPayload = null;
+
   async function loadDetail() {
     try {
       const res = await fetch("/api/locations/" + LOCATION_ID + "/");
@@ -217,6 +229,11 @@
         throw new Error("Request failed: " + res.status);
 
       const d = await res.json();
+
+      // Skip re-rendering when nothing changed (polling refresh).
+      const payload = JSON.stringify(d);
+      if (payload === lastPayload) return;
+      lastPayload = payload;
 
       el("dp-name").textContent = d.name;
 
@@ -298,5 +315,10 @@
   }
 
   loadDetail();
+
+  // Refresh periodically so sensory ratings update without a page reload.
+  setInterval(() => {
+    if (!document.hidden) loadDetail();
+  }, 20000);
 
 })();

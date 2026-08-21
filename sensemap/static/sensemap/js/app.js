@@ -8,25 +8,36 @@
   // --- Config ---------------------------------------------------------------
   const CAMPUS_CENTER = [57.1648, -2.1015]; // Old Aberdeen campus
 
-  // Circular "spotlight" around Old Aberdeen campus (centred on CAMPUS_CENTER),
-  // similar in spirit to TCD Sense Map's campus vignette. Radii are hard-coded
-  // in metres and comfortably cover all seeded Old Aberdeen locations
-  // (lat 57.16259–57.167984, lng -2.106355–-2.093883). Used to restrict the
-  // "real" full-colour tiles to a circle around campus, so everywhere else
-  // falls back to the darkened base layer.
-  const CAMPUS_RADIUS_METERS = 420; // core: fully opaque circle around campus
-  const CAMPUS_FADE_STEPS = [
+  // Circular "spotlight" around each UoA campus.
+  // Each campus gets a set of stacked clip-path panes (outer/mid/core) to
+  // transition from full-colour campus tiles to the darker surrounding basemap.
+  const CAMPUS_SPOTLIGHTS = [
     {
-      pane: "campus-tiles-mid",
-      radius: 560,
-      opacity: 0.55,
-      zIndex: 240,
+      name: "old",
+      center: CAMPUS_CENTER,
+      steps: [
+        { pane: "campus-tiles-old-outer", radius: 700, opacity: 0.25, zIndex: 230 },
+        { pane: "campus-tiles-old-mid", radius: 560, opacity: 0.55, zIndex: 240 },
+        { pane: "campus-tiles-old-core", radius: 420, opacity: 1, zIndex: 250 },
+      ],
     },
     {
-      pane: "campus-tiles-core",
-      radius: CAMPUS_RADIUS_METERS,
-      opacity: 1,
-      zIndex: 250,
+      name: "hillhead",
+      center: [57.1763, -2.1032],
+      steps: [
+        { pane: "campus-tiles-hillhead-outer", radius: 500, opacity: 0.25, zIndex: 230 },
+        { pane: "campus-tiles-hillhead-mid", radius: 400, opacity: 0.55, zIndex: 240 },
+        { pane: "campus-tiles-hillhead-core", radius: 300, opacity: 1, zIndex: 250 },
+      ],
+    },
+    {
+      name: "foresterhill",
+      center: [57.1560, -2.1359],
+      steps: [
+        { pane: "campus-tiles-foresterhill-outer", radius: 500, opacity: 0.25, zIndex: 230 },
+        { pane: "campus-tiles-foresterhill-mid", radius: 400, opacity: 0.55, zIndex: 240 },
+        { pane: "campus-tiles-foresterhill-core", radius: 300, opacity: 1, zIndex: 250 },
+      ],
     },
   ];
   // const SCALE_COLOURS = ["#2e7d32", "#7cb342", "#f9a825", "#ef6c00", "#c62828"];
@@ -81,10 +92,14 @@
   let allSpaces = [];
   let markers = {}; // id -> L.marker
   let map;
-  let campusOutlineLayer;
+  let campusOutlineLayers = [];
   // radar chart removed
   let selectedId = null;
+  let selectedSpaceId = null;
   let detailCache = {};
+  let spaceDetailCache = {};
+  let detailPollTimer = null;
+  const DETAIL_POLL_MS = 20000;
   let metaData = null;
 
   // --- DOM ------------------------------------------------------------------
@@ -124,17 +139,22 @@
 
   function drawCampusOutline() {
     if (!map) return;
-    if (campusOutlineLayer) map.removeLayer(campusOutlineLayer);
+    campusOutlineLayers.forEach((layer) => map.removeLayer(layer));
+    campusOutlineLayers = [];
 
-    campusOutlineLayer = L.circle(CAMPUS_CENTER, {
-      radius: CAMPUS_RADIUS_METERS,
-      color: "#ffffff",
-      weight: 1.2,
-      opacity: 0.4,
-      fill: false,
-      dashArray: "4 7",
-      interactive: false,
-    }).addTo(map);
+    CAMPUS_SPOTLIGHTS.forEach((campus) => {
+      const core = campus.steps[campus.steps.length - 1];
+      const layer = L.circle(campus.center, {
+        radius: core.radius,
+        color: "#ffffff",
+        weight: 1.2,
+        opacity: 0.4,
+        fill: false,
+        dashArray: "4 7",
+        interactive: false,
+      }).addTo(map);
+      campusOutlineLayers.push(layer);
+    });
   }
 
   // Keeps the circular campus "spotlight" panes clipped to a circle (rather
@@ -147,17 +167,20 @@
   function updateCampusClip() {
     if (!map) return;
     const zoom = map.getZoom();
-    const centerPoint = map.project(L.latLng(CAMPUS_CENTER), zoom).subtract(map.getPixelOrigin());
-    const metersPerPixel =
-      (156543.03392 * Math.cos((CAMPUS_CENTER[0] * Math.PI) / 180)) / Math.pow(2, zoom);
 
-    CAMPUS_FADE_STEPS.forEach((step) => {
-      const pane = map.getPane(step.pane);
-      if (!pane) return;
-      const radiusPx = step.radius / metersPerPixel;
-      const clip = "circle(" + radiusPx + "px at " + centerPoint.x + "px " + centerPoint.y + "px)";
-      pane.style.clipPath = clip;
-      pane.style.webkitClipPath = clip;
+    CAMPUS_SPOTLIGHTS.forEach((campus) => {
+      const centerPoint = map.project(L.latLng(campus.center), zoom).subtract(map.getPixelOrigin());
+      const metersPerPixel =
+        (156543.03392 * Math.cos((campus.center[0] * Math.PI) / 180)) / Math.pow(2, zoom);
+
+      campus.steps.forEach((step) => {
+        const pane = map.getPane(step.pane);
+        if (!pane) return;
+        const radiusPx = step.radius / metersPerPixel;
+        const clip = "circle(" + radiusPx + "px at " + centerPoint.x + "px " + centerPoint.y + "px)";
+        pane.style.clipPath = clip;
+        pane.style.webkitClipPath = clip;
+      });
     });
   }
 
@@ -207,18 +230,20 @@
     // Each pane holds a full (unbounded) tile layer; a CSS circular clip-path
     // (see updateCampusClip) restricts what's actually visible to a circle
     // around campus, instead of Leaflet's rectangular `bounds` option.
-    CAMPUS_FADE_STEPS.forEach((step) => {
-      const pane = map.createPane(step.pane);
-      pane.style.zIndex = String(step.zIndex);
-      pane.style.pointerEvents = "none";
+    CAMPUS_SPOTLIGHTS.forEach((campus) => {
+      campus.steps.forEach((step) => {
+        const pane = map.createPane(step.pane);
+        pane.style.zIndex = String(step.zIndex);
+        pane.style.pointerEvents = "none";
 
-      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-        maxZoom: 19,
-        pane: step.pane,
-        opacity: step.opacity,
-        attribution:
-          '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-      }).addTo(map);
+        L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+          maxZoom: 19,
+          pane: step.pane,
+          opacity: step.opacity,
+          attribution:
+            '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+        }).addTo(map);
+      });
     });
 
     // Recompute the circular clip whenever zoom changes (metres-per-pixel and
@@ -306,9 +331,7 @@
         className: "space-tooltip",
       });
       marker.on("click", () => {
-        if (space.location?.id) {
-          selectLocation(space.location.id, true);
-        }
+        selectSpace(space.id, true);
       });
       marker.addTo(map);
       markers["space-" + space.id] = marker;
@@ -337,6 +360,19 @@
             return '<span class="space-tag" title="' + escapeHtml(m.label) + '" style="background:' + m.color + '">' + iconImg(m, m.label) + "</span>";
           })
           .join("");
+        const facilityBadges = (loc.facilities_available || [])
+          .map((f) => {
+            const label = escapeHtml(f.name) + (f.notes ? " \u2014 " + escapeHtml(f.notes) : "");
+            const safeLabel = label.replace(/"/g, "&quot;");
+            if (f.icon) {
+              return (
+                '<img class="sidebar-facility-icon" src="' + escapeHtml(f.icon) + '" alt="" ' +
+                'aria-label="' + safeLabel + '" title="' + safeLabel + '">'
+              );
+            }
+            return '<span class="sidebar-facility-name" title="' + safeLabel + '">' + escapeHtml(f.name) + '</span>';
+          })
+          .join("");
         return (
           '<li><button type="button" class="location-item" data-id="' +
           loc.id +
@@ -358,6 +394,7 @@
           '<span class="mini-sensory" aria-hidden="true">' +
           spaceBadges +
           "</span>" +
+          (facilityBadges ? '<span class="mini-facilities" aria-hidden="true">' + facilityBadges + "</span>" : "") +
           "</button></li>"
         );
       })
@@ -505,15 +542,117 @@
     } catch (err) {
       el("detail-desc").textContent = "Could not load details: " + err.message;
     }
+
+    startDetailPolling(id);
+  }
+
+  // Poll the API while the detail panel is open so sensory ratings and other
+  // data update in near real time without a page refresh.
+  function startDetailPolling(id) {
+    stopDetailPolling();
+    detailPollTimer = setInterval(async () => {
+      if (selectedId !== id || document.hidden) return;
+      try {
+        const res = await fetch("/api/locations/" + id + "/");
+        if (!res.ok) return;
+        const fresh = await res.json();
+        if (JSON.stringify(fresh) !== JSON.stringify(detailCache[id])) {
+          detailCache[id] = fresh;
+          if (selectedId === id) renderDetail(fresh);
+        }
+      } catch (err) {
+        /* network hiccup — try again on the next tick */
+      }
+    }, DETAIL_POLL_MS);
+  }
+
+  function stopDetailPolling() {
+    if (detailPollTimer) {
+      clearInterval(detailPollTimer);
+      detailPollTimer = null;
+    }
   }
 
   function closeDetail() {
+    stopDetailPolling();
     detailEl.classList.remove("open");
     detailEl.setAttribute("aria-hidden", "true");
     selectedId = null;
+    selectedSpaceId = null;
     listEl.querySelectorAll(".location-item").forEach((b) =>
       b.setAttribute("aria-current", "false")
     );
+  }
+
+  // --- Space detail panel --------------------------------------------------
+  async function selectSpace(id, focusPanel) {
+    selectedSpaceId = id;
+    selectedId = null;
+
+    const space = allSpaces.find((s) => s.id === id);
+    if (space && space.latitude && space.longitude) {
+      map.setView([space.latitude, space.longitude], 18, { animate: true });
+    }
+
+    closeSidebar();
+    detailEl.classList.add("open");
+    detailEl.setAttribute("aria-hidden", "false");
+    el("detail-title").textContent = space ? space.name : "Loading\u2026";
+    if (focusPanel) el("detail-title").focus();
+
+    try {
+      if (!spaceDetailCache[id]) {
+        const res = await fetch("/api/spaces/" + id + "/");
+        if (!res.ok) throw new Error("Request failed: " + res.status);
+        spaceDetailCache[id] = await res.json();
+      }
+      if (selectedSpaceId === id) renderSpaceDetail(spaceDetailCache[id]);
+    } catch (err) {
+      el("detail-desc").textContent = "Could not load details: " + err.message;
+    }
+  }
+
+  function renderSpaceDetail(s) {
+    var loc = s.location || {};
+    var meta = SPACE_TYPE_META[s.space_type] || FALLBACK_SPACE;
+
+    el("detail-title").textContent = s.name;
+    el("detail-sub").textContent =
+      (s.space_type_display || meta.label) +
+      (loc.name ? " \u00B7 " + loc.name : "") +
+      (loc.campus_display ? " \u00B7 " + loc.campus_display : "");
+    el("detail-also").textContent = "";
+    el("detail-desc").textContent = s.description || "No description provided.";
+
+    // access
+    el("detail-access").innerHTML =
+      '<span class="facility ' +
+      (loc.id_access_needed ? "" : "on") +
+      '">' +
+      (loc.id_access_needed ? "\uD83E\uDE93 University ID required" : "\u2713 Open access") +
+      "</span>";
+
+    // opening hours
+    el("detail-hours").innerHTML =
+      hoursRow("Mon\u2013Fri", s.weekday_open_time, s.weekday_close_time) +
+      hoursRow("Saturday", s.saturday_open_time, s.saturday_close_time) +
+      hoursRow("Sun / holidays", s.sunday_holiday_open_time, s.sunday_holiday_close_time);
+    el("detail-hours-notes").textContent = s.opening_hrs_notes || "";
+
+    // facilities
+    renderFacilities(el("location-facilities"), s.facilities || []);
+
+    // sensory profile
+    renderSensory(s.sensory_profiles || []);
+
+    // hide spaces list and gallery for space detail
+    var spacesSection = document.getElementById("spaces-section");
+    if (spacesSection) spacesSection.hidden = true;
+    var gallerySection = document.getElementById("gallery-section");
+    if (gallerySection) gallerySection.hidden = true;
+
+    el("detail-map-link").innerHTML = "";
+    el("detail-more-link").href = "/space/" + s.id + "/";
   }
 
   function fmtTime(t) {
@@ -533,17 +672,34 @@
       return;
     }
     wrap.innerHTML = facs
-      .map(
-        (f) =>
-          '<span class="facility ' +
-          (f.status ? "on" : "") +
-          '"' +
+      .map((f) => {
+        const icon = f.status ? f.icon_available : f.icon_unavailable;
+        const label =
+          escapeHtml(f.name) +
+          (f.status ? " \u2014 available" : " \u2014 not available") +
+          (f.notes ? " \u2014 " + escapeHtml(f.notes) : "");
+        const safeLabel = label.replace(/"/g, "&quot;");
+        if (icon) {
+          return (
+            '<div class="facility-item">' +
+            '<img class="facility-icon ' + (f.status ? "on" : "off") + '" ' +
+            'src="' + escapeHtml(icon) + '" ' +
+            'alt="" ' +
+            'aria-label="' + safeLabel + '" ' +
+            'title="' + safeLabel + '">' +
+            (f.notes ? '<small class="facility-note">' + escapeHtml(f.notes) + '</small>' : '') +
+            '</div>'
+          );
+        }
+        return (
+          '<span class="facility ' + (f.status ? "on" : "") + '"' +
           (f.notes ? ' title="' + escapeHtml(f.notes) + '"' : "") +
           ">" +
           (f.status ? "\u2713 " : "\u2014 ") +
           escapeHtml(f.name) +
           "</span>"
-      )
+        );
+      })
       .join("");
   }
 
@@ -694,18 +850,15 @@
 
     renderFacilities(el("location-facilities"), d.facilities || []);
     renderSensory(d.sensory_profiles || []);
+    var spacesSection = document.getElementById("spaces-section");
+    if (spacesSection) spacesSection.hidden = false;
     renderSpaces(d.spaces || []);
     renderGallery(d.gallery_images || []);
-    renderFeedback(d.feedback || []);
 
     el("detail-map-link").innerHTML = d.uoa_map_link
       ? '<a href="' + d.uoa_map_link + '" target="_blank" rel="noopener">View on the University map \u2197</a>'
       : "";
     el("detail-more-link").href = "/place/" + d.slug + "/";
-
-    const btn = el("open-feedback-btn");
-    btn.dataset.locationId = d.id;
-    btn.dataset.locationName = d.name;
   }
 
   function renderFeedback(items) {
@@ -1145,6 +1298,7 @@
       }
       renderList(allLocations);
       renderMarkers(allLocations, el("filter-space-type").value);
+      renderSpaceMarkers(allSpaces);
       const bounds = L.latLngBounds(allLocations.map((l) => [l.latitude, l.longitude]));
       if (bounds.isValid()) map.fitBounds(bounds.pad(0.2));
 

@@ -717,6 +717,61 @@ textarea {
 }
 .detail-more a:hover { color: var(--accent-dark); text-decoration: underline; }
 
+/* "View full details" CTA in the detail slide-over header */
+.detail .detail-head .head-cta { margin: 0.65rem 0 0; }
+.detail .detail-head a.detail-more-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.45rem 1rem;
+  border-radius: 999px;
+  background: #fff;
+  color: var(--navy);
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  text-decoration: none;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+  transition: background 0.15s ease, box-shadow 0.15s ease, transform 0.05s ease;
+}
+.detail .detail-head a.detail-more-btn:hover {
+  background: var(--accent-soft);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+  text-decoration: none;
+}
+.detail .detail-head a.detail-more-btn:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 2px;
+}
+.detail .detail-head a.detail-more-btn:active { transform: translateY(1px); }
+
+/* ---------- Help modal sections ---------- */
+.help-body { display: flex; flex-direction: column; gap: 0.9rem; }
+.help-section {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--panel);
+  padding: 0.9rem 1.1rem;
+}
+.help-section-head {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  margin-bottom: 0.5rem;
+}
+.help-section-head h3 { margin: 0; font-size: 1rem; }
+.help-icon {
+  flex: none;
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.help-icon img { width: 20px; height: 20px; }
+.help-section p { margin: 0.35rem 0 0; font-size: 0.88rem; line-height: 1.55; }
+
 /* "ND-safe" chip variant */
 .chip.nd { background: #f3e9fb; color: #5e35b1; }
 
@@ -1272,6 +1327,8 @@ textarea {
 .sensory-line.small { grid-template-columns: 1fr 80px auto; font-size: 0.78rem; }
 .s-label { color: var(--text); }
 .s-bar {
+  display: block;
+  width: 100%;
   height: 8px;
   border-radius: 4px;
   background: #e2e8f0;
@@ -1413,6 +1470,8 @@ textarea {
 .sensory-line.small { grid-template-columns: 1fr 80px auto; font-size: 0.78rem; }
 .s-label { color: var(--text); }
 .s-bar {
+  display: block;
+  width: 100%;
   height: 8px;
   border-radius: 4px;
   background: #e2e8f0;
@@ -1971,7 +2030,7 @@ textarea {
 /* Mobile: replace the chip bar with a professional native dropdown for the space-type filter. */
 @media (max-width: 640px) {
   .map-controls {
-    left: 0.75rem;
+    left: 3.6rem;
     right: 0.75rem;
     top: 0.75rem;
     gap: 0.4rem;
@@ -2032,4 +2091,95 @@ textarea {
   .site-footer-legal {
     font-size: 0.75rem;
   }
+}
+
+/* Facility icon chips */
+.facility-icon {
+  width: 32px;
+  height: 32px;
+  padding: 5px;
+  border-radius: 8px;
+  background: #fff;
+  border: 1px solid var(--border);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+  object-fit: contain;
+  cursor: help;
+}
+.facility-item {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.35rem;
+  text-align: center;
+  vertical-align: top;
+  width: 110px;
+  margin-bottom: 0.75rem;
+}
+.facility-item.small {
+  gap: 0.2rem;
+  width: 90px;
+  margin-bottom: 0.5rem;
+}
+.facility-note {
+  font-size: 0.85rem;
+  color: var(--text);
+  line-height: 1.35;
+  word-wrap: break-word;
+}
+.facility-item.small .facility-note {
+  font-size: 0.75rem;
+}
+.facility-icon.off {
+  opacity: 0.75;
+  filter: grayscale(0.7);
+}
+
+/* Larger facility icons on dedicated detail pages */
+.detail-page .facility-icon {
+  width: 48px;
+  height: 48px;
+  padding: 7px;
+}
+
+/* Smaller facility icons inside space cards */
+.facility-icon.small {
+  width: 22px;
+  height: 22px;
+  padding: 3px;
+}
+
+/* Facility icons in the map sidebar list */
+.mini-facilities {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-top: 0.4rem;
+}
+.sidebar-facility-icon {
+  width: 20px;
+  height: 20px;
+  padding: 3px;
+  border-radius: 6px;
+  background: #fff;
+  border: 1px solid var(--border);
+  object-fit: contain;
+  cursor: help;
+}
+
+/* Facility icons on the All places page */
+.place-facilities {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  margin: 0.5rem 0;
+}
+.place-facility-icon {
+  width: 34px;
+  height: 34px;
+  padding: 5px;
+  border-radius: 8px;
+  background: #fff;
+  border: 1px solid var(--border);
+  object-fit: contain;
+  cursor: help;
 }
