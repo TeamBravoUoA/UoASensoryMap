@@ -3,7 +3,7 @@
 
 import ast
 from pathlib import Path
-from scanner.sast_scanner import check_security_misconfig
+from scanner.sast_scanner import check_security_misconfig #SAST Pillar
 from scanner.sast_scanner import check_hardcoded_secrets
 from scanner.sast_scanner import check_unsafe_eval_exec
 from scanner.sast_scanner import check_insecure_deserialization
@@ -21,6 +21,7 @@ from scanner.sast_scanner import check_missing_auth_decorators
 from scanner.sast_scanner import check_idor_missing_permission
 from ai.threat_model import enrich_findings
 from format_report import format_report_markdown
+from IaC.IaC import run_iac_scan #IaC Pillar
 
 
 PROJECT_ROOT = Path("..")  # one level up from Security_Scanner_SAST_IaC_SCA_LLM = the repo root
@@ -28,7 +29,7 @@ PROJECT_ROOT = Path("..")  # one level up from Security_Scanner_SAST_IaC_SCA_LLM
 VERBOSE = True
 
 CHECKED_ATTACK_TYPES = [
-    "SEC-MISCONFIG-DEBUG",
+    "SEC-MISCONFIG-DEBUG", #SAST Findings start
     "SEC-MISCONFIG-SECRET-KEY",
     "SEC-MISCONFIG-ALLOWED-HOSTS-EMPTY",
     "SEC-MISCONFIG-ALLOWED-HOSTS-WILDCARD",
@@ -51,7 +52,8 @@ CHECKED_ATTACK_TYPES = [
     "SEC-MISSING-COOKIE-FLAGS", 
     "SEC-UNBOUNDED-SLICE/DoS-MEMORY-EXAHUSTATION",
     "SEC-MISSING-AUTH-DECORATOR/BROKEN-ACCESS-CONTROL-PERMISSION-CLASSES",
-    "SEC-IDOR-MISSING-PERMISSION-CHECK/BROKEN-ACCESS-CONTROL-IDOR-OBJECT-ACCESS"
+    "SEC-IDOR-MISSING-PERMISSION-CHECK/BROKEN-ACCESS-CONTROL-IDOR-OBJECT-ACCESS" #SAST Findings ends
+    "IAC-CHECKOV-INFRASTRUCTURE-MISCONFIGURATION", #IaC Findings
 ]
 
 all_findings = []
@@ -125,6 +127,16 @@ for py_file in PROJECT_ROOT.rglob("*.py"):
         print(f"[checked] {py_file} -> {status} (checked against: {checked_list})")
 
     all_findings.extend (findings)
+
+#IaC pillar — runs ONCE for the whole project, not per Python file,
+#Scans infra/demo.tf (True Positives/True Negatives) via checkov.
+iac_findings = run_iac_scan("infra/")
+all_findings.extend(iac_findings)
+
+if VERBOSE and iac_findings:
+    print(f"[IaC] infra/ -> {len(iac_findings)} issue(s) found via checkov")
+elif VERBOSE:
+    print("[IaC] infra/ -> clean (or checkov unavailable)")
 
 print (f"Scanned {files_scanned} files across the UoA Sense Map codebase.\n")
 print(f"{len(all_findings)} issue(s) found.\n")
