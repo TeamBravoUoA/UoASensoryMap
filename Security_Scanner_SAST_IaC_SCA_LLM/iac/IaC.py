@@ -86,7 +86,7 @@ def run_iac_scan(target_dir="infra/"):
             #own field names into ours. Same Finding shape as every
             #other rule in this project (rule_id, severity, etc.).
             findings.append(Finding(
-                rule_id=f"IAC-{check.get('check_id', 'UNKNOWN')}",   #e.g. IAC-CKV_AWS_16
+                rule_id=f"IAC-{check.get('check_id', 'UNKNOWN')}",   
                 severity=check.get("severity") or "Medium",           #checkov doesn't always set this, so fall back to Medium
                 attack_type_exposure="Infrastructure Misconfiguration",
                 file_path=check.get("file_path", target_dir),
