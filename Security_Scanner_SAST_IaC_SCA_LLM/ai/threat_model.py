@@ -84,7 +84,7 @@ def _try_model(model, prompt, api_key):
              # Busy: wait and retry the same model
             if response.status_code == 429:
                 retry_after = response.headers.get("Retry-After")
-                wait = int(retry_after) if retry_after else BASE_WAIT * attempt
+                wait = min(int(retry_after) if retry_after else BASE_WAIT * attempt, 10) #Wait 10 seconds maximum
                 time.sleep(wait)
                 continue
 

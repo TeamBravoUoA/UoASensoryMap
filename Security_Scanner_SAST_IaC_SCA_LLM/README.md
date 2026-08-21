@@ -12,9 +12,23 @@ analyse the project's own codebase for security issues.
 The scanner reports the vulnerabilities found and recommendations in plain language,
 so anyone can understand them — not only developers.
 
+## Requirements
+
+- Python 3.12+
+- Install project dependencies: `pip install -r requirements.txt`
+- Install Checkov (IaC pillar): `pip install checkov`
+- A `.env` file with `OPENROUTER_API_KEY` set (see AI enrichment section)
+
 ## Scanner design
 
 The scanner has three pillars, feeding a shared AI enrichment layer (see architecture diagram):
+
+| Pillar | Connectivity |
+|---|---|
+| SAST | None — pure local file parsing, no network at all |
+| IaC | None — local subprocess call locally installed (Checkov) |
+| SCA | Remote HTTPS API (OSV), no auth required |
+| AI enrichment | Remote HTTPS API (OpenRouter), API key required |
 
 ### Pillar 1 — SAST: Rule-based scanner (Python, AST parsing)
 
@@ -41,6 +55,10 @@ Open-source IaC scanner (Checkov), configured to scan Terraform (`.tf`) files.
 
 Since UoA Sense Map does not currently provision infrastructure via Terraform, a demonstration file (`infra/demo.tf`) provides 3 paired True Positive / True Negative configuration samples — network exposure, encryption at rest, and IAM least-privilege — to verify the scanning integration end-to-end.
 
+**Connectivity:**
+
+Checkov runs entirely locally as an installed CLI tool — no API, no network request, no credentials needed. The scanner invokes it via a subprocess call (`subprocess.run(["checkov", ...])`), the same as typing the command directly in a terminal.
+
 **How it works:**
 
 1. Checkov reads `.tf` files in the `infra/` folder and checks each resource block against its built-in rule library (network exposure, encryption, IAM permissions, and more)
@@ -60,6 +78,10 @@ Grounded in:
 - OWASP Top 10:2025 A03 – Software Supply Chain Failures
 - OWASP Code Review Guide
 
+**Connectivity:**
+
+Connects to the OSV (Open Source Vulnerabilities) API over HTTPS — a free, public REST API, no authentication or API key required. The scanner sends one HTTP POST request per package (name, version, ecosystem) to `https://api.osv.dev/v1/query` and reads back any matched vulnerability records as JSON.
+
 **How it works:**
 
 1. Parse `requirements.txt` to extract each package name and pinned version
@@ -69,7 +91,7 @@ Grounded in:
 
 **Scope:** scans every package listed in `requirements.txt` — this includes packages you directly chose (Django, DRF, Pillow, psycopg2-binary) as well as packages pulled in as dependencies of those but still explicitly pinned in the file (e.g. asgiref, sqlparse). Any package NOT listed in requirements.txt — i.e. resolved silently at install time without being pinned — falls outside this scanner's current scope, along with broader supply-chain integrity checks (unpinned versions, unhashed packages, CI Action pinning).Detecting these would require dynamic analysis (actually installing dependencies and inspecting the resolved environment), which is out of scope for this static analysis scanner.
 
-### Layer 2: AI enrichment
+### Pillar 4: AI enrichment
 
 This part of the scanner takes a security finding (produced by the rule-based
 scanner) and asks a hosted language model, via the OpenRouter API, to explain it
@@ -84,6 +106,12 @@ Design notes:
   retried briefly; an "unavailable" model (402/404) is skipped immediately.
 - The API key is read from the environment (`.env`), never hardcoded.
 
+**Connectivity:**
+OpenRouter hosted in a remote service. HTTP request through API request.
+
+**How it works:**
+
+**Scope:**
 ## Architecture
 
 security/
