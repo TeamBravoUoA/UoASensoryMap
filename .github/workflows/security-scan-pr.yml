@@ -37,7 +37,7 @@ jobs:
       env:
         # .yml syntax for pulling in the API key without even being written anywhere in this file
         OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY}} # from GitHub Secrets, not .env (API key)
-      run: python demo.py
+      run: python -u demo.py
 
       # Step 6: read the scan_report.md that demo.py just created
       # and post its contents as a comment directly in the PR 
