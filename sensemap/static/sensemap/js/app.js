@@ -1298,6 +1298,7 @@
       }
       renderList(allLocations);
       renderMarkers(allLocations, el("filter-space-type").value);
+      renderSpaceMarkers(allSpaces);
       const bounds = L.latLngBounds(allLocations.map((l) => [l.latitude, l.longitude]));
       if (bounds.isValid()) map.fitBounds(bounds.pad(0.2));
 
