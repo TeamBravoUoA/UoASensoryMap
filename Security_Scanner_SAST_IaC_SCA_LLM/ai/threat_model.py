@@ -72,7 +72,6 @@ def _try_model(model, prompt, api_key):
     for attempt in range(1, MAX_RETRIES_PER_MODEL + 1):
         try:
             response = _call_model(model, prompt, api_key)
-            print(f"  [DEBUG] {model} -> status {response.status_code}")  #TEMPORARY — to remove once diagnosed
             if response.status_code == 200:
                 data = response.json()
                 #Fall secure, in case LLM output dont respond
@@ -93,7 +92,6 @@ def _try_model(model, prompt, api_key):
             return None
         
         except (requests.exceptions.RequestException, TimeoutError) as e:
-            print(f"  [DEBUG] {model} -> exception: {e}")  #TEMPORARY — remove once diagnosed
             continue
             
     return None  # exhausted retries on 429
