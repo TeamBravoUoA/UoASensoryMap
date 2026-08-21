@@ -52,7 +52,7 @@ CHECKED_ATTACK_TYPES = [
     "SEC-MISSING-COOKIE-FLAGS", 
     "SEC-UNBOUNDED-SLICE/DoS-MEMORY-EXAHUSTATION",
     "SEC-MISSING-AUTH-DECORATOR/BROKEN-ACCESS-CONTROL-PERMISSION-CLASSES",
-    "SEC-IDOR-MISSING-PERMISSION-CHECK/BROKEN-ACCESS-CONTROL-IDOR-OBJECT-ACCESS" #SAST Findings ends
+    "SEC-IDOR-MISSING-PERMISSION-CHECK/BROKEN-ACCESS-CONTROL-IDOR-OBJECT-ACCESS", #SAST Findings ends
     "IAC-CHECKOV-INFRASTRUCTURE-MISCONFIGURATION", #IaC Findings
 ]
 
@@ -154,10 +154,40 @@ else:
 #Report with LLM model in based on scanner findings output
 #AI enrich findings reusable for both console output and markdown report
 
-if all_findings:
-    enriched = enrich_findings (all_findings)
+#Report with LLM model in based on scanner findings output
+#AI enrich findings reusable for both console output and markdown report
+
+#Split findings: AI enrichment only applies to SAST findings (rule_id
+#starts with "SEC-"). IaC findings already have clear, human-readable
+#explanations from checkov itself (check_name) — no LLM needed, and
+#this avoids 60+ sequential AI calls slowing down every CI run.
+sast_findings = [f for f in all_findings if f.rule_id.startswith("SEC-")]
+iac_findings_only = [f for f in all_findings if f.rule_id.startswith("IAC-")]
+
+if sast_findings:
+    enriched_sast = enrich_findings(sast_findings)
 else:
-    enriched = []
+    enriched_sast = []
+
+#IaC findings pass through as their own dict shape, matching enriched
+#findings' structure, but with ai_explanation always None — so
+#format_report_markdown() can treat both the same way downstream.
+enriched_iac = [
+    {
+        "rule_id": f.rule_id,
+        "severity": f.severity,
+        "attack_type_exposure": f.attack_type_exposure,
+        "file_path": f.file_path,
+        "line": f.line,
+        "message": f.message,
+        "standard_ref": f.standard_ref,
+        "ai_explanation": None,
+        "ai_note": "IaC finding — Checkov's own explanation is used directly, no AI enrichment applied.",
+    }
+    for f in iac_findings_only
+]
+
+enriched = enriched_sast + enriched_iac
 
 if enriched:
     print ("\n ---AI-enriched explanations ---\n")

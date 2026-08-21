@@ -72,6 +72,7 @@ def _try_model(model, prompt, api_key):
     for attempt in range(1, MAX_RETRIES_PER_MODEL + 1):
         try:
             response = _call_model(model, prompt, api_key)
+            print(f"  [DEBUG] {model} -> status {response.status_code}")  #TEMPORARY — to remove once diagnosed
             if response.status_code == 200:
                 data = response.json()
                 #Fall secure, in case LLM output dont respond
@@ -84,16 +85,16 @@ def _try_model(model, prompt, api_key):
              # Busy: wait and retry the same model
             if response.status_code == 429:
                 retry_after = response.headers.get("Retry-After")
-                wait = min(int(retry_after) if retry_after else BASE_WAIT * attempt, 10) #Wait 10 seconds maximum
+                wait = int(retry_after) if retry_after else BASE_WAIT * attempt
                 time.sleep(wait)
                 continue
 
         # Unavailable / paid-only / other error: don't retry, fall back
             return None
         
-        except (requests.exceptions.RequestException, TimeoutError):
-            #Catch timeouts /network drops and move immediately
-            continue 
+        except (requests.exceptions.RequestException, TimeoutError) as e:
+            print(f"  [DEBUG] {model} -> exception: {e}")  #TEMPORARY — remove once diagnosed
+            continue
             
     return None  # exhausted retries on 429
 
