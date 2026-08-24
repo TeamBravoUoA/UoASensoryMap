@@ -22,6 +22,7 @@ from scanner.sast_scanner import check_idor_missing_permission
 from ai.threat_model import enrich_findings
 from format_report import format_report_markdown
 from IaC.IaC import run_iac_scan #IaC Pillar
+from SCA.sca_scanner_dependencies import run_sca_scan #SCA Pillar
 
 
 PROJECT_ROOT = Path("..")  # one level up from Security_Scanner_SAST_IaC_SCA_LLM = the repo root
@@ -52,8 +53,9 @@ CHECKED_ATTACK_TYPES = [
     "SEC-MISSING-COOKIE-FLAGS", 
     "SEC-UNBOUNDED-SLICE/DoS-MEMORY-EXAHUSTATION",
     "SEC-MISSING-AUTH-DECORATOR/BROKEN-ACCESS-CONTROL-PERMISSION-CLASSES",
-    "SEC-IDOR-MISSING-PERMISSION-CHECK/BROKEN-ACCESS-CONTROL-IDOR-OBJECT-ACCESS" #SAST Findings ends
+    "SEC-IDOR-MISSING-PERMISSION-CHECK/BROKEN-ACCESS-CONTROL-IDOR-OBJECT-ACCESS", #SAST Findings ends
     "IAC-CHECKOV-INFRASTRUCTURE-MISCONFIGURATION", #IaC Findings
+    "SCA-OSV-KNOWN-VULNERABILITY" #SCA Findings
 ]
 
 all_findings = []
@@ -128,7 +130,9 @@ for py_file in PROJECT_ROOT.rglob("*.py"):
 
     all_findings.extend (findings)
 
-#IaC pillar — runs ONCE for the whole project, not per Python file,
+#---IaC pillar ---
+
+# runs ONCE for the whole project, not per Python file,
 #Scans infra/demo.tf (True Positives/True Negatives) via checkov.
 iac_findings = run_iac_scan("infra/")
 all_findings.extend(iac_findings)
@@ -138,12 +142,32 @@ if VERBOSE and iac_findings:
 elif VERBOSE:
     print("[IaC] infra/ -> clean (or checkov unavailable)")
 
-print (f"Scanned {files_scanned} files across the UoA Sense Map codebase.\n")
-print(f"{len(all_findings)} issue(s) found.\n")
+#---SCA pillar---
 
-if all_findings:
-    print(f"{len(all_findings)} issue(s) found:")
-    for f in all_findings:
+#  — runs ONCE for the whole project, checking every pinned
+#package in requirements.txt against the OSV vulnerability database.
+sca_findings = run_sca_scan("../requirements.txt")
+all_findings.extend(sca_findings)
+
+if VERBOSE and sca_findings:
+    print(f"[SCA] requirements.txt -> {len(sca_findings)} issue(s) found via OSV")
+elif VERBOSE:
+    print("[SCA] requirements.txt -> clean")
+
+
+print (f"Scanned {files_scanned} files across the UoA Sense Map codebase.\n")
+#Split BEFORE printing the summary, so the console output is from UoA Sensory Map —
+#real codebase issues (SAST+SCA) counted separately from IaC's
+#demonstration findings (infra/demo.tf is not real infrastructure).
+real_findings = [f for f in all_findings if f.rule_id.startswith("SEC-") or f.rule_id.startswith("SCA-")]
+iac_findings_only = [f for f in all_findings if f.rule_id.startswith("IAC-")]
+
+print(f"{len(real_findings)} real issue(s) found (SAST + SCA).")
+print(f"{len(iac_findings_only)} demonstration issue(s) found (IaC, against infra/demo.tf — not real infrastructure).\n")
+
+if real_findings:
+    print(f"{len(real_findings)} issue(s) found:")
+    for f in real_findings:
         print (f"[{f.severity}] {f.rule_id} — {f.file_path}:{f.line}")
         print (f"{f.message}")
         print(f"      Standard: {f.standard_ref}")
@@ -154,10 +178,36 @@ else:
 #Report with LLM model in based on scanner findings output
 #AI enrich findings reusable for both console output and markdown report
 
-if all_findings:
-    enriched = enrich_findings (all_findings)
+
+#Split findings: AI enrichment only applies to SAST findings (rule_id
+#starts with "SEC-"). IaC findings already have clear, human-readable
+#explanations from checkov itself (check_name) — no LLM needed, and
+#this avoids 60+ sequential AI calls slowing down every CI run.
+
+if real_findings:
+    enriched_sast = enrich_findings(real_findings)
 else:
-    enriched = []
+    enriched_sast = []
+
+#IaC findings pass through as their own dict shape, matching enriched
+#findings' structure, but with ai_explanation always None — so
+#format_report_markdown() can treat both the same way downstream.
+enriched_iac = [
+    {
+        "rule_id": f.rule_id,
+        "severity": f.severity,
+        "attack_type_exposure": f.attack_type_exposure,
+        "file_path": f.file_path,
+        "line": f.line,
+        "message": f.message,
+        "standard_ref": f.standard_ref,
+        "ai_explanation": None,
+        "ai_note": "IaC finding — Checkov's own explanation is used directly, no AI enrichment applied.",
+    }
+    for f in iac_findings_only
+]
+
+enriched = enriched_sast + enriched_iac
 
 if enriched:
     print ("\n ---AI-enriched explanations ---\n")
@@ -171,10 +221,12 @@ if enriched:
             print (item["message"])
         print ()
     
-report = format_report_markdown(enriched, files_scanned)
+report = format_report_markdown(enriched_sast, enriched_iac, files_scanned)
 print("\n\n=== MARKDOWN PREVIEW ===\n")
 print(report)
 
 with open ("scan_report.md", "w", encoding = "utf-8") as f:
     f.write (report)
+
+    
 
