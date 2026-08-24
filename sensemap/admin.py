@@ -266,6 +266,86 @@ class ShowAllFieldsAdmin(admin.ModelAdmin):
 
         queryset.delete()
 
+    def save_formset(self, request, form, formset, change):
+        """Save and audit records edited through any admin inline."""
+        instances = formset.save(commit=False)
+
+        for deleted_object in formset.deleted_objects:
+            deleted_fields = [
+                field.name
+                for field in deleted_object._meta.concrete_fields
+                if field.name not in AUDIT_EXCLUDED_FIELDS
+            ]
+
+            create_audit_log(
+                obj=deleted_object,
+                action=AuditLog.Action.DELETED,
+                user=request.user,
+                changed_fields=deleted_fields,
+                previous_values=get_field_values(
+                    deleted_object,
+                    deleted_fields,
+                ),
+            )
+            deleted_object.delete()
+
+        for instance in instances:
+            is_created = instance.pk is None
+            matching_form = next(
+                (
+                    inline_form
+                    for inline_form in formset.forms
+                    if inline_form.instance is instance
+                ),
+                None,
+            )
+
+            changed_fields = []
+            if matching_form:
+                changed_fields = [
+                    field_name
+                    for field_name in matching_form.changed_data
+                    if field_name not in AUDIT_EXCLUDED_FIELDS
+                ]
+
+            previous_values = {}
+            if not is_created:
+                original = instance.__class__.objects.get(pk=instance.pk)
+                previous_values = get_field_values(
+                    original,
+                    changed_fields,
+                )
+
+            if instance.created_by_id is None:
+                instance.created_by = request.user
+            instance.updated_by = request.user
+            instance.save()
+
+            if is_created:
+                created_fields = [
+                    field.name
+                    for field in instance._meta.concrete_fields
+                    if field.name not in AUDIT_EXCLUDED_FIELDS
+                ]
+                create_audit_log(
+                    obj=instance,
+                    action=AuditLog.Action.CREATED,
+                    user=request.user,
+                    changed_fields=created_fields,
+                    new_values=get_field_values(instance, created_fields),
+                )
+            elif changed_fields:
+                create_audit_log(
+                    obj=instance,
+                    action=AuditLog.Action.UPDATED,
+                    user=request.user,
+                    changed_fields=changed_fields,
+                    previous_values=previous_values,
+                    new_values=get_field_values(instance, changed_fields),
+                )
+
+        formset.save_m2m()
+
 # Audit report filters and export action
 class ThisMonthFilter(admin.SimpleListFilter):
     title = "reporting period"
@@ -439,14 +519,29 @@ class SensoryAttributeAdmin(ShowAllFieldsAdmin):
     ordering = ("name",)
 
 
+class LocationFacilityInline(admin.TabularInline):
+    model = LocationFacility
+    extra = 1
+    fields = ("facility", "status", "notes")
+    autocomplete_fields = ("facility",)
+
+
+class LocationSensoryProfileInline(admin.TabularInline):
+    model = LocationSensoryProfile
+    extra = 1
+    fields = ("sensory_attribute", "rating", "notes")
+    autocomplete_fields = ("sensory_attribute",)
+
+
+class LocationGalleryImageInline(admin.TabularInline):
+    model = LocationGalleryImage
+    extra = 1
+    fields = ("image", "caption")
+
+
 @admin.register(Location)
 class LocationAdmin(ShowAllFieldsAdmin):
-    search_fields = (
-        "name",
-        "also_known_as",
-        "description",
-    )
-
+    search_fields = ("name", "also_known_as", "description")
     list_filter = (
         "category",
         "campus",
@@ -454,25 +549,88 @@ class LocationAdmin(ShowAllFieldsAdmin):
         "created_at",
         "updated_at",
     )
-
     ordering = ("external_id",)
+    readonly_fields = (
+        "slug",
+        "created_at",
+        "updated_at",
+        "created_by",
+        "updated_by",
+    )
+    inlines = (
+        LocationFacilityInline,
+        LocationSensoryProfileInline,
+        LocationGalleryImageInline,
+    )
+    fieldsets = (
+        (
+            "Basic Information",
+            {
+                "fields": (
+                    "external_id",
+                    "name",
+                    "slug",
+                    "also_known_as",
+                    "category",
+                    "campus",
+                    "description",
+                )
+            },
+        ),
+        (
+            "Map and Location",
+            {"fields": ("latitude", "longitude", "uoa_map_link")},
+        ),
+        (
+            "Opening Hours",
+            {
+                "fields": (
+                    ("weekday_open_time", "weekday_close_time"),
+                    ("saturday_open_time", "saturday_close_time"),
+                    (
+                        "sunday_holiday_open_time",
+                        "sunday_holiday_close_time",
+                    ),
+                    "opening_hrs_notes",
+                )
+            },
+        ),
+        (
+            "Accessibility",
+            {"fields": ("id_access_needed", "additional_access_notes")},
+        ),
+        ("Image", {"fields": ("thumbnail_image",)}),
+        (
+            "Record Information",
+            {
+                "fields": (
+                    "created_at",
+                    "updated_at",
+                    "created_by",
+                    "updated_by",
+                )
+            },
+        ),
+    )
 
 
 class SpaceFacilityInline(admin.TabularInline):
     model = SpaceFacility
     extra = 1
+    fields = ("facility", "status", "notes")
     autocomplete_fields = ("facility",)
+
+
+class SpaceSensoryProfileInline(admin.TabularInline):
+    model = SpaceSensoryProfile
+    extra = 1
+    fields = ("sensory_attribute", "rating", "notes")
+    autocomplete_fields = ("sensory_attribute",)
 
 
 @admin.register(Space)
 class SpaceAdmin(ShowAllFieldsAdmin):
-    search_fields = (
-        "name",
-        "location__name",
-        "description",
-        "floor",
-    )
-
+    search_fields = ("name", "location__name", "description", "floor")
     list_filter = (
         "space_type",
         "is_quiet_zone",
@@ -482,12 +640,10 @@ class SpaceAdmin(ShowAllFieldsAdmin):
         "created_at",
         "updated_at",
     )
-
     autocomplete_fields = ("location",)
     list_select_related = ("location",)
     ordering = ("location__name", "name")
-    inlines = (SpaceFacilityInline,)
-
+    inlines = (SpaceFacilityInline, SpaceSensoryProfileInline)
     fieldsets = (
         (
             "Basic Information",
@@ -503,14 +659,7 @@ class SpaceAdmin(ShowAllFieldsAdmin):
         ),
         (
             "Location and Navigation",
-            {
-                "fields": (
-                    "latitude",
-                    "longitude",
-                    "floor",
-                    "wayfinding",
-                )
-            },
+            {"fields": ("latitude", "longitude", "floor", "wayfinding")},
         ),
         (
             "Opening Hours",
@@ -530,110 +679,24 @@ class SpaceAdmin(ShowAllFieldsAdmin):
             "Sensory and Accessibility",
             {
                 "fields": (
-                    "sensory_experience",
                     "is_quiet_zone",
                     "is_safe_space_neurodivergent_students",
                     "thumbnail_image",
                 )
             },
         ),
+        (
+            "Record Information",
+            {
+                "fields": (
+                    "created_at",
+                    "updated_at",
+                    "created_by",
+                    "updated_by",
+                )
+            },
+        ),
     )
-
-    def save_formset(self, request, form, formset, change):
-        """
-        Save and audit SpaceFacility records edited through the Space inline.
-        """
-        instances = formset.save(commit=False)
-
-        # Record inline deletions before deleting the database records.
-        for deleted_object in formset.deleted_objects:
-            create_audit_log(
-                obj=deleted_object,
-                action=AuditLog.Action.DELETED,
-                user=request.user,
-                previous_values=get_field_values(
-                    deleted_object,
-                    [
-                        field.name
-                        for field
-                        in deleted_object._meta.concrete_fields
-                        if field.name not in AUDIT_EXCLUDED_FIELDS
-                    ],
-                ),
-            )
-            deleted_object.delete()
-
-        for instance in instances:
-            is_created = instance.pk is None
-
-            matching_form = next(
-                (
-                    inline_form
-                    for inline_form in formset.forms
-                    if inline_form.instance is instance
-                ),
-                None,
-            )
-
-            changed_fields = []
-
-            if matching_form:
-                changed_fields = [
-                    field_name
-                    for field_name in matching_form.changed_data
-                    if field_name not in AUDIT_EXCLUDED_FIELDS
-                ]
-
-            previous_values = {}
-
-            # Retrieve the database values before saving an update.
-            if not is_created:
-                original = instance.__class__.objects.get(
-                    pk=instance.pk
-                )
-                previous_values = get_field_values(
-                    original,
-                    changed_fields,
-                )
-
-            if instance.created_by_id is None:
-                instance.created_by = request.user
-
-            instance.updated_by = request.user
-            instance.save()
-
-            if is_created:
-                created_fields = [
-                    field.name
-                    for field in instance._meta.concrete_fields
-                    if field.name not in AUDIT_EXCLUDED_FIELDS
-                ]
-
-                create_audit_log(
-                    obj=instance,
-                    action=AuditLog.Action.CREATED,
-                    user=request.user,
-                    changed_fields=created_fields,
-                    new_values=get_field_values(
-                        instance,
-                        created_fields,
-                    ),
-                )
-
-            elif changed_fields:
-                create_audit_log(
-                    obj=instance,
-                    action=AuditLog.Action.UPDATED,
-                    user=request.user,
-                    changed_fields=changed_fields,
-                    previous_values=previous_values,
-                    new_values=get_field_values(
-                        instance,
-                        changed_fields,
-                    ),
-                )
-
-        formset.save_m2m()
 
 @admin.register(LocationFacility)
 class LocationFacilityAdmin(ShowAllFieldsAdmin):
@@ -859,16 +922,8 @@ class AuditLogAdmin(admin.ModelAdmin):
     def has_add_permission(self, request):
         return False
 
-    def has_change_permission(
-        self,
-        request,
-        obj=None
-    ):
+    def has_change_permission(self, request, obj=None):
         return False
 
-    def has_delete_permission(
-        self,
-        request,
-        obj=None
-    ):
+    def has_delete_permission(self, request, obj=None):
         return False

@@ -389,26 +389,49 @@ class FeedbackSensoryRatingBatchSerializer(serializers.Serializer):
     """Accept a batch of sensory ratings for a location or space."""
 
     location = serializers.PrimaryKeyRelatedField(
-        queryset=Location.objects.all(), required=False
+        queryset=Location.objects.all(),
+        required=False,
     )
+
     space = serializers.PrimaryKeyRelatedField(
-        queryset=Space.objects.all(), required=False
+        queryset=Space.objects.all(),
+        required=False,
     )
+
     is_anonymous = serializers.BooleanField(default=True)
-    reporter_name = serializers.CharField(allow_blank=True, required=False)
-    reporter_email = serializers.EmailField(allow_blank=True, required=False)
+
+    reporter_name = serializers.CharField(
+        allow_blank=True,
+        required=False,
+    )
+
+    reporter_email = serializers.EmailField(
+        allow_blank=True,
+        required=False,
+    )
+
     ratings = serializers.DictField(
         child=serializers.IntegerField(min_value=1, max_value=5),
         allow_empty=False,
     )
 
     def validate(self, data):
-        has_loc = bool(data.get("location"))
+        has_location = bool(data.get("location"))
         has_space = bool(data.get("space"))
-        if has_loc == has_space:
+
+        # A submission must target either a location or a space, but it must not target both.
+        if has_location == has_space:
             raise serializers.ValidationError(
                 "Provide exactly one of 'location' or 'space'."
             )
+
+        # Personal details are required when the user chooses to submit non-anonymously.
+        if not data.get("is_anonymous", True):
+            if not data.get("reporter_name") or not data.get("reporter_email"):
+                raise serializers.ValidationError(
+                    "Name and email are required for non-anonymous feedback."
+                )
+
         return data
 
     def create(self, validated_data):
@@ -420,8 +443,12 @@ class FeedbackSensoryRatingBatchSerializer(serializers.Serializer):
         ratings = validated_data.get("ratings", {})
 
         created = []
+
         for attr_name, rating in ratings.items():
-            attr = SensoryAttribute.objects.get(name__iexact=attr_name)
+            attr = SensoryAttribute.objects.get(
+                name__iexact=attr_name
+            )
+
             created.append(
                 FeedbackSensoryRating.objects.create(
                     location=location,
@@ -433,4 +460,5 @@ class FeedbackSensoryRatingBatchSerializer(serializers.Serializer):
                     reporter_email=reporter_email,
                 )
             )
+
         return created
