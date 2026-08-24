@@ -40,6 +40,76 @@
       ],
     },
   ];
+
+  // Campus targets used by the clickable map arrows.
+  const TOUR_STOPS = [
+    { key: "old", campus: "old_aberdeen", label: "Old Aberdeen", center: CAMPUS_CENTER, zoom: 16 },
+    { key: "foresterhill", campus: "foresterhill", label: "Foresterhill", center: [57.1560, -2.1359], zoom: 16 },
+    { key: "hillhead", campus: "hillhead", label: "Hillhead", center: [57.1763, -2.1032], zoom: 16 },
+  ];
+  // Point a fraction of the way from `a` to `b` (0 = at a, 1 = at b). Used to
+  // place a jump arrow near the edge of the departure campus, pointing at
+  // the destination.
+  function pointBetween(a, b, frac) {
+    return [a[0] + (b[0] - a[0]) * frac, a[1] + (b[1] - a[1]) * frac];
+  }
+
+  // Screen-space bearing used to rotate each map arrow toward its destination.
+  function bearingDeg(fromLatLng, toLatLng) {
+    const pA = map.latLngToLayerPoint(fromLatLng);
+    const pB = map.latLngToLayerPoint(toLatLng);
+    return Math.atan2(pB.x - pA.x, -(pB.y - pA.y)) * (180 / Math.PI);
+  }
+
+  // Builds a permanent, clickable "jump arrow" between every pair of
+  // campuses (adapted from a Leaflet chevron-overlay pattern): each arrow
+  // sits between the two campuses, points at its target, carries a label,
+  // and flies the map there on click.
+  function buildJumpArrows() {
+    if (!map) return;
+    if (jumpArrowLayer) {
+      jumpArrowLayer.clearLayers();
+    } else {
+      jumpArrowLayer = L.layerGroup().addTo(map);
+    }
+
+    TOUR_STOPS.forEach((from) => {
+      TOUR_STOPS.forEach((to) => {
+        if (from.key === to.key) return;
+
+        const arrowPos = pointBetween(from.center, to.center, 0.32);
+        const angle = bearingDeg(arrowPos, to.center);
+
+        const icon = L.divIcon({
+          className: "jump-arrow-wrap",
+          html: '<div class="jump-arrow" style="transform:rotate(' + angle + 'deg)"></div>',
+          iconSize: [26, 24],
+          iconAnchor: [13, 12],
+        });
+
+        const marker = L.marker(arrowPos, {
+          icon: icon,
+          keyboard: true,
+          title: "Jump to " + to.label,
+          alt: "Jump to " + to.label,
+        });
+
+        marker.bindTooltip(to.label, {
+          direction: "bottom",
+          offset: [0, 8],
+          permanent: true,
+          className: "flyover-label",
+        });
+
+        marker.on("click", () => {
+          map.flyTo(to.center, to.zoom, { duration: 1.1 });
+        });
+
+        marker.addTo(jumpArrowLayer);
+      });
+    });
+  }
+
   // const SCALE_COLOURS = ["#2e7d32", "#7cb342", "#f9a825", "#ef6c00", "#c62828"];
   const SCALE_COLOURS = ["#c62828", "#ef6c00", "#f9a825", "#7cb342", "#2e7d32"];
   const QUIET_COLOUR = "#5e35b1";
@@ -93,6 +163,7 @@
   let markers = {}; // id -> L.marker
   let map;
   let campusOutlineLayers = [];
+  let jumpArrowLayer = null; // permanent clickable chevrons between campuses
   // radar chart removed
   let selectedId = null;
   let selectedSpaceId = null;
@@ -253,6 +324,8 @@
     updateCampusClip();
 
     drawCampusOutline();
+
+    buildJumpArrows();
   }
 
   function markerMeta(loc, activeSpaceType) {
@@ -286,10 +359,20 @@
     });
   }
 
+  // Makes a marker's icon arrive with a small pop/bounce instead of just appearing.
+  function animateMarkerIn(marker, delayMs) {
+    if (!marker) return;
+    const node = marker.getElement && marker.getElement();
+    if (!node) return;
+    node.classList.remove("pin-pop");
+    void node.offsetWidth; // force reflow so the animation can restart
+    setTimeout(() => node.classList.add("pin-pop"), delayMs || 0);
+  }
+
   function renderMarkers(locations, activeSpaceType) {
     Object.values(markers).forEach((m) => map.removeLayer(m));
     markers = {};
-    locations.forEach((loc) => {
+    locations.forEach((loc, idx) => {
       const marker = L.marker([loc.latitude, loc.longitude], {
         icon: makeIcon(loc, activeSpaceType),
         keyboard: true,
@@ -299,12 +382,13 @@
       marker.on("click", () => selectLocation(loc.id, true));
       marker.addTo(map);
       markers[loc.id] = marker;
+      animateMarkerIn(marker, Math.min(idx * 18, 450));
     });
   }
 
   function renderSpaceMarkers(spaces) {
     if (!spaces || !spaces.length) return;
-    spaces.forEach((space) => {
+    spaces.forEach((space, idx) => {
       if (!space.latitude || !space.longitude) return;
       const meta = SPACE_TYPE_META[space.space_type] || FALLBACK_SPACE;
       const icon = L.divIcon({
@@ -335,6 +419,7 @@
       });
       marker.addTo(map);
       markers["space-" + space.id] = marker;
+      animateMarkerIn(marker, Math.min(idx * 18, 450));
     });
   }
 
