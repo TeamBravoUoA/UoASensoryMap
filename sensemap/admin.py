@@ -530,7 +530,6 @@ class SpaceAdmin(ShowAllFieldsAdmin):
             "Sensory and Accessibility",
             {
                 "fields": (
-                    "sensory_experience",
                     "is_quiet_zone",
                     "is_safe_space_neurodivergent_students",
                     "thumbnail_image",
