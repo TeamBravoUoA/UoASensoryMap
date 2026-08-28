@@ -187,12 +187,15 @@
               ? ` width="${img.width}" height="${img.height}"`
               : "";
           return `
-      <a href="${escapeHtml(img.image)}" target="_blank" rel="noopener">
-        <img
-          src="${escapeHtml(img.image)}"
-          alt="${escapeHtml(img.caption || "Gallery image")}"${dim}
-          loading="lazy">
-      </a>`;
+      <figure>
+        <a href="${escapeHtml(img.image)}" target="_blank" rel="noopener">
+          <img
+            src="${escapeHtml(img.image)}"
+            alt="${escapeHtml(img.caption || "Gallery image")}"${dim}
+            loading="lazy">
+        </a>
+        ${img.caption ? `<figcaption>${escapeHtml(img.caption)}</figcaption>` : ""}
+      </figure>`;
         }
       )
       .join("");

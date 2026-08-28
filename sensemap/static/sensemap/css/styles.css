@@ -1710,6 +1710,17 @@ textarea {
   transform: scale(1.03);
 }
 
+#dp-gallery figure {
+  margin: 0;
+}
+
+#dp-gallery figcaption {
+  font-size: 0.78rem;
+  color: var(--muted);
+  margin-top: 0.35rem;
+  text-align: center;
+}
+
 @media (max-width: 720px) {
   .detail-page {
     padding: 1rem;
