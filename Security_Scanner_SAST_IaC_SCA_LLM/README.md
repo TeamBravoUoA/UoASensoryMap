@@ -16,7 +16,6 @@ so anyone can understand them — not only developers.
 
 - Python 3.12+
 - Install project dependencies: `pip install -r requirements.txt`
-- Install Checkov (IaC pillar): `pip install checkov`
 - A `.env` file with `OPENROUTER_API_KEY` set (see AI enrichment section)
 
 ## Scanner design
@@ -26,7 +25,7 @@ The scanner has three pillars, feeding a shared AI enrichment layer (see archite
 | Pillar | Connectivity |
 |---|---|
 | SAST | None — pure local file parsing, no network at all |
-| IaC | None — local subprocess call locally installed (Checkov) |
+| IaC | None — installed via Github Actions (Checkov) |
 | SCA | Remote HTTPS API (OSV), no auth required |
 | AI enrichment | Remote HTTPS API (OpenRouter), API key required |
 
@@ -57,7 +56,7 @@ Since UoA Sense Map does not currently provision infrastructure via Terraform, a
 
 **Connectivity:**
 
-Checkov runs entirely locally as an installed CLI tool — no API, no network request, no credentials needed. The scanner invokes it via a subprocess call (`subprocess.run(["checkov", ...])`), the same as typing the command directly in a terminal.
+Checkov runs on Github Actions — no API, no network request, no credentials needed. The scanner invokes it via a subprocess call (`subprocess.run(["checkov", ...])`), the same as typing the command directly in a terminal.
 
 **How it works:**
 
@@ -90,6 +89,8 @@ Connects to the OSV (Open Source Vulnerabilities) API over HTTPS — a free, pub
 4. Runs as part of the same CI/CD pipeline, alongside SAST and IaC
 
 **Scope:** scans every package listed in `requirements.txt` — this includes packages you directly chose (Django, DRF, Pillow, psycopg2-binary) as well as packages pulled in as dependencies of those but still explicitly pinned in the file (e.g. asgiref, sqlparse). Any package NOT listed in requirements.txt — i.e. resolved silently at install time without being pinned — falls outside this scanner's current scope, along with broader supply-chain integrity checks (unpinned versions, unhashed packages, CI Action pinning).Detecting these would require dynamic analysis (actually installing dependencies and inspecting the resolved environment), which is out of scope for this static analysis scanner.
+
+Does NOT perform reachability analysis — a flagged vulnerability may exist in a code path the application never actually calls (e.g. a vulnerability in a debug/desktop-only feature of a library used purely for server-side image processing). Determining true exploitability would require tracing the application's call graph against each vulnerability's specific affected function(s), a form of analysis beyond this scanner's static, version-based approach. Standard industry practice (upgrade to patched version regardless of confirmed reachability) is still the recommended remediation.
 
 ### Pillar 4: AI enrichment
 
@@ -173,7 +174,6 @@ LLM from Open AI
 development machine's device security policy (Smart App Control / Device Guard),
 which cannot be disabled without reinstalling Windows. 
 - The AI pillar therefore uses a hosted API via OpenRouter. This trades some data privacy (code is sent to a third party) for capability and easier CI integration — a documented compromise for a student project. 
-- A production security tool would likely favour local or self-hosted inference for data confidentiality.
 
 ## Standards referenced
 
