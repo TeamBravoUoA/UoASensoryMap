@@ -124,7 +124,8 @@ Design notes:
 OpenRouter hosted in a remote service. HTTP request through API request.
 
 **How it works:**
-[ Raw Findings ] ---> [ Build Structured Context Prompt ]
+```text
+ [ Raw Findings ] ---> [ Build Structured Context Prompt ]
                                     |
                                     v
                      [ Try Primary Model Pipeline ]
@@ -148,44 +149,41 @@ OpenRouter hosted in a remote service. HTTP request through API request.
                                        |
                                        v
                         [ Render Final Output / Report ]
+```
 
 **Scope:**
 Focuses on single-finding, localized contextual remediation (2–3 sentence business impact summary (why it matters) + language-native code fix (Concrete fix indicating specific line of code and file)) rather than repository-wide multi-file refactoring.
 
 ## Scanner Architecture
 
+## Scanner Architecture
+
+```text
 Security_Scanner_SAST_IaC_SCA_LLM/
-├── ai/
-│   ├── __init__.py
+├── ai/                              # Layer 2 — AI enrichment & plain-language explanations
 │   ├── test_qwen.py                 # Primary AI model connectivity testing
-│   └── threat_model.py              # Layer 2 — AI enrichment & plain-language explanations
+│   └── threat_model.py
 ├── IaC/                             # Pillar 3 — IaC: Infrastructure-as-code scanning engine
-│   ├── __init__.py
 │   └── IaC.py                       # Checkov execution wrapper for IaC config scanning
-├── infra/
+├── infra/                           # Demonstration IaC configs & test templates
 │   └── demo.tf                      # Terraform sample for end-to-end Checkov validation
 ├── SCA/                             # Pillar 2 — SCA: Software composition analysis engine
-│   ├── __init__.py
 │   └── sca_scanner_dependencies.py  # Dependency & known-CVE audit against OSV database
 ├── scanner/                         # Pillar 1 — SAST: Static analysis engine
-│   ├── __init__.py
 │   ├── findings.py                 # Core Finding data structures & standardization logic
 │   └── sast_scanner.py              # Static analysis of Python code via AST parsing
-├── tests_security_sast_sca_iac/    # Comprehensive test suite & validation framework
-│   ├── fixtures/                   # Synthetic test fixtures for scanner validation
-│   ├── __init__.py
+├── tests_security_sast_sca_iac/    # Comprehensive test suite & synthetic fixtures
 │   ├── test_iac.py                 # IaC test suite execution
 │   ├── test_sast.py                # SAST test suite execution
-│   └── test_sca.py                 # SCA test suite execution
-├── __init__.py
+│   ├── test_sca.py                 # SCA test suite execution
+│   └── fixtures/                   # Synthetic test fixtures for scanner validation
+├── UoASensoryMap/                   # Target application repository (scanned codebase), along with data, sensemap, requirements.txt, manage.py, etc. (all frontend and backend application files)
 ├── __main__.py                      # Package entrypoint (python -m Security_Scanner_SAST_IaC_SCA_LLM)
 ├── demo.py                          # Demonstration runner script
-├── format_report.py                # Output formatter & Markdown report generator
-├── README.md                       # Project documentation
-├── scan_report.md                  # Generated security scan report output
-├── UoASensoryMap/                  # Target application repository (scanned codebase), along with data, sensemap  
-                                    #requirements.txt, manage.py, etc. (all frontend and backend application files)
-
+├── format_report.py                 # Output formatter & Markdown report generator
+├── README.md                        # Project documentation
+└── scan_report.md                   # Generated security scan report output
+```
 
 ## How to run
 python demo.py (if you are running it in the terminal)
