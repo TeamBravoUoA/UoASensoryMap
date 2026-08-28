@@ -102,12 +102,6 @@ The location list supports simple filters:
 Valid sensory axes are `auditory`, `visual`, `olfactory`, `thermal`, and
 `vestibular`.
 
-## Project Documentation
-
-- Team charter: `docs/team_charter.md`
-- Database schema: `docs/database_schema.md`
-- Report starter notes: `docs/report_drafts.md`
-
 ## Project Structure
 
 ```
