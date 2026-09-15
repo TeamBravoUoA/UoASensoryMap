@@ -103,7 +103,10 @@ class LocationListAPITests(TestCase):
         self.assertTrue(library["has_quiet_zone"])
         self.assertTrue(library["has_neurodivergent_safe"])
         self.assertEqual(library["category_display"], "Library")
-        self.assertEqual(library["facilities_available"], ["Step-free access", "Wi-Fi"])
+        self.assertEqual(
+            [facility["name"] for facility in library["facilities_available"]],
+            ["Step-free access", "Wi-Fi"],
+        )
 
     def test_filter_by_category(self):
         data = self.client.get("/api/locations/?category=social_building").json()
