@@ -8,38 +8,54 @@
   // --- Config ---------------------------------------------------------------
   const CAMPUS_CENTER = [57.1648, -2.1015]; // Old Aberdeen campus
 
+  // Free CARTO basemap tiles require a key as of Aug 2026 (unkeyed requests
+  // get a watermarked "API KEY REQUIRED" placeholder instead of real tiles).
+  const CARTO_API_KEY = "cb1_3n6e_1_884f8bbb347c4251b96b30f8";
+
+  // Used for the CARTO-failure fallback layer and the campus spotlight layer,
+  // replacing raw tile.openstreetmap.org for both so traffic growth doesn't
+  // risk tripping OSM's tile usage policy again (get one at maptiler.com).
+  const MAPTILER_KEY = "PGouwGPUKGUTyZtokLe0";
+
   // Circular "spotlight" around each UoA campus.
-  // Each campus gets a set of stacked clip-path panes (outer/mid/core) to
-  // transition from full-colour campus tiles to the darker surrounding basemap.
+  // All campuses share ONE extra full-colour tile layer (SPOTLIGHT_PANE); the
+  // outer/mid/core rings below are rendered as CSS mask-image radial-gradient
+  // stops on that single pane rather than separate tile layers per ring. An
+  // earlier version stacked 3 unbounded OSM tile layers per campus (9 total)
+  // using clip-path, which multiplied tile requests ~10x on every pan/zoom
+  // and tripped OpenStreetMap's tile usage policy (requests started coming
+  // back as branded "Access blocked" placeholder tiles instead of real ones).
   const CAMPUS_SPOTLIGHTS = [
     {
       name: "old",
       center: CAMPUS_CENTER,
       steps: [
-        { pane: "campus-tiles-old-outer", radius: 700, opacity: 0.25, zIndex: 230 },
-        { pane: "campus-tiles-old-mid", radius: 560, opacity: 0.55, zIndex: 240 },
-        { pane: "campus-tiles-old-core", radius: 420, opacity: 1, zIndex: 250 },
+        { radius: 1050, opacity: 0.25 },
+        { radius: 850, opacity: 0.55 },
+        { radius: 650, opacity: 1 },
       ],
     },
     {
       name: "hillhead",
       center: [57.1763, -2.1032],
       steps: [
-        { pane: "campus-tiles-hillhead-outer", radius: 500, opacity: 0.25, zIndex: 230 },
-        { pane: "campus-tiles-hillhead-mid", radius: 400, opacity: 0.55, zIndex: 240 },
-        { pane: "campus-tiles-hillhead-core", radius: 300, opacity: 1, zIndex: 250 },
+        { radius: 750, opacity: 0.25 },
+        { radius: 600, opacity: 0.55 },
+        { radius: 450, opacity: 1 },
       ],
     },
     {
       name: "foresterhill",
       center: [57.1560, -2.1359],
       steps: [
-        { pane: "campus-tiles-foresterhill-outer", radius: 500, opacity: 0.25, zIndex: 230 },
-        { pane: "campus-tiles-foresterhill-mid", radius: 400, opacity: 0.55, zIndex: 240 },
-        { pane: "campus-tiles-foresterhill-core", radius: 300, opacity: 1, zIndex: 250 },
+        { radius: 750, opacity: 0.25 },
+        { radius: 600, opacity: 0.55 },
+        { radius: 450, opacity: 1 },
       ],
     },
   ];
+
+  const SPOTLIGHT_PANE = "campus-spotlight-tiles";
 
   // Campus targets used by the clickable map arrows.
   const TOUR_STOPS = [
@@ -228,31 +244,61 @@
     });
   }
 
-  // Keeps the circular campus "spotlight" panes clipped to a circle (rather
-  // than Leaflet's rectangular tile `bounds`) so the reveal around campus
-  // matches a round vignette, e.g. TCD Sense Map's campus view. The clip-path
-  // is expressed in the pane's own local pixel space, so panning (a CSS
-  // transform on the pane) carries the clip along with the tiles for free —
-  // this only needs recalculating when the zoom level (and so metres-per-pixel)
+  // Paints the circular campus "spotlight" rings as a CSS mask-image on the
+  // single shared SPOTLIGHT_PANE, instead of clipping several separate tile
+  // layers. Each campus contributes one radial-gradient with hard stops at
+  // its outer/mid/core radii (matching the step opacities); the gradients
+  // are combined in one mask-image since campuses don't overlap. The mask is
+  // expressed in the pane's own local pixel space, so panning (a CSS
+  // transform on the pane) carries it along with the tiles for free — this
+  // only needs recalculating when the zoom level (and so metres-per-pixel)
   // changes.
-  function updateCampusClip() {
+  function updateCampusSpotlight() {
     if (!map) return;
+    const pane = map.getPane(SPOTLIGHT_PANE);
+    if (!pane) return;
     const zoom = map.getZoom();
 
-    CAMPUS_SPOTLIGHTS.forEach((campus) => {
+    // Leaflet panes hold only absolutely-positioned tile <img>s, so with no
+    // explicit size they stay a 0x0 box (children don't contribute to auto
+    // sizing). mask-image needs a real, sized canvas to rasterize the
+    // gradient onto — on a 0x0 box there's nothing to rasterize, so the
+    // whole layer silently renders as fully hidden. Sizing the pane to the
+    // current viewport gives the mask something to paint onto; the overflow
+    // stays visible so panned-in tiles outside this box still show through.
+    const mapSize = map.getSize();
+    pane.style.width = mapSize.x + "px";
+    pane.style.height = mapSize.y + "px";
+
+    const gradients = CAMPUS_SPOTLIGHTS.map((campus) => {
       const centerPoint = map.project(L.latLng(campus.center), zoom).subtract(map.getPixelOrigin());
       const metersPerPixel =
         (156543.03392 * Math.cos((campus.center[0] * Math.PI) / 180)) / Math.pow(2, zoom);
 
-      campus.steps.forEach((step) => {
-        const pane = map.getPane(step.pane);
-        if (!pane) return;
-        const radiusPx = step.radius / metersPerPixel;
-        const clip = "circle(" + radiusPx + "px at " + centerPoint.x + "px " + centerPoint.y + "px)";
-        pane.style.clipPath = clip;
-        pane.style.webkitClipPath = clip;
-      });
+      // steps are outer -> core (largest radius first); walk core -> outer
+      // so the gradient stops start at the centre (0px) and grow outward.
+      let prevPx = 0;
+      const stops = [];
+      campus.steps
+        .slice()
+        .reverse()
+        .forEach((step) => {
+          const px = step.radius / metersPerPixel;
+          stops.push("rgba(255,255,255," + step.opacity + ") " + prevPx + "px");
+          stops.push("rgba(255,255,255," + step.opacity + ") " + px + "px");
+          prevPx = px;
+        });
+      stops.push("transparent " + prevPx + "px");
+
+      return (
+        "radial-gradient(circle at " + centerPoint.x + "px " + centerPoint.y + "px, " +
+        stops.join(", ") + ")"
+      );
     });
+
+    const maskValue = gradients.join(", ");
+    pane.style.maskImage = maskValue;
+    pane.style.webkitMaskImage = maskValue;
   }
 
   // --- Map ------------------------------------------------------------------
@@ -262,7 +308,7 @@
     // Base layer: light, label-free tiles everywhere. This is what shows through
     // for anywhere off-campus, so the city around Old Aberdeen recedes into the
     // background instead of competing with the campus markers.
-    const cartoBase = L.tileLayer("https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}.png", {
+    const cartoBase = L.tileLayer("https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}.png?key=" + CARTO_API_KEY, {
       maxZoom: 19,
       subdomains: "abcd",
       attribution:
@@ -289,39 +335,37 @@
       if (cartoErrorCount >= 5 && !baseFallbackDone) {
         baseFallbackDone = true;
         map.removeLayer(cartoBase);
-        L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        L.tileLayer("https://api.maptiler.com/maps/streets-v4/256/{z}/{x}/{y}.png?key=" + MAPTILER_KEY, {
           maxZoom: 19,
           attribution:
-            '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+            '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, ' +
+            '&copy; <a href="https://www.maptiler.com/copyright/">MapTiler</a>',
         }).addTo(map);
       }
     });
 
-    // Three stacked overlays create a soft transition from campus to surroundings.
-    // Each pane holds a full (unbounded) tile layer; a CSS circular clip-path
-    // (see updateCampusClip) restricts what's actually visible to a circle
-    // around campus, instead of Leaflet's rectangular `bounds` option.
-    CAMPUS_SPOTLIGHTS.forEach((campus) => {
-      campus.steps.forEach((step) => {
-        const pane = map.createPane(step.pane);
-        pane.style.zIndex = String(step.zIndex);
-        pane.style.pointerEvents = "none";
+    // Single full-colour tile layer shared by every campus; updateCampusSpotlight()
+    // masks it into the per-campus "spotlight" rings via CSS mask-image instead of
+    // clip-path, so this stays one unbounded tile layer instead of one per ring.
+    // MapTiler (not raw OSM) so traffic growth doesn't risk tripping OSM's
+    // tile usage policy again — this is the layer that generates the most
+    // request volume since it's shared across all three campuses.
+    const spotlightPane = map.createPane(SPOTLIGHT_PANE);
+    spotlightPane.style.zIndex = "230";
+    spotlightPane.style.pointerEvents = "none";
+    L.tileLayer("https://api.maptiler.com/maps/bright-v2/256/{z}/{x}/{y}.png?key=" + MAPTILER_KEY, {
+      maxZoom: 19,
+      pane: SPOTLIGHT_PANE,
+      attribution:
+        '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, ' +
+        '&copy; <a href="https://www.maptiler.com/copyright/">MapTiler</a>',
+    }).addTo(map);
 
-        L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-          maxZoom: 19,
-          pane: step.pane,
-          opacity: step.opacity,
-          attribution:
-            '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-        }).addTo(map);
-      });
-    });
-
-    // Recompute the circular clip whenever zoom changes (metres-per-pixel and
-    // the pane's pixel origin both change); panning is handled for free since
-    // the clip travels with the pane's own CSS transform.
-    map.on("zoomend viewreset resize", updateCampusClip);
-    updateCampusClip();
+    // Recompute the mask whenever zoom changes (metres-per-pixel and the
+    // pane's pixel origin both change); panning is handled for free since
+    // the mask travels with the pane's own CSS transform.
+    map.on("zoomend viewreset resize", updateCampusSpotlight);
+    updateCampusSpotlight();
 
     drawCampusOutline();
 
