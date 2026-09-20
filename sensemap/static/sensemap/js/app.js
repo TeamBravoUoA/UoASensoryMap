@@ -7,6 +7,8 @@
 
   // --- Config ---------------------------------------------------------------
   const CAMPUS_CENTER = [57.1648, -2.1015]; // Old Aberdeen campus
+  const HILLHEAD_CENTER = [57.1763, -2.1032];
+  const FORESTERHILL_CENTER = [57.1560, -2.1359];
 
   // Free CARTO basemap tiles require a key as of Aug 2026 (unkeyed requests
   // get a watermarked "API KEY REQUIRED" placeholder instead of real tiles).
@@ -28,6 +30,7 @@
   const CAMPUS_SPOTLIGHTS = [
     {
       name: "old",
+      label: "Old Aberdeen",
       center: CAMPUS_CENTER,
       steps: [
         { radius: 1050, opacity: 0.25 },
@@ -37,7 +40,8 @@
     },
     {
       name: "hillhead",
-      center: [57.1763, -2.1032],
+      label: "Hill Head",
+      center: HILLHEAD_CENTER,
       steps: [
         { radius: 750, opacity: 0.25 },
         { radius: 600, opacity: 0.55 },
@@ -46,7 +50,8 @@
     },
     {
       name: "foresterhill",
-      center: [57.1560, -2.1359],
+      label: "Foresterhill",
+      center: FORESTERHILL_CENTER,
       steps: [
         { radius: 750, opacity: 0.25 },
         { radius: 600, opacity: 0.55 },
@@ -60,8 +65,8 @@
   // Campus targets used by the clickable map arrows.
   const TOUR_STOPS = [
     { key: "old", campus: "old_aberdeen", label: "Old Aberdeen", center: CAMPUS_CENTER, zoom: 16 },
-    { key: "foresterhill", campus: "foresterhill", label: "Foresterhill", center: [57.1560, -2.1359], zoom: 16 },
-    { key: "hillhead", campus: "hillhead", label: "Hillhead", center: [57.1763, -2.1032], zoom: 16 },
+    { key: "foresterhill", campus: "foresterhill", label: "Foresterhill", center: FORESTERHILL_CENTER, zoom: 16 },
+    { key: "hillhead", campus: "hillhead", label: "Hill Head", center: HILLHEAD_CENTER, zoom: 16 },
   ];
   // Point a fraction of the way from `a` to `b` (0 = at a, 1 = at b). Used to
   // place a jump arrow near the edge of the departure campus, pointing at
@@ -206,7 +211,7 @@
     return (
       '<img src="' + ICON_BASE + meta.iconUrl +
       '" alt="' + escapeHtml(alt || meta.label || "") +
-      '" class="icon-svg" loading="lazy">'
+      '" class="icon-svg">'
     );
   }
 
@@ -230,9 +235,9 @@
     campusOutlineLayers = [];
 
     CAMPUS_SPOTLIGHTS.forEach((campus) => {
-      const core = campus.steps[campus.steps.length - 1];
+      const outer = campus.steps[0];
       const layer = L.circle(campus.center, {
-        radius: core.radius,
+        radius: outer.radius,
         color: "#ffffff",
         weight: 1.2,
         opacity: 0.4,
@@ -240,6 +245,12 @@
         dashArray: "4 7",
         interactive: false,
       }).addTo(map);
+      layer.bindTooltip(campus.label, {
+        permanent: true,
+        direction: "center",
+        className: "campus-label",
+        interactive: false,
+      });
       campusOutlineLayers.push(layer);
     });
   }
@@ -249,10 +260,8 @@
   // layers. Each campus contributes one radial-gradient with hard stops at
   // its outer/mid/core radii (matching the step opacities); the gradients
   // are combined in one mask-image since campuses don't overlap. The mask is
-  // expressed in the pane's own local pixel space, so panning (a CSS
-  // transform on the pane) carries it along with the tiles for free — this
-  // only needs recalculating when the zoom level (and so metres-per-pixel)
-  // changes.
+  // expressed in the pane's own local pixel space. Recalculate after movement
+  // as well as zoom changes so a campus remains visible after panning to it.
   function updateCampusSpotlight() {
     if (!map) return;
     const pane = map.getPane(SPOTLIGHT_PANE);
@@ -269,6 +278,10 @@
     const mapSize = map.getSize();
     pane.style.width = mapSize.x + "px";
     pane.style.height = mapSize.y + "px";
+    pane.style.maskRepeat = "no-repeat";
+    pane.style.webkitMaskRepeat = "no-repeat";
+    pane.style.maskSize = mapSize.x + "px " + mapSize.y + "px";
+    pane.style.webkitMaskSize = mapSize.x + "px " + mapSize.y + "px";
 
     const gradients = CAMPUS_SPOTLIGHTS.map((campus) => {
       const centerPoint = map.project(L.latLng(campus.center), zoom).subtract(map.getPixelOrigin());
@@ -299,6 +312,8 @@
     const maskValue = gradients.join(", ");
     pane.style.maskImage = maskValue;
     pane.style.webkitMaskImage = maskValue;
+    pane.style.maskComposite = "add";
+    pane.style.webkitMaskComposite = "source-over";
   }
 
   // --- Map ------------------------------------------------------------------
@@ -361,10 +376,8 @@
         '&copy; <a href="https://www.maptiler.com/copyright/">MapTiler</a>',
     }).addTo(map);
 
-    // Recompute the mask whenever zoom changes (metres-per-pixel and the
-    // pane's pixel origin both change); panning is handled for free since
-    // the mask travels with the pane's own CSS transform.
-    map.on("zoomend viewreset resize", updateCampusSpotlight);
+    // Recompute the mask whenever zoom, movement, or viewport size changes.
+    map.on("zoomend moveend viewreset resize", updateCampusSpotlight);
     updateCampusSpotlight();
 
     drawCampusOutline();
